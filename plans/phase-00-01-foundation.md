@@ -1,6 +1,6 @@
 # Uitvoeringsplan fase 0 en fase 1 — fundament, taken en subtaken
 
-- Status: **fase 0A goedgekeurd; schone technische basis wordt voorbereid voor de eerste commit**
+- Status: **technische foundation goedgekeurd; O20-visuele proef wacht op Peters expliciete goedkeuring**
 - Datum: **18 juli 2026**
 - Scope: **fase 0 (projectbasis) en fase 1 (taken en subtaken)**
 - Implementatie: **technische fase-0A-basis gevalideerd; productfunctionaliteit en productie-infrastructuur nog niet gestart**
@@ -911,3 +911,12 @@ Dit document bevat twee afzonderlijke stopcondities.
 - Het tijdelijke roundtrip-script is vervangen door een generieke, read-only databaseprobe die alleen verbinding, `SELECT 1` en desgewenst een schone Prisma-basis controleert zonder database-inhoud te schrijven.
 - De Vitest-test is generiek gemaakt en controleert alleen Node.js-major 24 en dat nog geen productdatamodel bestaat. Historische documentatie van de uitgevoerde stop/go-test blijft behouden.
 - Login, gebruikers- en sessiemodellen, takenmodellen, frontendontwerp, Vercel en externe koppelingen zijn niet gestart.
+
+### 18 juli 2026 — O20-visuele goedkeuringspoort voorbereid
+
+- Vanaf de actuele `main` is de aparte branch `feature/visual-foundation` gemaakt; er is niets gecommit of gepusht.
+- Het voorlopige kleurenpalet, de typografie, spacing, knoppen, formulieren, statuslabels, focusweergave en responsive breekpunten zijn vastgelegd in `docs/VISUAL_PROPOSAL.md`. `docs/DECISIONS.md` is bewust niet gewijzigd vóór Peters beoordeling.
+- Alleen `/taken` bevat een werkende visuele proef met duidelijk gemarkeerde fictieve voorbeeldgegevens en lokale React-state. De proef gebruikt geen API, Neon-write of tijdelijk productiedatamodel.
+- De proef toont twee hoofdtaken, verplichte subtaakdeadlines, Open, Wachten, Afgerond en afgeleid Geblokkeerd, de drie deadlinebeelden, tijdsinschattingen en een bewerkingsformulier met expliciet `Opslaan`.
+- Desktop en mobiel zijn lokaal gecontroleerd. De mobiele pagina gebruikt een expliciete `device-width`-viewport en heeft bij 390 px geen horizontale overflow.
+- De stopconditie uit O20 is actief: geen ander scherm en geen bredere frontendimplementatie vóór Peters expliciete visuele goedkeuring.
