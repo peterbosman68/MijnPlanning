@@ -1,0 +1,41 @@
+# Dependencies
+/node_modules/
+
+# Next.js
+/.next/
+/out/
+
+# Test and coverage output
+/coverage/
+/test-results/
+/playwright-report/
+
+# Local logs
+*.log
+npm-debug.log*
+
+# Environment files and secrets
+.env
+.env.*
+!.env.example
+
+# Prisma and database artifacts
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# Private data and local exports
+/backups/
+/exports/
+/private/
+
+# Operating system and editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
