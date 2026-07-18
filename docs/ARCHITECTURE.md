@@ -397,7 +397,7 @@ Gebruik minimaal:
 
 Gebruik uitsluitend de bestaande private repository `https://github.com/peterbosman68/MijnPlanning`; maak geen nieuwe repository. Bij implementatiestart wordt eerst gecontroleerd of de bestaande projectmap al een Git-repository is. Alleen als dat niet zo is, wordt Git in die map geïnitialiseerd en wordt de bestaande repository na inhoudscontrole als `origin` gekoppeld.
 
-Voor regels over uitvoeringsplannen is uitsluitend `PLANS.md` in de hoofdmap de bron van waarheid. `docs/PLANS.md` wordt niet gebruikt.
+Voor regels over uitvoeringsplannen is uitsluitend `PLANS.md` in de hoofdmap de bron van waarheid.
 
 ```text
 mijnplanning/

@@ -41,7 +41,7 @@ Voor dit plan zijn volledig gelezen:
 - `docs/ROADMAP.md`;
 - `docs/DECISIONS.md`.
 
-Voor regels over uitvoeringsplannen wordt uitsluitend `PLANS.md` in de hoofdmap gebruikt. `docs/PLANS.md` is geen bron van waarheid.
+Voor regels over uitvoeringsplannen wordt uitsluitend `PLANS.md` in de hoofdmap gebruikt.
 
 Bij verschillen geldt de vastgelegde volgorde: actuele instructie van Peter, `docs/DECISIONS.md`, `docs/PRODUCT_RULES.md`, `AGENTS.md`, overige documentatie, code en ten slotte prototypes.
 
@@ -51,7 +51,7 @@ Bij verschillen geldt de vastgelegde volgorde: actuele instructie van Peter, `do
 - De bestaande private GitHub-repository is `https://github.com/peterbosman68/MijnPlanning`. Er wordt geen nieuwe repository aangemaakt.
 - De lokale Git-status wordt pas bij de goedgekeurde implementatiestart opnieuw gecontroleerd. Als de bestaande projectmap dan nog geen Git-repository is, wordt Git daar geïnitialiseerd en wordt de bestaande repository als `origin` gekoppeld.
 - Bestaande lokale of remote bestanden worden niet overschreven voordat inhoud en Git-status zijn gecontroleerd.
-- Alleen het top-level `PLANS.md` is de bron voor uitvoeringsplanregels; `docs/PLANS.md` wordt genegeerd.
+- Alleen het top-level `PLANS.md` is de bron voor uitvoeringsplanregels.
 - `plans/phase-00-01-foundation.md` was leeg vóór deze planwijziging.
 - Neon Postgres via Vercel Marketplace is als provider gekozen, maar er is nog geen database geprovisioneerd.
 - Er zijn nog geen npm-pakketten geïnstalleerd en er is geen lockfile.
@@ -780,7 +780,7 @@ Alle onderstaande besluiten zijn definitief vastgelegd. Ze zijn geen open keuzes
 | O16 | Standaard archiveren; hard delete blokkeren bij tijdregistratie, bijlagen, importhistorie of dependencies; nooit dependencycascade. | `RESTRICT`, referentiechecks en geen stille gegevensverwijdering. | Besloten |
 | O17 | Taakduur mag eerst leeg zijn; taak zonder subtaken is dan niet planbaar; taak met subtaken krijgt geen extra hoofdtaakduur. | Nullable taakduur en afgeleide som van open subtaken. | Besloten |
 | O18 | Fase 1 bedient Open, Wachten, Afgerond, Gearchiveerd en Geannuleerd; Geblokkeerd is afgeleid; timerstatussen volgen in fase 2. | Fase-1-UI kan geen toekomstige timerstatussen zetten. | Besloten |
-| O19 | Alleen top-level `PLANS.md` is de planinstructiebron. | `docs/PLANS.md` wordt niet geraadpleegd of als bron genoemd. | Besloten |
+| O19 | Alleen top-level `PLANS.md` is de planinstructiebron. | Alle verwijzingen naar uitvoeringsplanregels gebruiken top-level `PLANS.md`. | Besloten |
 | O20 | Na de technische projectbasis volgt vóór brede frontendimplementatie een verplichte visuele goedkeuringspoort: concreet palet met hexwaarden, vastgelegde typografie, spacing, knoppen, formulieren en statuslabels, plus één werkende Taken-versie op desktop en mobiel. | Geen overige volledige schermen of brede toepassing van het ontwerp vóór Peters expliciete goedkeuring. | Besloten |
 
 ## 16. Belangrijkste risico’s

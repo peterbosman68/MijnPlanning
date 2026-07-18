@@ -239,7 +239,7 @@ Nieuwe besluiten worden onderaan toegevoegd met datum.
 ### O19 — uitvoeringsplannen
 
 - Alleen `PLANS.md` in de hoofdmap is de bron voor regels over uitvoeringsplannen.
-- `docs/PLANS.md` wordt niet als bron van waarheid gebruikt.
+- Alle verwijzingen naar regels voor uitvoeringsplannen wijzen naar top-level `PLANS.md`.
 
 ### O20 — verplichte visuele goedkeuring
 

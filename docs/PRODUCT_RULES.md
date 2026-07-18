@@ -363,7 +363,7 @@ Formulieren voor taken en subtaken gebruiken een expliciete knop `Opslaan`. Time
 - Richt Vercel Preview pas in nadat fase 0 lokaal slaagt.
 - Voeg Vercel Blob, uploads en bijlagen pas in de latere bijlagenfase toe.
 - Gebruik uitsluitend de bestaande private repository `https://github.com/peterbosman68/MijnPlanning` en maak geen nieuwe repository.
-- Gebruik uitsluitend `PLANS.md` in de hoofdmap als bron voor uitvoeringsplanregels; `docs/PLANS.md` is geen bron van waarheid.
+- Gebruik uitsluitend `PLANS.md` in de hoofdmap als bron voor uitvoeringsplanregels.
 
 ---
 
