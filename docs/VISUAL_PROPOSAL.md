@@ -1,15 +1,15 @@
-# MijnPlanning — voorlopig visueel voorstel O20
+# MijnPlanning — tweede voorlopig visueel voorstel O20
 
-- Status: **voorstel ter visuele beoordeling door Peter**
+- Status: **eerste richting afgewezen; wezenlijk rustigere tweede richting ter visuele beoordeling door Peter**
 - Datum: **18 juli 2026**
 - Scope: **uitsluitend visuele proef van `/taken`**
 - Besluitstatus: **nog niet definitief; `docs/DECISIONS.md` blijft ongewijzigd**
 
 ## 1. Ontwerpintentie
 
-MijnPlanning moet aanvoelen als een rustig en betrouwbaar werkinstrument: compact genoeg om snel te scannen, maar ruim en leesbaar genoeg voor dagelijks gebruik door een gebruiker van ongeveer zestig jaar. De interface gebruikt één duidelijke primaire actie, weinig schaduw, herkenbare hiërarchie en statuskleuren die altijd door tekst worden ondersteund.
+MijnPlanning moet aanvoelen als een rustig en betrouwbaar werkinstrument: compact genoeg om snel te scannen, maar ruim en leesbaar genoeg voor dagelijks gebruik door een gebruiker van ongeveer zestig jaar. De tweede richting gebruikt één primaire inhoudskolom, klapt de geselecteerde hoofdtaak inline open en laat de titel, deadline, resterende tijd en het echte risico de hiërarchie bepalen. Randen, schaduwen, labels en permanente detailvlakken worden tot het noodzakelijke beperkt.
 
-De proef vermijdt paarse gradients, een generiek dashboard, decoratieve grafieken, grote lege vlakken, overmatig afgeronde kaarten, te kleine lichtgrijze tekst en meerdere concurrerende primaire knoppen.
+De proef vermijdt paarse gradients, een generiek dashboard, decoratieve grafieken, grote lege vlakken, overmatig afgeronde kaarten, kaarten-in-kaarten, een permanente lijst-detailindeling, te kleine lichtgrijze tekst en meerdere concurrerende primaire knoppen.
 
 ## 2. Kleurenpalet
 
@@ -177,7 +177,9 @@ Verplichte beoordelingsformaten: 1440×900, 1024×768, 390×844 en 360×800. Con
 
 ## 11. Taken-proef
 
-Desktop gebruikt een compacte taaklijst links en het geselecteerde taakdetail rechts. Mobiel stapelt kop, takenlijst, detail, subtaken en formulier in dezelfde logische volgorde. Hoofdtaken hebben meer visueel gewicht dan subtaken; subtaken gebruiken een ingesprongen lijn en compactere rijen.
+Desktop, tablet en mobiel gebruiken dezelfde primaire inhoudskolom. Hoofdtaken zijn compacte rijen met titel, deadline, resterende tijd en alleen relevante status- of risico-informatie. De geselecteerde hoofdtaak klapt inline open. Subtaken staan daaronder als rustige regels met dunne scheidingslijnen; een formulier voor een nieuwe subtaak opent uitsluitend op verzoek.
+
+Er is geen permanente lijst-detailindeling, geen blauwe proefmelding over de volle breedte en geen `Open`-label zonder extra informatiewaarde. Omschrijving en schattingsdetails blijven verborgen totdat Peter die opvraagt. De geopende hoofdtaak houdt één direct bereikbare actie `+ Subtaak`; `Nieuwe taak` blijft compact bovenaan.
 
 Alle gegevens in `/taken` zijn expliciet gemarkeerde voorbeeldgegevens. De proef gebruikt geen API, databasewrite, productiegegevens of definitief productdatamodel.
 
@@ -195,3 +197,20 @@ Peter beoordeelt vóór definitieve vastlegging minimaal:
 - formulierdichtheid en de zichtbaarheid van `Opslaan`;
 - radii, randen, beperkte schaduw en focusring;
 - de gekozen breekpunten en mobiele stapeling.
+
+## 13. Voorstel O21 — subtaak toevoegen tijdens het werken
+
+O21 is **uitsluitend een voorstel** totdat Peter dit na de visuele beoordeling expliciet goedkeurt. Het voorstel wordt nog niet opgenomen in `docs/DECISIONS.md`.
+
+- Bij iedere open, actieve of wachtende hoofdtaak kan op ieder moment een nieuwe subtaak worden toegevoegd.
+- De knop `+ Subtaak toevoegen` blijft zichtbaar wanneer de hoofdtaak geopend of geselecteerd is.
+- Het toevoegen van een subtaak stopt een eventueel lopende timer niet.
+- Titel en deadline van de subtaak zijn verplicht.
+- Wanneer de hoofdtaak een deadline heeft, mag de deadline van de nieuwe subtaak daar niet voorbij liggen.
+- Na opslaan wordt de planning direct opnieuw berekend.
+- De nieuwe subtaak wordt niet automatisch actief.
+- Bij een afgeronde hoofdtaak vraagt MijnPlanning of de hoofdtaak opnieuw moet worden geopend.
+- Een gearchiveerde of geannuleerde taak moet eerst worden hersteld.
+- Wanneer de eerste subtaak wordt toegevoegd aan een uitvoerbare hoofdtaak, wordt de hoofdtaak een verzameltaak en wordt de hoofdtaakduur niet boven op de subtaken gepland.
+
+De O20-proef demonstreert alleen de lokale interactie en de zichtbare gevolgen. De echte validatie, opslag, timercoördinatie en herberekening horen later in domeinservices en servermutaties en worden niet in deze visuele fase vooruitgebouwd.

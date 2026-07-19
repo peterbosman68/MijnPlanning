@@ -1,26 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import type { FormEvent } from "react";
 
 import styles from "./taken-visual-prototype.module.css";
 
-type TaskStatus = "Open" | "Wachten" | "Afgerond";
-type SubtaskStatus = TaskStatus | "Geblokkeerd";
-type RiskLevel = "green" | "orange" | "red";
+type TaskStatus = "open" | "waiting" | "completed";
+type SubtaskStatus = "open" | "waiting" | "blocked" | "completed";
+type RiskLevel = "none" | "green" | "orange" | "red";
 
 type SubtaskExample = {
   id: string;
   title: string;
-  description: string;
   status: SubtaskStatus;
   deadline: string;
-  estimate: string;
+  estimatedMinutes: number | null;
+  remainingMinutes: number;
+  risk: RiskLevel;
+  riskExplanation?: string;
   dependency?: string;
-  risk: {
-    level: RiskLevel;
-    label: "Op tijd" | "Kleine marge" | "Risico";
-    explanation: string;
-  };
+  timerRunning?: boolean;
 };
 
 type TaskExample = {
@@ -28,592 +27,614 @@ type TaskExample = {
   title: string;
   description: string;
   status: TaskStatus;
-  deadlineLabel: string | null;
-  deadlineValue: string;
-  estimate: string;
+  deadline: string | null;
+  ownRemainingMinutes: number;
+  generalEstimate: string;
   personalAdvice: string;
   userChoice: string;
-  completedCount: number;
-  risk: {
-    level: RiskLevel;
-    label: "Op tijd" | "Kleine marge";
-    explanation: string;
-  };
-  subtasks: readonly SubtaskExample[];
+  risk: RiskLevel;
+  riskExplanation?: string;
+  subtasks: SubtaskExample[];
 };
 
-type DraftTask = {
+type SubtaskDraft = {
   title: string;
-  description: string;
   deadline: string;
-  status: TaskStatus;
-  userChoice: string;
+  durationMinutes: string;
 };
 
-// Tijdelijke, niet-gevoelige voorbeeldgegevens voor uitsluitend de O20-visuele proef.
-// Deze gegevens komen niet uit Neon en worden nergens buiten lokale React-state opgeslagen.
+type SubtaskErrors = Partial<Record<keyof SubtaskDraft, string>>;
+
+const EMPTY_SUBTASK_DRAFT: SubtaskDraft = {
+  title: "",
+  deadline: "",
+  durationMinutes: "45",
+};
+
+// Uitsluitend fictieve O20-voorbeelddata. Alles blijft in lokale React-state.
+// Er is geen API-koppeling, Neon-write of tijdelijk productiedatamodel.
 const VISUAL_EXAMPLE_TASKS: readonly TaskExample[] = [
   {
     id: "truckparking-duiven",
     title: "Truckparking Duiven voorbereiden",
     description:
       "De technische stukken en offertes verzamelen zodat vrijdag een compleet besluit kan worden genomen.",
-    status: "Open",
-    deadlineLabel: "vr 24 juli 2026, 17:00",
-    deadlineValue: "2026-07-24T17:00",
-    estimate: "3 uur 35 min",
+    status: "open",
+    deadline: "2026-07-24T17:00",
+    ownRemainingMinutes: 220,
+    generalEstimate: "3 uur 35 min",
     personalAdvice: "4 uur 10 min",
     userChoice: "3 uur 40 min",
-    completedCount: 1,
-    risk: {
-      level: "orange",
-      label: "Kleine marge",
-      explanation:
-        "De gekozen duur ligt 30 minuten onder het persoonlijke advies.",
-    },
+    risk: "orange",
+    riskExplanation: "De gekozen duur ligt 30 minuten onder het persoonlijke advies.",
     subtasks: [
       {
         id: "locatiegegevens",
         title: "Locatiegegevens controleren",
-        description: "Maten, ontsluiting en netaansluiting zijn gecontroleerd.",
-        status: "Afgerond",
-        deadline: "ma 20 juli, 17:00",
-        estimate: "35 min",
-        risk: {
-          level: "green",
-          label: "Op tijd",
-          explanation: "Afgerond met voldoende marge.",
-        },
+        status: "completed",
+        deadline: "2026-07-20T17:00",
+        estimatedMinutes: 35,
+        remainingMinutes: 0,
+        risk: "green",
       },
       {
         id: "offerte-laadpalen",
         title: "Offerte laadpalen beoordelen",
-        description: "Prijs, capaciteit en onderhoudsvoorwaarden vergelijken.",
-        status: "Open",
-        deadline: "di 21 juli, 16:00",
-        estimate: "1 uur 20 min",
-        risk: {
-          level: "orange",
-          label: "Kleine marge",
-          explanation: "Nog ongeveer 45 minuten marge bij de gekozen duur.",
-        },
+        status: "open",
+        deadline: "2026-07-21T16:00",
+        estimatedMinutes: 80,
+        remainingMinutes: 45,
+        risk: "orange",
+        riskExplanation: "Nog ongeveer 45 minuten marge bij de gekozen duur.",
+        timerRunning: true,
       },
       {
-        id: "vergunningstukken",
-        title: "Vergunningstukken aanleveren",
-        description: "Het dossier kan pas compleet worden gemaakt na de offertecontrole.",
-        status: "Geblokkeerd",
-        deadline: "wo 22 juli, 12:00",
-        estimate: "1 uur 10 min",
-        dependency: "Wacht op ‘Offerte laadpalen beoordelen’.",
-        risk: {
-          level: "red",
-          label: "Risico",
-          explanation:
-            "Waarschijnlijk niet haalbaar zolang de voorganger niet is afgerond.",
-        },
+        id: "vergunningsstukken",
+        title: "Vergunningsstukken aanleveren",
+        status: "blocked",
+        deadline: "2026-07-22T12:00",
+        estimatedMinutes: 70,
+        remainingMinutes: 70,
+        risk: "red",
+        riskExplanation: "Waarschijnlijk niet haalbaar zolang de offertecontrole openstaat.",
+        dependency: "Wacht op Offerte laadpalen beoordelen",
       },
       {
         id: "terugkoppeling-eigenaar",
         title: "Terugkoppeling aan eigenaar voorbereiden",
-        description: "Kernpunten en open keuzes kort samenvatten.",
-        status: "Wachten",
-        deadline: "vr 24 juli, 15:00",
-        estimate: "30 min",
-        dependency: "Wacht op een prijsbevestiging van de leverancier.",
-        risk: {
-          level: "green",
-          label: "Op tijd",
-          explanation: "Voldoende marge zodra de prijsbevestiging binnen is.",
-        },
+        status: "waiting",
+        deadline: "2026-07-24T15:00",
+        estimatedMinutes: 30,
+        remainingMinutes: 30,
+        risk: "none",
+        dependency: "Wacht op prijsbevestiging van leverancier",
       },
     ],
   },
   {
-    id: "kwartaaladministratie",
+    id: "administratie-kwartaal",
     title: "Administratie tweede kwartaal afronden",
     description:
-      "Ontbrekende stukken verzamelen en de administratie gereedmaken voor controle.",
-    status: "Wachten",
-    deadlineLabel: null,
-    deadlineValue: "",
-    estimate: "2 uur 15 min",
-    personalAdvice: "2 uur 40 min",
-    userChoice: "2 uur 30 min",
-    completedCount: 0,
-    risk: {
-      level: "green",
-      label: "Op tijd",
-      explanation: "De hoofdtaak heeft geen eigen deadline.",
-    },
-    subtasks: [
-      {
-        id: "bankmutaties",
-        title: "Bankmutaties controleren",
-        description: "Afwijkende betalingen koppelen aan de juiste factuur.",
-        status: "Open",
-        deadline: "ma 27 juli, 17:00",
-        estimate: "1 uur 25 min",
-        risk: {
-          level: "orange",
-          label: "Kleine marge",
-          explanation: "De beschikbare marge is kleiner dan één werkblok.",
-        },
-      },
-      {
-        id: "factuur-opvragen",
-        title: "Ontbrekende factuur opvragen",
-        description: "Leverancier heeft toegezegd vandaag te reageren.",
-        status: "Wachten",
-        deadline: "di 28 juli, 12:00",
-        estimate: "50 min",
-        risk: {
-          level: "green",
-          label: "Op tijd",
-          explanation: "Nog voldoende marge na de verwachte reactie.",
-        },
-      },
-    ],
+      "Losse facturen controleren en de kwartaalmap gereedmaken voor de boekhouder.",
+    status: "waiting",
+    deadline: null,
+    ownRemainingMinutes: 75,
+    generalEstimate: "1 uur 10 min",
+    personalAdvice: "1 uur 25 min",
+    userChoice: "1 uur 15 min",
+    risk: "none",
+    subtasks: [],
   },
 ];
 
-const statusClassNames: Record<SubtaskStatus, string> = {
-  Open: styles.statusNeutral,
-  Wachten: styles.statusWaiting,
-  Afgerond: styles.statusComplete,
-  Geblokkeerd: styles.statusBlocked,
-};
+const dutchDateFormatter = new Intl.DateTimeFormat("nl-NL", {
+  weekday: "short",
+  day: "numeric",
+  month: "short",
+  hour: "2-digit",
+  minute: "2-digit",
+});
 
-const riskClassNames: Record<RiskLevel, string> = {
-  green: styles.riskGreen,
-  orange: styles.riskOrange,
-  red: styles.riskRed,
-};
-
-function makeDraft(task: TaskExample): DraftTask {
-  return {
-    title: task.title,
-    description: task.description,
-    deadline: task.deadlineValue,
-    status: task.status,
-    userChoice: task.userChoice,
-  };
+function formatDeadline(value: string): string {
+  return dutchDateFormatter.format(new Date(value)).replace(" om ", ", ");
 }
 
-function StatusLabel({ status }: Readonly<{ status: SubtaskStatus }>) {
-  return (
-    <span className={`${styles.statusLabel} ${statusClassNames[status]}`}>
-      <span className={styles.statusDot} aria-hidden="true" />
-      {status}
-    </span>
+function formatMinutes(minutes: number): string {
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return rest === 0 ? `${hours} uur` : `${hours} uur ${rest} min`;
+}
+
+function formatTimer(totalSeconds: number): string {
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  return [hours, minutes, seconds].map((part) => String(part).padStart(2, "0")).join(":");
+}
+
+function getRemainingMinutes(task: TaskExample): number {
+  if (task.subtasks.length === 0) return task.ownRemainingMinutes;
+  return task.subtasks.reduce(
+    (total, subtask) =>
+      subtask.status === "completed" ? total : total + subtask.remainingMinutes,
+    0,
   );
 }
 
-function RiskLabel({
-  level,
-  label,
-}: Readonly<{ level: RiskLevel; label: string }>) {
-  return (
-    <span className={`${styles.riskLabel} ${riskClassNames[level]}`}>
-      <span aria-hidden="true">{level === "red" ? "!" : level === "green" ? "✓" : "•"}</span>
-      {label}
-    </span>
-  );
+function statusLabel(status: TaskStatus | SubtaskStatus): string | null {
+  if (status === "waiting") return "Wachten";
+  if (status === "blocked") return "Geblokkeerd";
+  if (status === "completed") return "Afgerond";
+  return null;
+}
+
+function riskLabel(risk: RiskLevel): string | null {
+  if (risk === "orange") return "Kleine marge";
+  if (risk === "red") return "Risico";
+  return null;
+}
+
+function cloneExampleTasks(): TaskExample[] {
+  return VISUAL_EXAMPLE_TASKS.map((task) => ({
+    ...task,
+    subtasks: task.subtasks.map((subtask) => ({ ...subtask })),
+  }));
 }
 
 export function TakenVisualPrototype() {
-  const [selectedTaskId, setSelectedTaskId] = useState<string>(
+  const [tasks, setTasks] = useState<TaskExample[]>(cloneExampleTasks);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(
     VISUAL_EXAMPLE_TASKS[0].id,
   );
-  const [expandedTaskIds, setExpandedTaskIds] = useState<ReadonlySet<string>>(
-    new Set([VISUAL_EXAMPLE_TASKS[0].id]),
-  );
-  const [detailExpanded, setDetailExpanded] = useState(true);
-  const [draft, setDraft] = useState<DraftTask>(makeDraft(VISUAL_EXAMPLE_TASKS[0]));
+  const [detailsVisible, setDetailsVisible] = useState(false);
+  const [formTaskId, setFormTaskId] = useState<string | null>(null);
+  const [draft, setDraft] = useState<SubtaskDraft>(EMPTY_SUBTASK_DRAFT);
+  const [errors, setErrors] = useState<SubtaskErrors>({});
   const [notice, setNotice] = useState<string | null>(null);
+  const [timerSeconds, setTimerSeconds] = useState(18 * 60 + 42);
+  const [localSubtaskNumber, setLocalSubtaskNumber] = useState(1);
 
-  const selectedTask =
-    VISUAL_EXAMPLE_TASKS.find((task) => task.id === selectedTaskId) ??
-    VISUAL_EXAMPLE_TASKS[0];
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setTimerSeconds((seconds) => seconds + 1);
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, []);
 
-  function selectTask(task: TaskExample) {
-    setSelectedTaskId(task.id);
-    setDraft(makeDraft(task));
-    setDetailExpanded(true);
+  const selectedTask = useMemo(
+    () => tasks.find((task) => task.id === selectedTaskId) ?? null,
+    [selectedTaskId, tasks],
+  );
+
+  function selectTask(taskId: string) {
+    setSelectedTaskId((current) => (current === taskId ? null : taskId));
+    setDetailsVisible(false);
+    setFormTaskId(null);
+    setErrors({});
     setNotice(null);
   }
 
-  function toggleTaskSummary(taskId: string) {
-    setExpandedTaskIds((current) => {
-      const next = new Set(current);
-      if (next.has(taskId)) {
-        next.delete(taskId);
-      } else {
-        next.add(taskId);
-      }
-      return next;
-    });
+  function openSubtaskForm(taskId: string) {
+    setFormTaskId(taskId);
+    setDraft(EMPTY_SUBTASK_DRAFT);
+    setErrors({});
+    setNotice(null);
   }
 
-  function saveLocally(event: React.FormEvent<HTMLFormElement>) {
+  function cancelSubtaskForm() {
+    setFormTaskId(null);
+    setDraft(EMPTY_SUBTASK_DRAFT);
+    setErrors({});
+    setNotice("Toevoegen geannuleerd. De visuele timer is blijven doorlopen.");
+  }
+
+  function saveSubtask(event: FormEvent<HTMLFormElement>, task: TaskExample) {
     event.preventDefault();
+    const nextErrors: SubtaskErrors = {};
+    const title = draft.title.trim();
+    const deadlineTimestamp = Date.parse(draft.deadline);
+    const duration = draft.durationMinutes.trim();
+    const durationMinutes = duration === "" ? null : Number(duration);
+
+    if (!title) nextErrors.title = "Vul een titel voor de subtaak in.";
+    if (!draft.deadline || Number.isNaN(deadlineTimestamp)) {
+      nextErrors.deadline = "Kies een geldige deadline met datum en tijd.";
+    } else if (
+      task.deadline &&
+      deadlineTimestamp > Date.parse(task.deadline)
+    ) {
+      nextErrors.deadline = `Kies een deadline uiterlijk ${formatDeadline(task.deadline)}.`;
+    }
+    if (
+      durationMinutes !== null &&
+      (!Number.isInteger(durationMinutes) || durationMinutes <= 0)
+    ) {
+      nextErrors.durationMinutes = "Gebruik een positief aantal hele minuten.";
+    }
+
+    if (Object.keys(nextErrors).length > 0) {
+      setErrors(nextErrors);
+      return;
+    }
+
+    const wasExecutableTask = task.subtasks.length === 0;
+    const newSubtask: SubtaskExample = {
+      id: `local-subtask-${localSubtaskNumber}`,
+      title,
+      status: "open",
+      deadline: draft.deadline,
+      estimatedMinutes: durationMinutes,
+      remainingMinutes: durationMinutes ?? 0,
+      risk: "none",
+    };
+
+    setTasks((currentTasks) =>
+      currentTasks.map((currentTask) =>
+        currentTask.id === task.id
+          ? { ...currentTask, subtasks: [...currentTask.subtasks, newSubtask] }
+          : currentTask,
+      ),
+    );
+    setLocalSubtaskNumber((number) => number + 1);
+    setFormTaskId(null);
+    setDraft(EMPTY_SUBTASK_DRAFT);
+    setErrors({});
+
+    const recalculatedAt = new Intl.DateTimeFormat("nl-NL", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    }).format(new Date());
     setNotice(
-      "Proefwijziging lokaal verwerkt. Er is niets naar een database of API gestuurd.",
+      wasExecutableTask
+        ? `Subtaak lokaal toegevoegd. De hoofdtaak is nu een verzameltaak; de proefplanning is herberekend om ${recalculatedAt}.`
+        : `Subtaak lokaal toegevoegd. De proefplanning is herberekend om ${recalculatedAt}.`,
     );
   }
 
   return (
     <main className={styles.prototype}>
-      <div className={styles.prototypeBar}>
-        <div className={styles.prototypeBarInner}>
+      <div className={styles.shell}>
+        <div className={styles.brandLine}>
           <strong>MijnPlanning</strong>
-          <span>Visuele proef · tijdelijke voorbeeldgegevens</span>
+          <span>Visuele proef · uitsluitend lokale voorbeelddata</span>
         </div>
-      </div>
 
-      <div className={styles.pageShell}>
         <header className={styles.pageHeader}>
           <div>
             <p className={styles.eyebrow}>Werkoverzicht</p>
             <h1>Taken</h1>
             <p className={styles.pageIntro}>
-              Bekijk hoofdtaken, subtaken, deadlines en tijdsadvies in één compact overzicht.
+              Hoofdtaken en subtaken, teruggebracht tot wat nu aandacht vraagt.
             </p>
           </div>
           <button
-            className={styles.primaryButton}
             type="button"
+            className={styles.newTaskButton}
             onClick={() =>
-              setNotice(
-                "‘Nieuwe taak’ is alleen zichtbaar voor de ontwerpbeoordeling en maakt nog niets aan.",
-              )
+              setNotice("Nieuwe taak is in deze visuele proef nog niet aangesloten.")
             }
           >
-            <span aria-hidden="true">+</span>
             Nieuwe taak
           </button>
         </header>
 
-        <div className={styles.prototypeNotice} role="note">
-          <strong>Alleen een visuele proef.</strong>
-          <span>De gegevens hieronder zijn fictief en worden niet opgeslagen.</span>
+        <div className={styles.runningTimer}>
+          <span className={styles.timerPulse} aria-hidden="true" />
+          <span>
+            Timer loopt voor <strong>Offerte laadpalen beoordelen</strong>
+          </span>
+          <time aria-label="Verstreken actieve tijd">{formatTimer(timerSeconds)}</time>
         </div>
 
         {notice ? (
           <div className={styles.localNotice} role="status" aria-live="polite">
-            {notice}
+            <span>{notice}</span>
             <button type="button" onClick={() => setNotice(null)}>
               Sluiten
             </button>
           </div>
         ) : null}
 
-        <div className={styles.workspace}>
-          <section className={styles.taskListPanel} aria-labelledby="task-list-heading">
-            <div className={styles.panelHeading}>
-              <div>
-                <h2 id="task-list-heading">Hoofdtaken</h2>
-                <p>2 voorbeeldtaken</p>
-              </div>
-              <span className={styles.neutralCount}>2 open</span>
+        <section className={styles.taskSection} aria-labelledby="tasks-heading">
+          <div className={styles.sectionHeading}>
+            <div>
+              <h2 id="tasks-heading">Hoofdtaken</h2>
+              <span>{tasks.length} tijdelijke voorbeelden</span>
             </div>
+            <p>Selecteer een taak om de subtaken inline te openen.</p>
+          </div>
 
-            <div className={styles.taskList}>
-              {VISUAL_EXAMPLE_TASKS.map((task) => {
-                const selected = task.id === selectedTaskId;
-                const expanded = expandedTaskIds.has(task.id);
-                const summaryId = `${task.id}-summary`;
+          <div className={styles.taskList}>
+            {tasks.map((task) => {
+              const isSelected = selectedTaskId === task.id;
+              const remainingMinutes = getRemainingMinutes(task);
+              const taskStatusLabel = statusLabel(task.status);
+              const taskRiskLabel = riskLabel(task.risk);
 
-                return (
-                  <article
-                    className={`${styles.taskCard} ${selected ? styles.taskCardSelected : ""}`}
-                    key={task.id}
-                  >
-                    <div className={styles.taskCardTop}>
-                      <button
-                        className={styles.taskSelectButton}
-                        type="button"
-                        onClick={() => selectTask(task)}
-                        aria-current={selected ? "true" : undefined}
-                      >
-                        <span className={styles.taskTitle}>{task.title}</span>
-                        <span className={styles.taskDeadline}>
-                          {task.deadlineLabel ?? "Geen taakdeadline"}
-                        </span>
-                      </button>
-                      <button
-                        className={styles.iconButton}
-                        type="button"
-                        onClick={() => toggleTaskSummary(task.id)}
-                        aria-expanded={expanded}
-                        aria-controls={summaryId}
-                        aria-label={`${expanded ? "Inklappen" : "Uitklappen"}: ${task.title}`}
-                      >
-                        <span aria-hidden="true">{expanded ? "−" : "+"}</span>
-                      </button>
-                    </div>
-
-                    <div className={styles.taskCardLabels}>
-                      <StatusLabel status={task.status} />
-                      <RiskLabel level={task.risk.level} label={task.risk.label} />
-                    </div>
-
-                    {expanded ? (
-                      <div className={styles.taskSummary} id={summaryId}>
-                        <p>{task.description}</p>
-                        <dl>
-                          <div>
-                            <dt>Subtaken</dt>
-                            <dd>
-                              {task.completedCount} van {task.subtasks.length} afgerond
-                            </dd>
-                          </div>
-                          <div>
-                            <dt>Resterend</dt>
-                            <dd>{task.userChoice}</dd>
-                          </div>
-                        </dl>
-                      </div>
-                    ) : null}
-                  </article>
-                );
-              })}
-            </div>
-          </section>
-
-          <section className={styles.detailPanel} aria-labelledby="task-detail-heading">
-            <div className={styles.detailHeading}>
-              <div>
-                <p className={styles.panelKicker}>Geselecteerde hoofdtaak</p>
-                <h2 id="task-detail-heading">{selectedTask.title}</h2>
-                <div className={styles.detailLabels}>
-                  <StatusLabel status={selectedTask.status} />
-                  <RiskLabel
-                    level={selectedTask.risk.level}
-                    label={selectedTask.risk.label}
-                  />
-                </div>
-              </div>
-              <button
-                className={styles.secondaryButton}
-                type="button"
-                onClick={() => setDetailExpanded((current) => !current)}
-                aria-expanded={detailExpanded}
-                aria-controls="selected-task-detail"
-              >
-                {detailExpanded ? "Inklappen" : "Uitklappen"}
-              </button>
-            </div>
-
-            {detailExpanded ? (
-              <div id="selected-task-detail">
-                <p className={styles.taskDescription}>{selectedTask.description}</p>
-
-                <div className={styles.factGrid}>
-                  <div>
-                    <span>Taakdeadline</span>
-                    <strong>{selectedTask.deadlineLabel ?? "Geen taakdeadline"}</strong>
-                  </div>
-                  <div>
-                    <span>Algemene inschatting</span>
-                    <strong>{selectedTask.estimate}</strong>
-                  </div>
-                  <div className={styles.adviceFact}>
-                    <span>Persoonlijk advies</span>
-                    <strong>{selectedTask.personalAdvice}</strong>
-                  </div>
-                  <div>
-                    <span>Jouw keuze</span>
-                    <strong>{selectedTask.userChoice}</strong>
-                  </div>
-                </div>
-
-                <div
-                  className={`${styles.riskExplanation} ${riskClassNames[selectedTask.risk.level]}`}
-                  role="note"
+              return (
+                <article
+                  className={`${styles.task} ${isSelected ? styles.taskSelected : ""}`}
+                  key={task.id}
                 >
-                  <strong>{selectedTask.risk.label}</strong>
-                  <span>{selectedTask.risk.explanation}</span>
-                </div>
-
-                <section className={styles.subtaskSection} aria-labelledby="subtask-heading">
-                  <div className={styles.sectionHeading}>
-                    <div>
-                      <h3 id="subtask-heading">Subtaken</h3>
-                      <p>Iedere subtaak heeft een verplichte deadline.</p>
-                    </div>
-                    <span className={styles.neutralCount}>
-                      {selectedTask.subtasks.length} subtaken
+                  <button
+                    type="button"
+                    className={styles.taskToggle}
+                    onClick={() => selectTask(task.id)}
+                    aria-expanded={isSelected}
+                    aria-controls={`task-detail-${task.id}`}
+                  >
+                    <span className={styles.taskIdentity}>
+                      <span className={styles.taskTitle}>{task.title}</span>
+                      <span className={styles.taskStateLine}>
+                        {taskStatusLabel ? (
+                          <span className={`${styles.statusText} ${styles[`status_${task.status}`]}`}>
+                            {taskStatusLabel}
+                          </span>
+                        ) : null}
+                        {task.subtasks.length > 0 ? (
+                          <span>{task.subtasks.length} subtaken</span>
+                        ) : (
+                          <span>Uitvoerbare hoofdtaak</span>
+                        )}
+                      </span>
                     </span>
-                  </div>
 
-                  <div className={styles.subtaskList}>
-                    {selectedTask.subtasks.map((subtask) => (
-                      <article className={styles.subtaskRow} key={subtask.id}>
-                        <div className={styles.subtaskMarker} aria-hidden="true" />
-                        <div className={styles.subtaskMain}>
-                          <div className={styles.subtaskTitleRow}>
-                            <h4>{subtask.title}</h4>
-                            <div className={styles.subtaskLabels}>
-                              <StatusLabel status={subtask.status} />
-                              <RiskLabel
-                                level={subtask.risk.level}
-                                label={subtask.risk.label}
+                    <span className={styles.taskEssentials}>
+                      <span>
+                        <small>Deadline</small>
+                        <strong>
+                          {task.deadline ? formatDeadline(task.deadline) : "Geen taakdeadline"}
+                        </strong>
+                      </span>
+                      <span>
+                        <small>Resterend</small>
+                        <strong>{formatMinutes(remainingMinutes)}</strong>
+                      </span>
+                      <span className={styles.riskSlot}>
+                        {taskRiskLabel ? (
+                          <span className={`${styles.riskText} ${styles[`risk_${task.risk}`]}`}>
+                            {taskRiskLabel}
+                          </span>
+                        ) : null}
+                      </span>
+                      <span className={styles.chevron} aria-hidden="true">
+                        {isSelected ? "−" : "+"}
+                      </span>
+                    </span>
+                  </button>
+
+                  {isSelected ? (
+                    <div className={styles.taskDetail} id={`task-detail-${task.id}`}>
+                      <div className={styles.detailActions}>
+                        <button
+                          type="button"
+                          className={styles.addSubtaskButton}
+                          onClick={() => openSubtaskForm(task.id)}
+                          aria-expanded={formTaskId === task.id}
+                          aria-controls={`subtask-form-${task.id}`}
+                        >
+                          + Subtaak
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.detailsButton}
+                          onClick={() => setDetailsVisible((visible) => !visible)}
+                          aria-expanded={detailsVisible}
+                        >
+                          {detailsVisible ? "Details verbergen" : "Details tonen"}
+                        </button>
+                      </div>
+
+                      {task.riskExplanation ? (
+                        <p className={`${styles.taskRiskExplanation} ${styles[`riskBorder_${task.risk}`]}`}>
+                          <strong>{taskRiskLabel}:</strong> {task.riskExplanation}
+                        </p>
+                      ) : null}
+
+                      {detailsVisible ? (
+                        <div className={styles.onDemandDetails}>
+                          <p>{task.description}</p>
+                          <dl>
+                            <div>
+                              <dt>Algemene inschatting</dt>
+                              <dd>{task.generalEstimate}</dd>
+                            </div>
+                            <div>
+                              <dt>Persoonlijk advies</dt>
+                              <dd>{task.personalAdvice}</dd>
+                            </div>
+                            <div>
+                              <dt>Jouw keuze</dt>
+                              <dd>{task.userChoice}</dd>
+                            </div>
+                          </dl>
+                        </div>
+                      ) : null}
+
+                      {formTaskId === task.id ? (
+                        <form
+                          className={styles.subtaskForm}
+                          id={`subtask-form-${task.id}`}
+                          onSubmit={(event) => saveSubtask(event, task)}
+                          noValidate
+                        >
+                          <div className={styles.formHeading}>
+                            <div>
+                              <h3>Nieuwe subtaak</h3>
+                              <p>De lopende timer blijft tijdens deze invoer actief.</p>
+                            </div>
+                            <span className={styles.liveTimer}>{formatTimer(timerSeconds)}</span>
+                          </div>
+
+                          <div className={styles.formGrid}>
+                            <div className={`${styles.field} ${styles.fieldTitle}`}>
+                              <label htmlFor={`subtask-title-${task.id}`}>Titel *</label>
+                              <input
+                                id={`subtask-title-${task.id}`}
+                                value={draft.title}
+                                onChange={(event) => {
+                                  setDraft((current) => ({ ...current, title: event.target.value }));
+                                  setErrors((current) => ({ ...current, title: undefined }));
+                                }}
+                                aria-invalid={Boolean(errors.title)}
+                                aria-describedby={errors.title ? `subtask-title-error-${task.id}` : undefined}
+                                autoFocus
                               />
+                              {errors.title ? (
+                                <span className={styles.errorText} id={`subtask-title-error-${task.id}`}>
+                                  {errors.title}
+                                </span>
+                              ) : null}
+                            </div>
+
+                            <div className={styles.field}>
+                              <label htmlFor={`subtask-deadline-${task.id}`}>Deadline *</label>
+                              <input
+                                id={`subtask-deadline-${task.id}`}
+                                type="datetime-local"
+                                value={draft.deadline}
+                                max={task.deadline ?? undefined}
+                                onChange={(event) => {
+                                  setDraft((current) => ({ ...current, deadline: event.target.value }));
+                                  setErrors((current) => ({ ...current, deadline: undefined }));
+                                }}
+                                aria-invalid={Boolean(errors.deadline)}
+                                aria-describedby={`subtask-deadline-help-${task.id}${errors.deadline ? ` subtask-deadline-error-${task.id}` : ""}`}
+                              />
+                              <span className={styles.helpText} id={`subtask-deadline-help-${task.id}`}>
+                                {task.deadline
+                                  ? `Uiterlijk ${formatDeadline(task.deadline)}.`
+                                  : "Datum en tijd zijn verplicht."}
+                              </span>
+                              {errors.deadline ? (
+                                <span className={styles.errorText} id={`subtask-deadline-error-${task.id}`}>
+                                  {errors.deadline}
+                                </span>
+                              ) : null}
+                            </div>
+
+                            <div className={styles.field}>
+                              <label htmlFor={`subtask-duration-${task.id}`}>Duur in minuten</label>
+                              <input
+                                id={`subtask-duration-${task.id}`}
+                                type="number"
+                                min="1"
+                                step="1"
+                                inputMode="numeric"
+                                value={draft.durationMinutes}
+                                onChange={(event) => {
+                                  setDraft((current) => ({
+                                    ...current,
+                                    durationMinutes: event.target.value,
+                                  }));
+                                  setErrors((current) => ({ ...current, durationMinutes: undefined }));
+                                }}
+                                aria-invalid={Boolean(errors.durationMinutes)}
+                                aria-describedby={
+                                  errors.durationMinutes
+                                    ? `subtask-duration-error-${task.id}`
+                                    : undefined
+                                }
+                              />
+                              {errors.durationMinutes ? (
+                                <span className={styles.errorText} id={`subtask-duration-error-${task.id}`}>
+                                  {errors.durationMinutes}
+                                </span>
+                              ) : null}
                             </div>
                           </div>
-                          <p>{subtask.description}</p>
-                          {subtask.dependency ? (
-                            <p className={styles.dependencyLine}>
-                              <span aria-hidden="true">↳</span> {subtask.dependency}
-                            </p>
-                          ) : null}
-                          <div className={styles.subtaskMeta}>
-                            <span>
-                              <strong>Deadline:</strong> {subtask.deadline}
-                            </span>
-                            <span>
-                              <strong>Inschatting:</strong> {subtask.estimate}
-                            </span>
+
+                          <div className={styles.formActions}>
+                            <button type="button" className={styles.cancelButton} onClick={cancelSubtaskForm}>
+                              Annuleren
+                            </button>
+                            <button type="submit" className={styles.saveButton}>
+                              Opslaan
+                            </button>
                           </div>
-                          <p
-                            className={`${styles.deadlineReason} ${riskClassNames[subtask.risk.level]}`}
-                          >
-                            {subtask.risk.explanation}
-                          </p>
+                        </form>
+                      ) : null}
+
+                      <div className={styles.subtaskHeader}>
+                        <div>
+                          <h3>Subtaken</h3>
+                          <p>Deadline en resterende tijd per uitvoerbaar onderdeel.</p>
                         </div>
-                      </article>
-                    ))}
-                  </div>
-                </section>
+                        {task.subtasks.length > 0 ? (
+                          <span>Resterend samen: {formatMinutes(remainingMinutes)}</span>
+                        ) : null}
+                      </div>
 
-                <section className={styles.formSection} aria-labelledby="edit-heading">
-                  <div className={styles.sectionHeading}>
-                    <div>
-                      <h3 id="edit-heading">Hoofdtaak bewerken</h3>
-                      <p>Voorbeeldformulier — wijzigingen blijven alleen lokaal zichtbaar.</p>
+                      {task.subtasks.length > 0 ? (
+                        <>
+                          <p className={styles.collectionNote}>
+                            Verzameltaak · de hoofdtaakduur wordt niet boven op de subtaken gepland.
+                          </p>
+                          <ol className={styles.subtaskList}>
+                            {task.subtasks.map((subtask) => {
+                              const subtaskStatusLabel = statusLabel(subtask.status);
+                              const subtaskRiskLabel = riskLabel(subtask.risk);
+                              return (
+                                <li className={styles.subtaskRow} key={subtask.id}>
+                                  <div className={styles.subtaskIdentity}>
+                                    <div className={styles.subtaskTitleLine}>
+                                      {subtask.timerRunning ? (
+                                        <span className={styles.activeDot} aria-label="Timer actief" />
+                                      ) : null}
+                                      <strong>{subtask.title}</strong>
+                                    </div>
+                                    <span>
+                                      Deadline {formatDeadline(subtask.deadline)}
+                                      <span aria-hidden="true"> · </span>
+                                      {subtask.estimatedMinutes
+                                        ? `${formatMinutes(subtask.estimatedMinutes)} geschat`
+                                        : "duur nog te schatten"}
+                                    </span>
+                                    {subtask.dependency ? <small>{subtask.dependency}</small> : null}
+                                    {subtask.riskExplanation ? (
+                                      <small className={styles[`riskCopy_${subtask.risk}`]}>
+                                        {subtask.riskExplanation}
+                                      </small>
+                                    ) : null}
+                                  </div>
+                                  <div className={styles.subtaskOutcome}>
+                                    <strong>{formatMinutes(subtask.remainingMinutes)} resterend</strong>
+                                    <div>
+                                      {subtaskStatusLabel ? (
+                                        <span className={`${styles.statusText} ${styles[`status_${subtask.status}`]}`}>
+                                          {subtaskStatusLabel}
+                                        </span>
+                                      ) : null}
+                                      {subtaskRiskLabel ? (
+                                        <span className={`${styles.riskText} ${styles[`risk_${subtask.risk}`]}`}>
+                                          {subtaskRiskLabel}
+                                        </span>
+                                      ) : null}
+                                    </div>
+                                  </div>
+                                </li>
+                              );
+                            })}
+                          </ol>
+                        </>
+                      ) : (
+                        <p className={styles.emptySubtasks}>
+                          Nog geen subtaken. Deze hoofdtaak is nu zelf uitvoerbaar; voeg een eerste subtaak toe om er een verzameltaak van te maken.
+                        </p>
+                      )}
                     </div>
-                  </div>
+                  ) : null}
+                </article>
+              );
+            })}
+          </div>
+        </section>
 
-                  <form className={styles.taskForm} onSubmit={saveLocally}>
-                    <div className={styles.fieldFull}>
-                      <label htmlFor="task-title">Titel</label>
-                      <input
-                        id="task-title"
-                        type="text"
-                        value={draft.title}
-                        onChange={(event) =>
-                          setDraft((current) => ({ ...current, title: event.target.value }))
-                        }
-                      />
-                    </div>
-
-                    <div className={styles.fieldFull}>
-                      <label htmlFor="task-description">Korte omschrijving</label>
-                      <textarea
-                        id="task-description"
-                        rows={3}
-                        value={draft.description}
-                        onChange={(event) =>
-                          setDraft((current) => ({
-                            ...current,
-                            description: event.target.value,
-                          }))
-                        }
-                      />
-                    </div>
-
-                    <div className={styles.field}>
-                      <label htmlFor="task-deadline">Taakdeadline (optioneel)</label>
-                      <input
-                        id="task-deadline"
-                        type="datetime-local"
-                        value={draft.deadline}
-                        onChange={(event) =>
-                          setDraft((current) => ({ ...current, deadline: event.target.value }))
-                        }
-                      />
-                      <span className={styles.helpText}>Tijdzone: Europe/Amsterdam</span>
-                    </div>
-
-                    <div className={styles.field}>
-                      <label htmlFor="task-status">Status</label>
-                      <select
-                        id="task-status"
-                        value={draft.status}
-                        onChange={(event) =>
-                          setDraft((current) => ({
-                            ...current,
-                            status: event.target.value as TaskStatus,
-                          }))
-                        }
-                      >
-                        <option>Open</option>
-                        <option>Wachten</option>
-                        <option>Afgerond</option>
-                      </select>
-                      <span className={styles.helpText}>
-                        Geblokkeerd wordt afgeleid en is niet handmatig instelbaar.
-                      </span>
-                    </div>
-
-                    <div className={styles.field}>
-                      <label htmlFor="user-duration">Jouw gekozen tijd</label>
-                      <input
-                        id="user-duration"
-                        type="text"
-                        value={draft.userChoice}
-                        onChange={(event) =>
-                          setDraft((current) => ({
-                            ...current,
-                            userChoice: event.target.value,
-                          }))
-                        }
-                      />
-                    </div>
-
-                    <div className={`${styles.field} ${styles.errorExample}`}>
-                      <label htmlFor="subtask-deadline-example">
-                        Voorbeeld foutweergave
-                      </label>
-                      <input
-                        id="subtask-deadline-example"
-                        type="text"
-                        value="za 25 juli 2026, 12:00"
-                        readOnly
-                        aria-invalid="true"
-                        aria-describedby="deadline-example-error"
-                      />
-                      <span id="deadline-example-error" className={styles.errorText}>
-                        De subtaakdeadline mag niet na de taakdeadline liggen.
-                      </span>
-                    </div>
-
-                    <div className={styles.formActions}>
-                      <button
-                        className={styles.secondaryButton}
-                        type="button"
-                        onClick={() => {
-                          setDraft(makeDraft(selectedTask));
-                          setNotice("Lokale formulierwijzigingen zijn teruggezet.");
-                        }}
-                      >
-                        Annuleren
-                      </button>
-                      <button className={styles.primaryButton} type="submit">
-                        Opslaan
-                      </button>
-                    </div>
-                  </form>
-                </section>
-              </div>
-            ) : (
-              <p className={styles.collapsedMessage}>
-                Het taakdetail is ingeklapt. Gebruik ‘Uitklappen’ om het opnieuw te tonen.
-              </p>
-            )}
-          </section>
-        </div>
+        <footer className={styles.prototypeFooter}>
+          Tweede visuele richting · geen gegevens worden opgeslagen
+        </footer>
       </div>
     </main>
   );

@@ -1,6 +1,6 @@
 # Uitvoeringsplan fase 0 en fase 1 — fundament, taken en subtaken
 
-- Status: **technische foundation goedgekeurd; O20-visuele proef wacht op Peters expliciete goedkeuring**
+- Status: **technische foundation goedgekeurd; eerste O20-richting afgewezen en tweede richting wacht op Peters visuele beoordeling**
 - Datum: **18 juli 2026**
 - Scope: **fase 0 (projectbasis) en fase 1 (taken en subtaken)**
 - Implementatie: **technische fase-0A-basis gevalideerd; productfunctionaliteit en productie-infrastructuur nog niet gestart**
@@ -88,6 +88,8 @@ De kerndocumenten zijn op de volgende punten consistent:
 ### 4.3 Besluitenstatus
 
 O1 tot en met O20 zijn door Peter beantwoord en staan definitief in hoofdstuk 15 en `docs/DECISIONS.md`. Er resteert geen open productkeuze uit deze lijst.
+
+O21 is op 18 juli 2026 door Peter als voorstel voor de tweede O20-richting aangeleverd. O21 staat voorlopig in dit plan en `docs/VISUAL_PROPOSAL.md`, maar is nog niet besloten en wordt daarom nog niet toegevoegd aan `docs/DECISIONS.md`.
 
 Voor de implementatiestart blijven wel controlepoorten bestaan:
 
@@ -783,6 +785,23 @@ Alle onderstaande besluiten zijn definitief vastgelegd. Ze zijn geen open keuzes
 | O19 | Alleen top-level `PLANS.md` is de planinstructiebron. | Alle verwijzingen naar uitvoeringsplanregels gebruiken top-level `PLANS.md`. | Besloten |
 | O20 | Na de technische projectbasis volgt vóór brede frontendimplementatie een verplichte visuele goedkeuringspoort: concreet palet met hexwaarden, vastgelegde typografie, spacing, knoppen, formulieren en statuslabels, plus één werkende Taken-versie op desktop en mobiel. | Geen overige volledige schermen of brede toepassing van het ontwerp vóór Peters expliciete goedkeuring. | Besloten |
 
+### Voorstel O21 — subtaak toevoegen tijdens het werken
+
+O21 is nog **niet besloten**. Het voorstel wacht op Peters expliciete goedkeuring na beoordeling van de tweede O20-richting en blijft tot dat moment buiten `docs/DECISIONS.md`.
+
+- Bij iedere open, actieve of wachtende hoofdtaak kan op ieder moment een nieuwe subtaak worden toegevoegd.
+- De knop `+ Subtaak toevoegen` blijft zichtbaar wanneer de hoofdtaak geopend of geselecteerd is.
+- Het toevoegen van een subtaak stopt een eventueel lopende timer niet.
+- Titel en deadline van de subtaak zijn verplicht.
+- Wanneer de hoofdtaak een deadline heeft, mag de deadline van de nieuwe subtaak daar niet voorbij liggen.
+- Na opslaan wordt de planning direct opnieuw berekend.
+- De nieuwe subtaak wordt niet automatisch actief.
+- Bij een afgeronde hoofdtaak vraagt MijnPlanning of de hoofdtaak opnieuw moet worden geopend.
+- Een gearchiveerde of geannuleerde taak moet eerst worden hersteld.
+- Wanneer de eerste subtaak wordt toegevoegd aan een uitvoerbare hoofdtaak, wordt de hoofdtaak een verzameltaak en wordt de hoofdtaakduur niet boven op de subtaken gepland.
+
+Voor de O20-proef wordt dit uitsluitend met tijdelijke lokale React-state gedemonstreerd. Er komt nog geen databasewrite, Server Action, echte timercoördinatie of planningsmotorimplementatie.
+
 ## 16. Belangrijkste risico’s
 
 1. **Stackcompatibiliteit.** Node.js 24, Next.js 16, Prisma 6 en de exacte actuele veilige patchversies worden als eerste technische fase-0-test gezamenlijk gecontroleerd. Een mislukking wordt eerst gerapporteerd en blokkeert verdere implementatie; er volgt geen zelfstandige stackwissel.
@@ -920,3 +939,12 @@ Dit document bevat twee afzonderlijke stopcondities.
 - De proef toont twee hoofdtaken, verplichte subtaakdeadlines, Open, Wachten, Afgerond en afgeleid Geblokkeerd, de drie deadlinebeelden, tijdsinschattingen en een bewerkingsformulier met expliciet `Opslaan`.
 - Desktop en mobiel zijn lokaal gecontroleerd. De mobiele pagina gebruikt een expliciete `device-width`-viewport en heeft bij 390 px geen horizontale overflow.
 - De stopconditie uit O20 is actief: geen ander scherm en geen bredere frontendimplementatie vóór Peters expliciete visuele goedkeuring.
+
+### 18 juli 2026 — eerste O20-richting afgewezen; tweede richting gestart
+
+- Peter heeft de eerste O20-richting niet goedgekeurd omdat het scherm te druk en nog niet strak genoeg was.
+- De eerste proef was inmiddels als commit `3bb6194` naar `origin/feature/visual-foundation` gepusht. De tweede richting wordt daarop lokaal uitgewerkt, maar wordt conform Peters opdracht nog niet gecommit of gepusht.
+- De permanente lijst-detailindeling, kaarten-in-kaarten, brede blauwe proefmelding en informatieloze `Open`-labels worden verwijderd.
+- De tweede richting gebruikt één primaire inhoudskolom, compacte hoofdtaken die inline openklappen, rustige subtaakregels, minimale randen en vrijwel geen schaduw.
+- O21 is als voorlopig voorstel aan dit plan en `docs/VISUAL_PROPOSAL.md` toegevoegd. `docs/DECISIONS.md` blijft ongewijzigd totdat Peter O21 expliciet goedkeurt.
+- De lokale proef demonstreert `+ Subtaak`, verplichte titel en deadline, deadlinevalidatie, expliciet opslaan/annuleren, een doorlopende visuele timer en lokale herberekenfeedback zonder Neon-write.
