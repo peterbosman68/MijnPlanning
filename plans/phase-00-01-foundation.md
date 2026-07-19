@@ -1,6 +1,6 @@
 # Uitvoeringsplan fase 0 en fase 1 — fundament, taken en subtaken
 
-- Status: **fase 0A goedgekeurd; schone technische basis wordt voorbereid voor de eerste commit**
+- Status: **technische basis goedgekeurd; O22-drieluik wordt lokaal als tweede visuele proef beoordeeld**
 - Datum: **18 juli 2026**
 - Scope: **fase 0 (projectbasis) en fase 1 (taken en subtaken)**
 - Implementatie: **technische fase-0A-basis gevalideerd; productfunctionaliteit en productie-infrastructuur nog niet gestart**
@@ -87,7 +87,7 @@ De kerndocumenten zijn op de volgende punten consistent:
 
 ### 4.3 Besluitenstatus
 
-O1 tot en met O20 zijn door Peter beantwoord en staan definitief in hoofdstuk 15 en `docs/DECISIONS.md`. Er resteert geen open productkeuze uit deze lijst.
+O1 tot en met O21 zijn door Peter beantwoord en staan definitief in hoofdstuk 15 en `docs/DECISIONS.md`. Er resteert geen open productkeuze uit deze lijst.
 
 Voor de implementatiestart blijven wel controlepoorten bestaan:
 
@@ -393,6 +393,16 @@ gereserveerde, semantische secties voor alarm, actief werk en wachtrij
 Er worden geen verzonnen taakvolgorde, vrije werktijd of risicokleuren getoond. Desktop en mobiel gebruiken dezelfde informatiehiërarchie.
 
 Te controleren viewports: minimaal 1440×900, 1024×768, 390×844 en 360×800, plus toetsenbordgebruik en zoom tot 200%.
+
+### 9.4 Tweede visuele proef — O22-drieluik
+
+Peter heeft op 19 juli 2026 opdracht gegeven een tweede lokale visuele proef te bouwen op basis van drie vaste zones: links navigatie, midden een compacte lijst en rechts het detail van één geselecteerd item. De proef is geïnspireerd op de informatiestructuur van Microsoft To Do, maar neemt de visuele vormgeving niet over.
+
+De linkernavigatie bevat uitsluitend `Vandaag`, `Week`, `Hoofdtaken`, `Afspraken`, `E-mail`, `Wachten` en `Afgerond`. `Alles`, WhatsApp, navigatiebadges en groene labels voor normale taken ontbreken bewust. Oranje wordt alleen voor aandacht gebruikt en rood alleen voor werkelijk deadlinegevaar.
+
+De proef werkt `Hoofdtaken`, `Afspraken` en `E-mail` uit met tijdelijke voorbeelddata en lokale React-state. Op mobiel wordt dezelfde structuur vervangend gestapeld als navigatie → lijst → detail. Er zijn geen API-calls, Neon-writes, Microsoft Graph-calls of andere externe mutaties.
+
+O21 is onderdeel van deze proef: `+ Subtaak` blijft zichtbaar bij een open, actieve of wachtende hoofdtaak; een actieve timer loopt door; titel en deadline zijn verplicht; de subtaakdeadline respecteert een eventuele hoofdtaakdeadline; opslaan toont dat herplanning heeft plaatsgevonden; de nieuwe subtaak wordt niet automatisch actief. De productievalidatie, opslag en echte planningsherberekening blijven buiten deze visuele fase.
 
 ## 10. Implementatiestappen fase 0
 
@@ -756,7 +766,7 @@ Regels:
 - **Feature:** UI kan tijdelijk achter een server-side featureflag of routeblokkade worden gehouden zonder dat schema wordt verwijderd.
 - **Backups:** vóór eerste productie- of stagingmigratie de beschikbare Neon Free-restorefunctie en beperkingen controleren; geen backup in Git of OneDrive-projectmap en geen betaalde upgrade zonder toestemming.
 
-## 15. Vastgestelde besluiten O1–O20
+## 15. Vastgestelde besluiten O1–O21
 
 Alle onderstaande besluiten zijn definitief vastgelegd. Ze zijn geen open keuzes meer; implementatie wacht uitsluitend op expliciete goedkeuring van dit bijgewerkte plan en de technische controlepoorten uit paragraaf 4.3.
 
@@ -782,6 +792,7 @@ Alle onderstaande besluiten zijn definitief vastgelegd. Ze zijn geen open keuzes
 | O18 | Fase 1 bedient Open, Wachten, Afgerond, Gearchiveerd en Geannuleerd; Geblokkeerd is afgeleid; timerstatussen volgen in fase 2. | Fase-1-UI kan geen toekomstige timerstatussen zetten. | Besloten |
 | O19 | Alleen top-level `PLANS.md` is de planinstructiebron. | Alle verwijzingen naar uitvoeringsplanregels gebruiken top-level `PLANS.md`. | Besloten |
 | O20 | Na de technische projectbasis volgt vóór brede frontendimplementatie een verplichte visuele goedkeuringspoort: concreet palet met hexwaarden, vastgelegde typografie, spacing, knoppen, formulieren en statuslabels, plus één werkende Taken-versie op desktop en mobiel. | Geen overige volledige schermen of brede toepassing van het ontwerp vóór Peters expliciete goedkeuring. | Besloten |
+| O21 | Bij een open, actieve of wachtende hoofdtaak kan op ieder moment via de blijvend zichtbare actie `+ Subtaak` een subtaak worden toegevoegd. Een actieve timer loopt door; titel en deadline zijn verplicht; een eventuele hoofdtaakdeadline begrenst de subtaakdeadline; na opslaan wordt herpland en de nieuwe subtaak wordt niet automatisch actief. Afgeronde taken moeten eerst opnieuw worden geopend en gearchiveerde of geannuleerde taken eerst worden hersteld. | De visuele proef demonstreert dit uitsluitend met lokale state. Productieopslag, servervalidatie en echte herplanning volgen in de passende implementatiefase. | Besloten |
 
 ## 16. Belangrijkste risico’s
 
@@ -911,3 +922,13 @@ Dit document bevat twee afzonderlijke stopcondities.
 - Het tijdelijke roundtrip-script is vervangen door een generieke, read-only databaseprobe die alleen verbinding, `SELECT 1` en desgewenst een schone Prisma-basis controleert zonder database-inhoud te schrijven.
 - De Vitest-test is generiek gemaakt en controleert alleen Node.js-major 24 en dat nog geen productdatamodel bestaat. Historische documentatie van de uitgevoerde stop/go-test blijft behouden.
 - Login, gebruikers- en sessiemodellen, takenmodellen, frontendontwerp, Vercel en externe koppelingen zijn niet gestart.
+
+### 19 juli 2026 — tweede visuele O22-proef lokaal gebouwd
+
+- Peter heeft de lokale bouw van de O22-drieluikrichting expliciet goedgekeurd op de aparte branch `feature/visual-foundation-claude`.
+- `/taken` gebruikt drie vaste desktopzones: links navigatie, midden een compacte lijst en rechts het geselecteerde detail. Op mobiel worden navigatie, lijst en detail vervangend na elkaar getoond.
+- De navigatie bevat uitsluitend Vandaag, Week, Hoofdtaken, Afspraken, E-mail, Wachten en Afgerond, zonder `Alles`, WhatsApp of badges.
+- Hoofdtaken, Afspraken en E-mail zijn als werkende proefstaten uitgewerkt. Normale taken hebben geen label `Open` en geen groene status; oranje en rood worden alleen voor aandacht respectievelijk werkelijk deadlinegevaar gebruikt.
+- O21 is in `docs/DECISIONS.md` en hoofdstuk 15 van dit plan definitief vastgelegd en in het lokale subtaakformulier zichtbaar gemaakt.
+- Alle inhoud bestaat uit expliciete voorbeelddata en lokale React-state. Er zijn geen Neon-, Microsoft Graph- of andere externe writes uitgevoerd.
+- De proef blijft ongecommit en ongepusht en wacht na de lokale kwaliteitscontroles op Peters visuele beoordeling.

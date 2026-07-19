@@ -249,3 +249,18 @@ Nieuwe besluiten worden onderaan toegevoegd met datum.
 - Overige volledige schermen en projectbrede toepassing van het ontwerp wachten op Peters expliciete goedkeuring.
 - De uitstraling is rustig, volwassen, compact en betrouwbaar.
 - Paarse gradients, een generiek AI-dashboard, grote lege vlakken, te veel afgeronde kaarten en te kleine grijze tekst worden vermeden.
+
+## 19 juli 2026 — besluit O21
+
+### O21 — subtaak toevoegen tijdens het werken
+
+- Bij een open, actieve of wachtende hoofdtaak kan op ieder moment een subtaak worden toegevoegd.
+- De actie `+ Subtaak` blijft zichtbaar in het detailpaneel zolang de hoofdtaak open, actief of wachtend is.
+- Een actieve timer loopt door terwijl de gebruiker een subtaak toevoegt.
+- Titel en deadline zijn verplicht voor de nieuwe subtaak.
+- Wanneer de hoofdtaak een deadline heeft, mag de subtaakdeadline daar niet voorbij liggen.
+- Na expliciet opslaan wordt de planning opnieuw berekend.
+- De nieuwe subtaak wordt niet automatisch actief.
+- Bij een afgeronde hoofdtaak moet de gebruiker de taak eerst expliciet opnieuw openen voordat een subtaak kan worden toegevoegd.
+- Een gearchiveerde of geannuleerde hoofdtaak moet eerst expliciet worden hersteld.
+- Bij de eerste subtaak wordt een uitvoerbare hoofdtaak een verzameltaak; de hoofdtaakduur wordt niet naast de subtaken dubbel ingepland.
