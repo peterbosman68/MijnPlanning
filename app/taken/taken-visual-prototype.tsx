@@ -1,9 +1,184 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import type { FormEvent, ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import type { CSSProperties, FormEvent, PointerEvent as ReactPointerEvent, ReactNode } from "react";
 
 import styles from "./taken-visual-prototype.module.css";
+
+const PANE_LAYOUT_STORAGE_KEY = "mijnplanning.taken.paneLayout.v1";
+
+const PANE_MIN_WIDTH = { nav: 168, list: 300, detail: 360 } as const;
+const PANE_MAX_WIDTH = { nav: 320, list: 640, detail: 900 } as const;
+const PANE_DEFAULT_WIDTH = { nav: 208, list: 400, detail: 520 } as const;
+
+type PaneWidths = { nav: number; list: number; detail: number };
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
+}
+
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+function sanitizePaneWidths(candidate: unknown): PaneWidths | null {
+  if (typeof candidate !== "object" || candidate === null) return null;
+  const record = candidate as Record<string, unknown>;
+  if (!isFiniteNumber(record.nav) || !isFiniteNumber(record.list) || !isFiniteNumber(record.detail)) {
+    return null;
+  }
+  return {
+    nav: clamp(record.nav, PANE_MIN_WIDTH.nav, PANE_MAX_WIDTH.nav),
+    list: clamp(record.list, PANE_MIN_WIDTH.list, PANE_MAX_WIDTH.list),
+    detail: clamp(record.detail, PANE_MIN_WIDTH.detail, PANE_MAX_WIDTH.detail),
+  };
+}
+
+function fitPaneWidthsToViewport(widths: PaneWidths, availableWidth: number): PaneWidths {
+  const minTotal = PANE_MIN_WIDTH.nav + PANE_MIN_WIDTH.list + PANE_MIN_WIDTH.detail;
+  if (availableWidth <= minTotal) {
+    return { ...PANE_DEFAULT_WIDTH };
+  }
+  const total = widths.nav + widths.list + widths.detail;
+  if (total <= availableWidth) return widths;
+  const scale = availableWidth / total;
+  return {
+    nav: clamp(Math.round(widths.nav * scale), PANE_MIN_WIDTH.nav, PANE_MAX_WIDTH.nav),
+    list: clamp(Math.round(widths.list * scale), PANE_MIN_WIDTH.list, PANE_MAX_WIDTH.list),
+    detail: clamp(Math.round(widths.detail * scale), PANE_MIN_WIDTH.detail, PANE_MAX_WIDTH.detail),
+  };
+}
+
+function loadStoredPaneWidths(): PaneWidths | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(PANE_LAYOUT_STORAGE_KEY);
+    if (!raw) return null;
+    return sanitizePaneWidths(JSON.parse(raw));
+  } catch {
+    return null;
+  }
+}
+
+function subscribeNever() {
+  return () => {};
+}
+
+function getClientSnapshot() {
+  return true;
+}
+
+function getServerSnapshot() {
+  return false;
+}
+
+function useIsMounted() {
+  return useSyncExternalStore(subscribeNever, getClientSnapshot, getServerSnapshot);
+}
+
+function usePaneLayout() {
+  const isMounted = useIsMounted();
+  const storedWidths = useMemo(() => (isMounted ? loadStoredPaneWidths() : null), [isMounted]);
+  const [manualWidths, setWidths] = useState<PaneWidths | null>(null);
+  const hydratedRef = useRef(false);
+  const dragRef = useRef<{
+    divider: "nav-list" | "list-detail";
+    startX: number;
+    startWidths: PaneWidths;
+  } | null>(null);
+
+  const widths = useMemo(() => {
+    const base = manualWidths ?? storedWidths ?? PANE_DEFAULT_WIDTH;
+    return isMounted ? fitPaneWidthsToViewport(base, window.innerWidth) : PANE_DEFAULT_WIDTH;
+  }, [manualWidths, storedWidths, isMounted]);
+
+  const widthsRef = useRef(widths);
+  useEffect(() => {
+    widthsRef.current = widths;
+  }, [widths]);
+
+  useEffect(() => {
+    function handleResize() {
+      setWidths(fitPaneWidthsToViewport(widthsRef.current, window.innerWidth));
+    }
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  useEffect(() => {
+    if (!isMounted) return;
+    if (!hydratedRef.current) {
+      hydratedRef.current = true;
+      return;
+    }
+    try {
+      window.localStorage.setItem(PANE_LAYOUT_STORAGE_KEY, JSON.stringify(widths));
+    } catch {
+      // localStorage kan onbeschikbaar zijn (privémodus); de indeling werkt dan alleen binnen deze sessie.
+    }
+  }, [widths, isMounted]);
+
+  const applyDrag = useCallback((clientX: number) => {
+    const drag = dragRef.current;
+    if (!drag) return;
+    const delta = clientX - drag.startX;
+    if (drag.divider === "nav-list") {
+      const nav = clamp(drag.startWidths.nav + delta, PANE_MIN_WIDTH.nav, PANE_MAX_WIDTH.nav);
+      const list = clamp(drag.startWidths.list - (nav - drag.startWidths.nav), PANE_MIN_WIDTH.list, PANE_MAX_WIDTH.list);
+      setWidths({ ...drag.startWidths, nav, list });
+      return;
+    }
+    const list = clamp(drag.startWidths.list + delta, PANE_MIN_WIDTH.list, PANE_MAX_WIDTH.list);
+    const detail = clamp(
+      drag.startWidths.detail - (list - drag.startWidths.list),
+      PANE_MIN_WIDTH.detail,
+      PANE_MAX_WIDTH.detail,
+    );
+    setWidths({ ...drag.startWidths, list, detail });
+  }, []);
+
+  useEffect(() => {
+    function handlePointerMove(event: PointerEvent) {
+      applyDrag(event.clientX);
+    }
+    function handlePointerUp() {
+      dragRef.current = null;
+    }
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+    };
+  }, [applyDrag]);
+
+  const startDrag = useCallback(
+    (divider: "nav-list" | "list-detail") => (event: ReactPointerEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      dragRef.current = { divider, startX: event.clientX, startWidths: widthsRef.current };
+    },
+    [],
+  );
+
+  const nudgeDivider = useCallback((divider: "nav-list" | "list-detail", deltaPx: number) => {
+    const current = widthsRef.current;
+    if (divider === "nav-list") {
+      const nav = clamp(current.nav + deltaPx, PANE_MIN_WIDTH.nav, PANE_MAX_WIDTH.nav);
+      const list = clamp(current.list - (nav - current.nav), PANE_MIN_WIDTH.list, PANE_MAX_WIDTH.list);
+      setWidths({ ...current, nav, list });
+      return;
+    }
+    const list = clamp(current.list + deltaPx, PANE_MIN_WIDTH.list, PANE_MAX_WIDTH.list);
+    const detail = clamp(current.detail - (list - current.list), PANE_MIN_WIDTH.detail, PANE_MAX_WIDTH.detail);
+    setWidths({ ...current, list, detail });
+  }, []);
+
+  const resetLayout = useCallback(() => {
+    setWidths({ ...PANE_DEFAULT_WIDTH });
+  }, []);
+
+  return { widths, startDrag, nudgeDivider, resetLayout };
+}
 
 type ViewKey =
   | "today"
@@ -11,6 +186,7 @@ type ViewKey =
   | "tasks"
   | "appointments"
   | "email"
+  | "whatsapp"
   | "waiting"
   | "completed";
 
@@ -50,6 +226,8 @@ type Appointment = {
   note: string;
 };
 
+type EmailCategory = "urgent" | "normal" | "newsletter";
+
 type EmailProposal = {
   id: string;
   sender: string;
@@ -58,14 +236,28 @@ type EmailProposal = {
   proposal: string;
   confidence: string;
   source: string;
+  category: EmailCategory;
+  urgentReason?: string;
+};
+
+type WhatsAppMessage = {
+  id: string;
+  contact: string;
+  preview: string;
+  time: string;
+  unread: boolean;
+  needsAttention?: boolean;
+  attentionReason?: string;
+  thread: Array<{ from: "them" | "me"; text: string; time: string }>;
 };
 
 const NAV_ITEMS: Array<{ id: ViewKey; label: string; icon: ViewKey }> = [
   { id: "today", label: "Vandaag", icon: "today" },
   { id: "week", label: "Week", icon: "week" },
-  { id: "tasks", label: "Hoofdtaken", icon: "tasks" },
+  { id: "tasks", label: "ToDo", icon: "tasks" },
   { id: "appointments", label: "Afspraken", icon: "appointments" },
   { id: "email", label: "E-mail", icon: "email" },
+  { id: "whatsapp", label: "WhatsApp", icon: "whatsapp" },
   { id: "waiting", label: "Wachten", icon: "waiting" },
   { id: "completed", label: "Afgerond", icon: "completed" },
 ];
@@ -224,6 +416,19 @@ const APPOINTMENTS: Appointment[] = [
 
 const EMAIL_PROPOSALS: EmailProposal[] = [
   {
+    id: "invoice",
+    sender: "boekhouder@voorbeeld.nl",
+    subject: "Ontbrekende factuur juni — deadline dinsdag",
+    summary: "De boekhouder mist één leveranciersfactuur in de administratie van juni.",
+    proposal:
+      "Maak een taak ‘Ontbrekende factuur juni aanleveren’ met deadline 21 juli en 15 minuten geschatte tijd.",
+    confidence: "Hoge betrouwbaarheid",
+    source:
+      "Bij de controle van juni ontbreekt nog de factuur van de leverancier. Wil je die uiterlijk dinsdag aanleveren?",
+    category: "urgent",
+    urgentReason: "Financiële afhandeling met een harde deadline aanstaande dinsdag.",
+  },
+  {
     id: "charger",
     sender: "installateur@voorbeeld.nl",
     subject: "Offerte laadpalen Duiven",
@@ -234,6 +439,7 @@ const EMAIL_PROPOSALS: EmailProposal[] = [
     confidence: "Hoge betrouwbaarheid",
     source:
       "Goedemiddag Peter, in de bijlage vind je de bijgewerkte offerte. De huidige levertijd is circa zes weken. Installatie en keuring zijn in het totaalbedrag opgenomen.",
+    category: "normal",
   },
   {
     id: "erwin-mail",
@@ -246,17 +452,77 @@ const EMAIL_PROPOSALS: EmailProposal[] = [
     confidence: "Gemiddelde betrouwbaarheid",
     source:
       "Kun je voor ons bezoek nog bevestigen welke netcapaciteit op de locatie beschikbaar is? Dan kunnen we het voorstel tijdens de afspraak afronden.",
+    category: "normal",
   },
   {
-    id: "invoice",
-    sender: "boekhouder@voorbeeld.nl",
-    subject: "Ontbrekende factuur juni",
-    summary: "De boekhouder mist één leveranciersfactuur in de administratie van juni.",
-    proposal:
-      "Maak een taak ‘Ontbrekende factuur juni aanleveren’ met deadline 21 juli en 15 minuten geschatte tijd.",
-    confidence: "Hoge betrouwbaarheid",
-    source:
-      "Bij de controle van juni ontbreekt nog de factuur van de leverancier. Wil je die uiterlijk dinsdag aanleveren?",
+    id: "newsletter-vercel",
+    sender: "updates@voorbeeldsaas.nl",
+    subject: "Productnieuws: nieuwe functies deze maand",
+    summary: "Maandelijks overzicht van nieuwe functies en verbeteringen.",
+    proposal: "Geen taak voorgesteld — dit is een periodieke nieuwsbrief.",
+    confidence: "Niet van toepassing",
+    source: "Bekijk wat er deze maand nieuw is in jouw account. Uitschrijven kan onderaan deze e-mail.",
+    category: "newsletter",
+  },
+  {
+    id: "newsletter-brancheblad",
+    sender: "nieuwsbrief@brancheblad.nl",
+    subject: "Weekoverzicht transport en logistiek",
+    summary: "Wekelijks overzicht van brancheartikelen en marktontwikkelingen.",
+    proposal: "Geen taak voorgesteld — dit is een periodieke nieuwsbrief.",
+    confidence: "Niet van toepassing",
+    source: "Deze week: nieuwe regelgeving laadinfrastructuur en drie marktanalyses.",
+    category: "newsletter",
+  },
+];
+
+const WHATSAPP_MESSAGES: WhatsAppMessage[] = [
+  {
+    id: "erwin-wa",
+    contact: "Erwin — Roodwilligen",
+    preview: "Kun je morgenvroeg even bellen over de transformatorhuisje?",
+    time: "vandaag 16:42",
+    unread: true,
+    needsAttention: true,
+    attentionReason: "Vraagt om terugbellen vóór het locatiebezoek van morgen.",
+    thread: [
+      { from: "them", text: "Hoi Peter, heb je al iets gehoord van de netbeheerder?", time: "16:12" },
+      { from: "me", text: "Nog niet, ik verwacht morgenochtend bericht.", time: "16:20" },
+      { from: "them", text: "Kun je morgenvroeg even bellen over de transformatorhuisje?", time: "16:42" },
+    ],
+  },
+  {
+    id: "installateur-wa",
+    contact: "Installateur laadpalen",
+    preview: "Offerte is verstuurd, laat weten of je nog vragen hebt.",
+    time: "vandaag 11:05",
+    unread: true,
+    thread: [
+      { from: "them", text: "Offerte is verstuurd, laat weten of je nog vragen hebt.", time: "11:05" },
+    ],
+  },
+  {
+    id: "buurman-wa",
+    contact: "Jan (buurman)",
+    preview: "Bedankt voor het meedenken gisteren!",
+    time: "gisteren 20:14",
+    unread: false,
+    thread: [
+      { from: "them", text: "Bedankt voor het meedenken gisteren!", time: "20:14" },
+      { from: "me", text: "Graag gedaan, succes ermee.", time: "20:20" },
+    ],
+  },
+  {
+    id: "boekhouder-wa",
+    contact: "Boekhouder",
+    preview: "Kun je de factuur van juni ook even appen ipv mailen?",
+    time: "gisteren 09:30",
+    unread: false,
+    needsAttention: true,
+    attentionReason: "Vraagt om dezelfde factuur die ook per e-mail als urgent is gemarkeerd.",
+    thread: [
+      { from: "them", text: "Kun je de factuur van juni ook even appen ipv mailen?", time: "09:30" },
+    ],
   },
 ];
 
@@ -267,6 +533,7 @@ function NavIcon({ name }: { name: ViewKey }) {
     tasks: <><path d="M8 6h12M8 12h12M8 18h8" /><path d="m3.5 6 1 1 2-2m-3 7 1 1 2-2m-3 7 1 1 2-2" /></>,
     appointments: <><rect x="3" y="5" width="18" height="16" rx="1" /><path d="M8 3v4m8-4v4M3 10h18m-9 3v4l2 1" /></>,
     email: <><rect x="3" y="5" width="18" height="14" rx="1" /><path d="m4 7 8 6 8-6" /></>,
+    whatsapp: <><path d="M4 20l1.3-3.9A8 8 0 1 1 8.9 19L4 20Z" /><path d="M8.5 9.5c.3 2.2 2.3 4.2 4.5 4.5" strokeLinecap="round" /></>,
     waiting: <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>,
     completed: <><circle cx="12" cy="12" r="9" /><path d="m8 12 2.5 2.5L16 9" /></>,
   };
@@ -311,19 +578,39 @@ function subtaskStateLabel(state: Subtask["state"]) {
   return null;
 }
 
+const EMAIL_CATEGORY_LABEL: Record<EmailCategory, string> = {
+  urgent: "Belangrijk / urgent",
+  normal: "Normaal",
+  newsletter: "Nieuwsbrief",
+};
+
+const EMAIL_CATEGORY_FILTERS: Array<{ id: EmailCategory | "all"; label: string }> = [
+  { id: "all", label: "Alles" },
+  { id: "urgent", label: "Belangrijk / urgent" },
+  { id: "normal", label: "Normaal" },
+  { id: "newsletter", label: "Nieuwsbrieven" },
+];
+
 export function TakenVisualPrototype() {
+  const { widths: paneWidths, startDrag, nudgeDivider, resetLayout } = usePaneLayout();
   const [activeView, setActiveView] = useState<ViewKey>("tasks");
   const [mobilePane, setMobilePane] = useState<MobilePane>("navigation");
   const [tasks, setTasks] = useState<MainTask[]>(INITIAL_TASKS);
   const [selectedTaskId, setSelectedTaskId] = useState("truckparking");
   const [selectedAppointmentId, setSelectedAppointmentId] = useState("erwin");
-  const [selectedEmailId, setSelectedEmailId] = useState("charger");
+  const [selectedEmailId, setSelectedEmailId] = useState("invoice");
   const [timerSeconds, setTimerSeconds] = useState(47 * 60 + 12);
   const [subtaskFormOpen, setSubtaskFormOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [sourceOpen, setSourceOpen] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [emailCategories, setEmailCategories] = useState<Record<string, EmailCategory>>(() =>
+    Object.fromEntries(EMAIL_PROPOSALS.map((email) => [email.id, email.category])),
+  );
+  const [emailFilter, setEmailFilter] = useState<EmailCategory | "all">("all");
+  const [unsubscribeSelection, setUnsubscribeSelection] = useState<Record<string, boolean>>({});
+  const [selectedWhatsAppId, setSelectedWhatsAppId] = useState("erwin-wa");
 
   useEffect(() => {
     const timer = window.setInterval(() => setTimerSeconds((value) => value + 1), 1000);
@@ -340,15 +627,46 @@ export function TakenVisualPrototype() {
   const selectedTask = tasks.find((task) => task.id === selectedTaskId) ?? visibleTasks[0] ?? tasks[0];
   const selectedAppointment =
     APPOINTMENTS.find((appointment) => appointment.id === selectedAppointmentId) ?? APPOINTMENTS[0];
-  const selectedEmail = EMAIL_PROPOSALS.find((email) => email.id === selectedEmailId) ?? EMAIL_PROPOSALS[0];
 
-  const currentKind = activeView === "appointments" ? "appointments" : activeView === "email" ? "email" : "tasks";
+  const emailsWithCurrentCategory = useMemo(
+    () =>
+      EMAIL_PROPOSALS.map((email) => ({
+        ...email,
+        category: emailCategories[email.id] ?? email.category,
+      })),
+    [emailCategories],
+  );
+  const visibleEmails = useMemo(
+    () =>
+      emailFilter === "all"
+        ? emailsWithCurrentCategory
+        : emailsWithCurrentCategory.filter((email) => email.category === emailFilter),
+    [emailsWithCurrentCategory, emailFilter],
+  );
+  const selectedEmail =
+    visibleEmails.find((email) => email.id === selectedEmailId) ?? visibleEmails[0] ?? emailsWithCurrentCategory[0];
+  const selectedNewsletters = emailsWithCurrentCategory.filter(
+    (email) => email.category === "newsletter" && unsubscribeSelection[email.id],
+  );
+
+  const selectedWhatsApp =
+    WHATSAPP_MESSAGES.find((message) => message.id === selectedWhatsAppId) ?? WHATSAPP_MESSAGES[0];
+
+  const currentKind =
+    activeView === "appointments"
+      ? "appointments"
+      : activeView === "email"
+        ? "email"
+        : activeView === "whatsapp"
+          ? "whatsapp"
+          : "tasks";
   const viewTitle: Record<ViewKey, string> = {
     today: "Vandaag",
     week: "Deze week",
-    tasks: "Hoofdtaken",
+    tasks: "ToDo",
     appointments: "Afspraken",
     email: "E-mail",
+    whatsapp: "WhatsApp",
     waiting: "Wachten",
     completed: "Afgerond",
   };
@@ -357,7 +675,7 @@ export function TakenVisualPrototype() {
     setActiveView(view);
     if (view === "waiting") setSelectedTaskId("roof");
     else if (view === "completed") setSelectedTaskId("archive");
-    else if (view !== "appointments" && view !== "email") setSelectedTaskId("truckparking");
+    else if (view !== "appointments" && view !== "email" && view !== "whatsapp") setSelectedTaskId("truckparking");
     setMobilePane("list");
     setSubtaskFormOpen(false);
     setDetailsOpen(false);
@@ -419,9 +737,53 @@ export function TakenVisualPrototype() {
     );
   }
 
+  function selectEmail(emailId: string) {
+    setSelectedEmailId(emailId);
+    setSourceOpen(false);
+    setFeedback(null);
+    setMobilePane("detail");
+  }
+
+  function setEmailCategory(emailId: string, category: EmailCategory) {
+    setEmailCategories((current) => ({ ...current, [emailId]: category }));
+    if (category !== "newsletter") {
+      setUnsubscribeSelection((current) => {
+        if (!current[emailId]) return current;
+        const next = { ...current };
+        delete next[emailId];
+        return next;
+      });
+    }
+    setFeedback(`Categorie lokaal gewijzigd naar “${EMAIL_CATEGORY_LABEL[category]}”.`);
+  }
+
+  function toggleUnsubscribeSelection(emailId: string) {
+    setUnsubscribeSelection((current) => ({ ...current, [emailId]: !current[emailId] }));
+  }
+
+  function unsubscribeSelectedNewsletters() {
+    const count = selectedNewsletters.length;
+    if (count === 0) return;
+    setFeedback(
+      `Voorbeeldactie: ${count} ${count === 1 ? "nieuwsbrief is" : "nieuwsbrieven zijn"} gemarkeerd voor afmelding. Er is nog niets echt afgemeld of verzonden.`,
+    );
+    setUnsubscribeSelection({});
+  }
+
+  function selectWhatsApp(messageId: string) {
+    setSelectedWhatsAppId(messageId);
+    setMobilePane("detail");
+  }
+
+  const shellStyle = {
+    "--nav-width": `${paneWidths.nav}px`,
+    "--list-width": `${paneWidths.list}px`,
+    "--detail-width": `${paneWidths.detail}px`,
+  } as CSSProperties;
+
   return (
     <main className={styles.page}>
-      <div className={styles.shell} data-mobile-pane={mobilePane}>
+      <div className={styles.shell} data-mobile-pane={mobilePane} style={shellStyle}>
         <aside className={styles.navPane} aria-label="Navigatie van de visuele proef">
           <div>
             <div className={styles.brand}>
@@ -434,7 +796,7 @@ export function TakenVisualPrototype() {
 
             <nav className={styles.navigation}>
               {NAV_ITEMS.map((item, index) => (
-                <div key={item.id} className={index === 3 || index === 5 ? styles.navDivider : undefined}>
+                <div key={item.id} className={index === 3 || index === 6 ? styles.navDivider : undefined}>
                   <button
                     className={activeView === item.id ? styles.navActive : styles.navButton}
                     type="button"
@@ -449,11 +811,29 @@ export function TakenVisualPrototype() {
             </nav>
           </div>
 
-          <p className={styles.prototypeNote}>
-            <span aria-hidden="true" />
-            Tijdelijke voorbeelddata<br />Geen externe opslag
-          </p>
+          <div className={styles.navFooter}>
+            <button type="button" className={styles.resetLayoutButton} onClick={resetLayout}>
+              Standaardindeling herstellen
+            </button>
+            <p className={styles.prototypeNote}>
+              <span aria-hidden="true" />
+              Tijdelijke voorbeelddata<br />Geen externe opslag
+            </p>
+          </div>
         </aside>
+
+        <div
+          className={styles.paneDivider}
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Breedte tussen navigatie en lijst aanpassen"
+          tabIndex={0}
+          onPointerDown={startDrag("nav-list")}
+          onKeyDown={(event) => {
+            if (event.key === "ArrowLeft") { event.preventDefault(); nudgeDivider("nav-list", -16); }
+            if (event.key === "ArrowRight") { event.preventDefault(); nudgeDivider("nav-list", 16); }
+          }}
+        />
 
         <section className={styles.listPane} aria-labelledby="list-title">
           <header className={styles.listHeader}>
@@ -467,7 +847,8 @@ export function TakenVisualPrototype() {
             <p className={styles.listIntro}>
               {currentKind === "tasks" && `${visibleTasks.length} hoofd${visibleTasks.length === 1 ? "taak" : "taken"}`}
               {currentKind === "appointments" && "Alleen-lezen uit Outlook"}
-              {currentKind === "email" && `${EMAIL_PROPOSALS.length} lokale voorstellen`}
+              {currentKind === "email" && `${visibleEmails.length} van ${EMAIL_PROPOSALS.length} lokale voorstellen`}
+              {currentKind === "whatsapp" && "Lokale voorbeeldgesprekken · nog geen koppeling"}
             </p>
           </header>
 
@@ -534,26 +915,116 @@ export function TakenVisualPrototype() {
 
           {currentKind === "email" && (
             <div className={styles.listBody}>
-              <div className={styles.emailColumns} aria-hidden="true">
-                <span>Voorstel</span><span>Betrouwbaarheid</span>
+              <div className={styles.emailFilters} role="tablist" aria-label="Filter op e-mailcategorie">
+                {EMAIL_CATEGORY_FILTERS.map((filter) => (
+                  <button
+                    key={filter.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={emailFilter === filter.id}
+                    className={emailFilter === filter.id ? styles.emailFilterActive : styles.emailFilter}
+                    onClick={() => setEmailFilter(filter.id)}
+                  >
+                    {filter.label}
+                  </button>
+                ))}
               </div>
-              {EMAIL_PROPOSALS.map((email) => (
-                <button
-                  key={email.id}
-                  type="button"
-                  className={selectedEmail.id === email.id ? styles.selectedEmailRow : styles.emailRow}
-                  onClick={() => { setSelectedEmailId(email.id); setSourceOpen(false); setFeedback(null); setMobilePane("detail"); }}
-                >
+
+              {emailFilter === "newsletter" && selectedNewsletters.length > 0 && (
+                <div className={styles.unsubscribeBar}>
                   <span>
-                    <strong>{email.subject}</strong>
-                    <small>{email.summary}</small>
+                    {selectedNewsletters.length}{" "}
+                    {selectedNewsletters.length === 1 ? "nieuwsbrief geselecteerd" : "nieuwsbrieven geselecteerd"}
                   </span>
-                  <span className={styles.confidence}>{email.confidence}</span>
+                  <button type="button" className={styles.secondaryButton} onClick={unsubscribeSelectedNewsletters}>
+                    Geselecteerde nieuwsbrieven afmelden
+                  </button>
+                </div>
+              )}
+
+              <div className={styles.emailColumns} aria-hidden="true">
+                <span>Voorstel</span><span>Categorie</span>
+              </div>
+              {visibleEmails.length === 0 ? (
+                <p className={styles.emptyState}>Geen e-mails in deze categorie.</p>
+              ) : (
+                visibleEmails.map((email) => (
+                  <div
+                    key={email.id}
+                    className={selectedEmail.id === email.id ? styles.selectedEmailRow : styles.emailRow}
+                  >
+                    {email.category === "newsletter" && (
+                      <label className={styles.unsubscribeCheckbox} onClick={(event) => event.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={Boolean(unsubscribeSelection[email.id])}
+                          onChange={() => toggleUnsubscribeSelection(email.id)}
+                          aria-label={`Markeren voor afmelding: ${email.subject}`}
+                        />
+                      </label>
+                    )}
+                    <button type="button" className={styles.emailRowMain} onClick={() => selectEmail(email.id)}>
+                      <span>
+                        <strong>{email.subject}</strong>
+                        <small>{email.summary}</small>
+                      </span>
+                      <span
+                        className={
+                          email.category === "urgent"
+                            ? styles.categoryBadgeUrgent
+                            : email.category === "newsletter"
+                              ? styles.categoryBadgeNewsletter
+                              : styles.categoryBadgeNormal
+                        }
+                      >
+                        {EMAIL_CATEGORY_LABEL[email.category]}
+                      </span>
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+
+          {currentKind === "whatsapp" && (
+            <div className={styles.listBody}>
+              <div className={styles.whatsappColumns} aria-hidden="true">
+                <span>Gesprek</span><span>Tijd</span>
+              </div>
+              {WHATSAPP_MESSAGES.map((message) => (
+                <button
+                  key={message.id}
+                  type="button"
+                  className={selectedWhatsApp.id === message.id ? styles.selectedWhatsappRow : styles.whatsappRow}
+                  onClick={() => selectWhatsApp(message.id)}
+                >
+                  <span className={message.unread ? styles.unreadDot : styles.readDot} aria-hidden="true" />
+                  <span className={styles.whatsappRowText}>
+                    <strong>{message.contact}</strong>
+                    <small>{message.preview}</small>
+                  </span>
+                  <span className={styles.whatsappRowMeta}>
+                    <span className={styles.whatsappTime}>{message.time}</span>
+                    {message.needsAttention && <span className={styles.attentionBadge}>Aandacht</span>}
+                  </span>
                 </button>
               ))}
             </div>
           )}
         </section>
+
+        <div
+          className={styles.paneDivider}
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Breedte tussen lijst en detailpaneel aanpassen"
+          tabIndex={0}
+          onPointerDown={startDrag("list-detail")}
+          onKeyDown={(event) => {
+            if (event.key === "ArrowLeft") { event.preventDefault(); nudgeDivider("list-detail", -16); }
+            if (event.key === "ArrowRight") { event.preventDefault(); nudgeDivider("list-detail", 16); }
+          }}
+        />
 
         <section className={styles.detailPane} aria-label="Detailpaneel">
           <button className={styles.mobileBack} type="button" onClick={() => setMobilePane("list")}>
@@ -652,7 +1123,14 @@ export function TakenVisualPrototype() {
                   {selectedTask.subtasks.map((subtask) => {
                     const stateLabel = subtaskStateLabel(subtask.state);
                     return (
-                      <div key={subtask.id} className={styles.subtaskRow}>
+                      <div
+                        key={subtask.id}
+                        className={
+                          subtask.state === "active"
+                            ? `${styles.subtaskRow} ${styles.subtaskRowActive}`
+                            : styles.subtaskRow
+                        }
+                      >
                         <span className={styles.subtaskMarker} aria-hidden="true" />
                         <span className={styles.subtaskText}>
                           <strong>{subtask.title}</strong>
@@ -702,34 +1180,121 @@ export function TakenVisualPrototype() {
             </div>
           )}
 
-          {currentKind === "email" && (
+          {currentKind === "email" && selectedEmail && (
             <div className={styles.detailContent}>
               <header className={styles.detailHeader}>
-                <p className={styles.eyebrow}>E-mailvoorstel</p>
+                <p className={styles.eyebrow}>E-mail</p>
                 <h2>{selectedEmail.subject}</h2>
                 <p className={styles.sender}>Van {selectedEmail.sender}</p>
               </header>
+
+              <div className={styles.categoryPicker} role="radiogroup" aria-label="Categorie van dit bericht">
+                {(["urgent", "normal", "newsletter"] as const).map((category) => (
+                  <button
+                    key={category}
+                    type="button"
+                    role="radio"
+                    aria-checked={selectedEmail.category === category}
+                    className={
+                      selectedEmail.category === category
+                        ? `${styles.categoryOption} ${styles.categoryOptionActive}`
+                        : styles.categoryOption
+                    }
+                    onClick={() => setEmailCategory(selectedEmail.id, category)}
+                  >
+                    {EMAIL_CATEGORY_LABEL[category]}
+                  </button>
+                ))}
+              </div>
+
+              {selectedEmail.category === "urgent" && selectedEmail.urgentReason && (
+                <div className={styles.dangerMessage}>
+                  <strong>Belangrijk / urgent</strong>
+                  <p>{selectedEmail.urgentReason}</p>
+                </div>
+              )}
+
               <section className={styles.emailSummary}>
                 <h3>Samenvatting</h3>
                 <p>{selectedEmail.summary}</p>
               </section>
-              <section className={styles.proposalBlock}>
-                <p className={styles.eyebrow}>Voorgestelde actie</p>
-                <p>{selectedEmail.proposal}</p>
-                <span>{selectedEmail.confidence}</span>
-              </section>
-              <div className={styles.emailActions}>
-                <button className={styles.primaryButton} type="button" onClick={() => setFeedback("Voorbeeldactie: het voorstel is lokaal geaccepteerd. Er is niets opgeslagen of verzonden.")}>Accepteren</button>
-                <button className={styles.secondaryButton} type="button" onClick={() => setFeedback("Voorbeeldactie: aanpassen opent later een echt formulier.")}>Aanpassen</button>
-                <button className={styles.ghostButton} type="button" onClick={() => setFeedback("Voorbeeldactie: het voorstel is alleen in lokale state genegeerd.")}>Negeren</button>
-              </div>
+
+              {selectedEmail.category === "newsletter" ? (
+                <section className={styles.proposalBlock}>
+                  <p className={styles.eyebrow}>Nieuwsbrief</p>
+                  <label className={styles.unsubscribeOption}>
+                    <input
+                      type="checkbox"
+                      checked={Boolean(unsubscribeSelection[selectedEmail.id])}
+                      onChange={() => toggleUnsubscribeSelection(selectedEmail.id)}
+                    />
+                    Markeren voor afmelding
+                  </label>
+                  {selectedNewsletters.length > 0 && (
+                    <button type="button" className={styles.secondaryButton} onClick={unsubscribeSelectedNewsletters}>
+                      Geselecteerde nieuwsbrieven afmelden ({selectedNewsletters.length})
+                    </button>
+                  )}
+                </section>
+              ) : (
+                <section className={styles.proposalBlock}>
+                  <p className={styles.eyebrow}>Voorgestelde actie</p>
+                  <p>{selectedEmail.proposal}</p>
+                  <span>{selectedEmail.confidence}</span>
+                </section>
+              )}
+
+              {selectedEmail.category !== "newsletter" && (
+                <div className={styles.emailActions}>
+                  <button className={styles.primaryButton} type="button" onClick={() => setFeedback("Voorbeeldactie: het voorstel is lokaal geaccepteerd. Er is niets opgeslagen of verzonden.")}>Accepteren</button>
+                  <button className={styles.secondaryButton} type="button" onClick={() => setFeedback("Voorbeeldactie: aanpassen opent later een echt formulier.")}>Aanpassen</button>
+                  <button className={styles.ghostButton} type="button" onClick={() => setFeedback("Voorbeeldactie: het voorstel is alleen in lokale state genegeerd.")}>Negeren</button>
+                </div>
+              )}
+
               {feedback && <p className={styles.feedback} role="status">{feedback}</p>}
               <button className={styles.sourceToggle} type="button" onClick={() => setSourceOpen((open) => !open)} aria-expanded={sourceOpen}>
-                {sourceOpen ? "Broninhoud verbergen" : "Broninhoud tonen"}
+                {sourceOpen ? "Bericht verbergen" : "Bericht tonen"}
                 <span aria-hidden="true">{sourceOpen ? "↑" : "↓"}</span>
               </button>
               {sourceOpen && <blockquote className={styles.sourceContent}>{selectedEmail.source}</blockquote>}
-              <p className={styles.dataNote}>Alle e-mailinhoud op dit scherm is fictieve voorbeelddata.</p>
+              <p className={styles.dataNote}>Alle e-mailinhoud op dit scherm is fictieve voorbeelddata. Een echte afmelding vindt in deze proef niet plaats.</p>
+            </div>
+          )}
+
+          {currentKind === "whatsapp" && selectedWhatsApp && (
+            <div className={styles.detailContent}>
+              <header className={styles.detailHeader}>
+                <p className={styles.eyebrow}>WhatsApp</p>
+                <h2>{selectedWhatsApp.contact}</h2>
+                <div className={styles.taskMeta}>
+                  {selectedWhatsApp.needsAttention && <span className={styles.attentionBadgeLarge}>Aandacht</span>}
+                  <span>Laatste bericht {selectedWhatsApp.time}</span>
+                </div>
+              </header>
+
+              {selectedWhatsApp.needsAttention && selectedWhatsApp.attentionReason && (
+                <div className={styles.attentionMessage}>
+                  <strong>Aandacht</strong>
+                  <p>{selectedWhatsApp.attentionReason}</p>
+                </div>
+              )}
+
+              <section className={styles.whatsappThread} aria-label="Berichten in dit gesprek">
+                {selectedWhatsApp.thread.map((entry, index) => (
+                  <div
+                    key={index}
+                    className={entry.from === "me" ? styles.whatsappBubbleMe : styles.whatsappBubbleThem}
+                  >
+                    <p>{entry.text}</p>
+                    <time>{entry.time}</time>
+                  </div>
+                ))}
+              </section>
+
+              <p className={styles.readOnlyNote}>
+                <NavIcon name="whatsapp" /> Nog geen WhatsApp-koppeling · tijdelijke voorbeelddata
+              </p>
             </div>
           )}
         </section>

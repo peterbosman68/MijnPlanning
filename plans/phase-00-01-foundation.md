@@ -932,3 +932,24 @@ Dit document bevat twee afzonderlijke stopcondities.
 - O21 is in `docs/DECISIONS.md` en hoofdstuk 15 van dit plan definitief vastgelegd en in het lokale subtaakformulier zichtbaar gemaakt.
 - Alle inhoud bestaat uit expliciete voorbeelddata en lokale React-state. Er zijn geen Neon-, Microsoft Graph- of andere externe writes uitgevoerd.
 - De proef blijft ongecommit en ongepusht en wacht na de lokale kwaliteitscontroles op Peters visuele beoordeling.
+
+### 19 juli 2026 — visuele verfijning, blauw/geel-palet en instelbare desktopkolommen (O23)
+
+- Op de actieve branch `feature/visual-foundation-v3` is de O22-drieluikstructuur (navigatie links, compacte lijst midden, detailpaneel rechts) ongewijzigd behouden; alleen de visuele vormgeving en de kolombreedtes zijn aangepast.
+- Het kleurenpalet is vastgesteld op blauw als primaire huisstijlkleur en geel als spaarzame ondersteunende bijkleur, met groen/oranje/rood uitsluitend semantisch voor planningsrisico. Zie `docs/DESIGN_SYSTEM.md` en `docs/DECISIONS.md` (O23) voor de vastgelegde tokens.
+- De navigatiekolom, geselecteerde hoofdtaak, knoppen, timerweergave, subtakenlijst en risico-indicatoren zijn visueel verfijnd binnen de bestaande informatiearchitectuur; er zijn geen nieuwe navigatie-items, tellers of badges toegevoegd.
+- De drie desktopzones zijn nu instelbaar in breedte via twee versleepbare scheidingslijnen, met vaste minimum- en maximumbreedtes per zone, toetsenbordbediening en een actie "Standaardindeling herstellen". De gekozen indeling wordt onthouden via `localStorage` (sleutel `mijnplanning.taken.paneLayout.v1`) en hersteld na verversen of een nieuwe sessie. Zie `docs/DECISIONS.md` (O23) voor de volledige regels.
+- Mobiel en smalle tablet blijven de bestaande stapnavigatie navigatie → lijst → detail gebruiken, zonder versleepbare scheidingslijnen en zonder opslag van kolombreedtes.
+- Alle wijzigingen blijven beperkt tot de visuele proef (`app/taken/taken-visual-prototype.tsx` en de bijbehorende CSS-module) en deze documentatie. Er zijn geen Neon-writes, geen Microsoft Graph-koppeling en geen nieuwe dependencies toegevoegd.
+- De proef blijft ongecommit en ongepusht en wacht op Peters visuele beoordeling.
+
+### 19 juli 2026 — navigatiecontrast, ToDo-label, WhatsApp-screeningsproef en e-mailcategorisatie (O24)
+
+- Op de actieve branch `feature/visual-foundation-v3` is het navigatiecontrast hersteld: standaard, hover, geselecteerd, toetsenbordfocus en actief-tijdens-klikken zijn nu voor ieder navigatie-item duidelijk leesbaar, met donkerblauwe tekst en blauw icoon op iedere lichte achtergrond en een zichtbaar verschil tussen hover en geselecteerd.
+- Het navigatie-item "Hoofdtaken" heet in de zichtbare navigatie voortaan "ToDo". Alleen het label is gewijzigd; het onderliggende datamodel, interne typenamen, de taken-/subtakenstructuur en O21 blijven ongewijzigd.
+- WhatsApp is toegevoegd als nieuw navigatie-item direct onder E-mail, met een werkende screeningsproef binnen dezelfde drieluikstructuur (lijst met voorbeeldgesprekken, detailpaneel met berichtenthread). Er is geen WhatsApp Cloud API, geen accountkoppeling, geen verzenden/beantwoorden, geen synchronisatie en geen databaseopslag toegevoegd — uitsluitend lokale voorbeelddata, conform `AGENTS.md` §7.
+- Het scherm E-mail is uitgebreid met drie categorieën (Belangrijk / urgent, Normaal, Nieuwsbrieven), een categoriefilter in de middenlijst en een categoriekiezer in het detailpaneel. Rood wordt uitsluitend bij Belangrijk / urgent met een concrete reden gebruikt; Normaal krijgt geen groene markering.
+- Nieuwsbrieven kunnen per bericht worden aangevinkt met "Markeren voor afmelding"; de verzamelactie "Geselecteerde nieuwsbrieven afmelden" toont uitsluitend een lokale proefmelding en voert geen echte afmelding, externe aanroep of verzending uit.
+- Mobiel blijft het bestaande stappenpatroon navigatie → lijst → detail gelden voor ToDo, E-mail en WhatsApp, met behoud van de bestaande terug-knoppen en zonder horizontale overflow.
+- Alle wijzigingen blijven beperkt tot de visuele proef (`app/taken/taken-visual-prototype.tsx` en de bijbehorende CSS-module) en deze documentatie. Er zijn geen Neon-writes, geen Microsoft Graph-aanroepen, geen WhatsApp-API-aanroepen en geen nieuwe dependencies toegevoegd.
+- De proef blijft ongecommit en ongepusht en wacht op Peters visuele beoordeling.

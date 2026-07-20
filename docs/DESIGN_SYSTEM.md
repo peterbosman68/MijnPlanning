@@ -241,6 +241,26 @@ Toon:
 
 Een hoofdtaak is visueel duidelijk te onderscheiden van subtaken.
 
+### 12.1 Instelbare desktopkolommen (O23)
+
+Het scherm Taken gebruikt op desktop drie vaste zones naast elkaar: navigatie, compacte lijst en detailpaneel. Alle drie de zones blijven altijd zichtbaar; er is geen functie om een zone volledig in te klappen.
+
+- De twee verticale scheidingslijnen tussen de zones zijn met de muis versleepbaar en met het toetsenbord bedienbaar (pijltjestoetsen wanneer de scheidingslijn focus heeft).
+- Iedere zone heeft een vaste minimum- en maximumbreedte, zodat geen enkele zone door slepen onbruikbaar klein kan worden.
+- De laatst gekozen indeling wordt per browser onthouden via `localStorage` en teruggezet na verversen, na het opnieuw openen van de browser en in een nieuwe lokale sessie.
+- Wanneer het scherm smaller wordt dan de opgeslagen indeling toelaat, wordt de indeling automatisch begrensd tot bruikbare waarden.
+- Een rustige actie "Standaardindeling herstellen" zet de drie zones direct terug op de vaste standaardbreedtes.
+- Mobiel en smalle tablet gebruiken geen versleepbare scheidingslijnen en geen opslag van kolombreedtes; daar geldt de bestaande stapnavigatie navigatie → lijst → detail.
+- Het slepen zelf heeft geen invloed op taakgegevens, timer, taakselectie of een geopend formulier.
+
+### 12.2 Navigatielabel en contrast (O24)
+
+- Het navigatie-item voor hoofdtaken heet in de zichtbare gebruikersinterface "ToDo". Dit is uitsluitend een labelwijziging; het datamodel en de interne typenamen blijven ongewijzigd.
+- Ieder navigatie-item is in alle toestanden goed leesbaar: standaard, hover, geselecteerd, toetsenbordfocus en actief tijdens klikken.
+- Bij een witte of lichtblauwe achtergrond (hover en geselecteerd) gebruikt de tekst donkerblauw en het icoon blauw. Witte tekst op een witte of zeer lichte achtergrond komt niet voor.
+- Hover en geselecteerd zijn visueel verschillend van elkaar: hover gebruikt een lichtblauwe achtergrond, geselecteerd een wit oppervlak met extra gewicht en een lichte schaduw.
+- Kleur is bij navigatiestatussen nooit de enige informatiedrager; toetsenbordfocus krijgt een eigen zichtbare buitenring.
+
 ---
 
 ## 13. Scherm Inbox
@@ -258,6 +278,22 @@ Per voorstel:
 - negeren.
 
 Broninhoud blijft beschikbaar.
+
+### 13.1 E-mailcategorisatie (O24)
+
+Het scherm E-mail laat de gebruiker ieder bericht aan één van drie categorieën toewijzen:
+
+1. **Belangrijk / urgent** — snelle actie vereist, belangrijke afzender, of een deadline, afspraak of financieel risico. Rood wordt uitsluitend gebruikt wanneer sprake is van echte urgentie of concreet risico, altijd met een tekstlabel en een korte reden erbij.
+2. **Normaal** — gewone berichten die gelezen of later afgehandeld kunnen worden. Deze categorie gebruikt een neutrale markering, nooit een groene succesmarkering.
+3. **Nieuwsbrieven** — getoond in een eigen filter binnen dezelfde lijst. Iedere nieuwsbrief heeft een selectievakje "Markeren voor afmelding"; een verzamelactie "Geselecteerde nieuwsbrieven afmelden" verwerkt de selectie.
+
+In de visuele proef blijft de selectie uitsluitend lokale component-state. Er wordt geen echte afmelding uitgevoerd, geen externe website geopend en geen e-mail verzonden; na de verzamelactie verschijnt uitsluitend een duidelijke proefmelding. De definitieve applicatie vraagt vóór een echte afmelding altijd eerst Peters expliciete bevestiging.
+
+### 13.2 WhatsApp-screeningsproef (O24)
+
+WhatsApp is zichtbaar als navigatie-item direct onder E-mail en gebruikt dezelfde drieluikstructuur: links de algemene navigatie, midden een compacte lijst met voorbeeldgesprekken, rechts het geselecteerde gesprek. Per gesprek toont de lijst minimaal naam of afzender, een korte voorvertoning, tijd, ongelezen-status en waar functioneel relevant een label "Aandacht".
+
+Dit is uitsluitend een screeningsproef met lokale voorbeeldgegevens: geen WhatsApp Cloud API, geen koppeling met een privéaccount, geen extern telefoonnummer, geen verzenden of beantwoorden, geen synchronisatie en geen databaseopslag. De algemene MijnPlanning-huisstijl (blauw met geel als spaarzaam accent) blijft leidend; er wordt geen decoratieve groene WhatsApp-kleur op grote vlakken gebruikt.
 
 ---
 

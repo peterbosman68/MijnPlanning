@@ -264,3 +264,27 @@ Nieuwe besluiten worden onderaan toegevoegd met datum.
 - Bij een afgeronde hoofdtaak moet de gebruiker de taak eerst expliciet opnieuw openen voordat een subtaak kan worden toegevoegd.
 - Een gearchiveerde of geannuleerde hoofdtaak moet eerst expliciet worden hersteld.
 - Bij de eerste subtaak wordt een uitvoerbare hoofdtaak een verzameltaak; de hoofdtaakduur wordt niet naast de subtaken dubbel ingepland.
+
+## 19 juli 2026 — besluit O23
+
+### O23 — instelbare desktopkolommen in de visuele proef
+
+- De drie desktopzones van de visuele proef (navigatie, lijst, detailpaneel) blijven altijd alle drie zichtbaar; er komt geen functie om het detailpaneel of een andere zone volledig in te klappen.
+- De twee verticale scheidingslijnen tussen de zones zijn op desktop met de muis versleepbaar en hebben elk een veilige minimum- en maximumbreedte, zodat geen zone onbruikbaar klein kan worden.
+- De laatst gekozen indeling wordt onthouden via `localStorage` in de browser en hersteld na verversen, na sluiten en opnieuw openen van de browser, en bij een nieuwe lokale sessie.
+- De visuele proef gebruikt uitsluitend `localStorage`; er wordt niets naar Neon geschreven. De definitieve applicatie kan de indeling later aan het gebruikersprofiel koppelen, maar dat is geen onderdeel van dit besluit.
+- Wanneer het scherm smaller is geworden dan de opgeslagen indeling toelaat, wordt de opgeslagen indeling automatisch begrensd tot bruikbare waarden.
+- Een actie "Standaardindeling herstellen" is beschikbaar en keert direct terug naar de vaste standaardbreedtes; deze keuze wordt daarna opnieuw opgeslagen.
+- Mobiel en smalle tablet gebruiken geen instelbare kolombreedtes en geen opslag van kolombreedtes; daar blijft de bestaande stapnavigatie navigatie → lijst → detail gelden.
+- Het aanpassen van de kolombreedte heeft geen invloed op taakgegevens, timer, selectie of formulierstatus.
+
+## 19 juli 2026 — besluit O24
+
+### O24 — navigatielabel ToDo, WhatsApp-screeningsproef en e-mailcategorisatie
+
+- Het navigatie-item dat voorheen "Hoofdtaken" heette, heet in de zichtbare gebruikersinterface voortaan "ToDo". Dit is uitsluitend een labelwijziging; het onderliggende datamodel, interne typenamen, de hoofdtaak- en subtaakregels en O21 blijven ongewijzigd.
+- WhatsApp is nu zichtbaar als een visuele screeningsproef, direct onder E-mail in de navigatie, binnen dezelfde drieluikstructuur (navigatie, compacte lijst met voorbeeldgesprekken, detailpaneel met het geselecteerde gesprek).
+- Deze proef gebruikt uitsluitend lokale voorbeeldgegevens. Er is geen WhatsApp Cloud API, geen koppeling met een privéaccount, geen extern telefoonnummer, geen verzenden of beantwoorden, geen synchronisatie en geen databaseopslag. Een echte WhatsApp-integratie blijft een latere, apart te besluiten fase en valt buiten deze proef, conform `AGENTS.md` §7.
+- E-mail kent drie categorieën waaraan een gebruiker ieder bericht kan toewijzen: Belangrijk / urgent, Normaal en Nieuwsbrieven. Rood wordt uitsluitend gebruikt bij Belangrijk / urgent met een concrete reden (deadline, afspraak of financieel risico); Normaal is een neutrale categorie zonder groene succesmarkering.
+- Nieuwsbrieven kunnen met een selectievakje worden gemarkeerd voor afmelding ("Markeren voor afmelding"), met een verzamelactie "Geselecteerde nieuwsbrieven afmelden". In deze proef wordt de selectie alleen lokaal in component-state bijgehouden; er vindt geen echte afmelding, geen externe aanroep en geen e-mailverzending plaats. De definitieve applicatie vraagt later altijd eerst Peters expliciete bevestiging voordat een echte afmelding wordt uitgevoerd.
+- De proef gebruikt uitsluitend lokale voorbeeldgegevens; er zijn geen Neon-writes, geen Microsoft Graph-aanroepen en geen WhatsApp-API-aanroepen toegevoegd.
