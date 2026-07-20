@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 
 import { loginAction, type LoginActionState } from "./actions";
@@ -20,6 +20,7 @@ function SubmitButton() {
 
 export function LoginForm() {
   const [state, formAction] = useActionState(loginAction, initialState);
+  const [passwordVisible, setPasswordVisible] = useState(false);
 
   return (
     <form className={styles.form} action={formAction} noValidate>
@@ -39,15 +40,30 @@ export function LoginForm() {
 
       <div className={styles.field}>
         <label htmlFor="password">Wachtwoord</label>
-        <input
-          id="password"
-          name="password"
-          type="password"
-          autoComplete="current-password"
-          required
-          maxLength={1024}
-          suppressHydrationWarning
-        />
+        <div className={styles.passwordControl}>
+          <input
+            id="password"
+            name="password"
+            type={passwordVisible ? "text" : "password"}
+            autoComplete="current-password"
+            required
+            maxLength={1024}
+            suppressHydrationWarning
+          />
+          <button
+            className={styles.passwordToggle}
+            type="button"
+            aria-label={passwordVisible ? "Wachtwoord verbergen" : "Wachtwoord tonen"}
+            aria-pressed={passwordVisible}
+            onClick={() => setPasswordVisible((visible) => !visible)}
+          >
+            <svg aria-hidden="true" viewBox="0 0 24 24">
+              <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" />
+              <circle cx="12" cy="12" r="2.5" />
+              {passwordVisible ? <path d="m4 4 16 16" /> : null}
+            </svg>
+          </button>
+        </div>
       </div>
 
       {state.message ? (

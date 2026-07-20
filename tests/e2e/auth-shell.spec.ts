@@ -25,7 +25,23 @@ test("de login past zonder horizontale overflow op desktop en mobiel", async ({
 
   expect(hasHorizontalOverflow).toBe(false);
   await expect(page.getByLabel("E-mailadres")).toBeVisible();
-  await expect(page.getByLabel("Wachtwoord")).toBeVisible();
+  await expect(page.locator("#password")).toBeVisible();
+});
+
+test("het wachtwoord kan tijdelijk zichtbaar en weer verborgen worden", async ({
+  page,
+}) => {
+  await page.goto("/login");
+
+  const password = page.locator("#password");
+  await password.fill("uitsluitend-testinvoer");
+  await expect(password).toHaveAttribute("type", "password");
+
+  await page.getByRole("button", { name: "Wachtwoord tonen" }).click();
+  await expect(password).toHaveAttribute("type", "text");
+
+  await page.getByRole("button", { name: "Wachtwoord verbergen" }).click();
+  await expect(password).toHaveAttribute("type", "password");
 });
 
 test("browserextensie-attributen veroorzaken geen hydrationwaarschuwing", async ({

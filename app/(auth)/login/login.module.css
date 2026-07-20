@@ -74,6 +74,50 @@
   font: inherit;
 }
 
+.passwordControl {
+  position: relative;
+}
+
+.passwordControl input {
+  padding-right: 50px;
+}
+
+.passwordToggle {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: grid;
+  width: 38px;
+  height: 38px;
+  padding: 8px;
+  place-items: center;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #4a5875;
+  cursor: pointer;
+}
+
+.passwordToggle:hover {
+  background: #edf3ff;
+  color: #173c8f;
+}
+
+.passwordToggle:focus-visible {
+  outline: 3px solid rgb(242 201 76 / 70%);
+  outline-offset: 1px;
+}
+
+.passwordToggle svg {
+  width: 21px;
+  height: 21px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.7;
+}
+
 .field input:focus-visible {
   outline: 3px solid rgb(242 201 76 / 70%);
   outline-offset: 2px;
