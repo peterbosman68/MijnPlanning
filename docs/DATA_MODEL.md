@@ -52,7 +52,20 @@ Technisch, privacybewust model voor centrale login-rate-limiting:
 
 De eerste fase blokkeert een combinatie na vijf mislukte pogingen binnen vijftien minuten gedurende vijftien minuten. Het record verloopt automatisch als opruimbare technische state en bevat geen wachtwoord, sessietoken of ruwe requestbron.
 
-De modellen `User`, `Session` en `AuthThrottle` zijn in fase 0 als eerste additive migratie geïmplementeerd. Taak- en overige productmodellen volgen pas in hun eigen fase.
+### PasswordResetToken
+
+Technisch model voor eenmalig webherstel:
+
+- id;
+- userId;
+- tokenHash, verplicht en uniek; de leesbare token wordt nooit opgeslagen;
+- expiresAt, dertig minuten na uitgifte;
+- usedAt, optioneel;
+- createdAt.
+
+Een geslaagde reset markeert alle nog openstaande tokens van de gebruiker als gebruikt. Indexen op `userId + usedAt` en `expiresAt` ondersteunen validatie en latere opruiming. Databaseconstraints bewaken dat verval en gebruik niet vóór creatie liggen.
+
+De modellen `User`, `Session` en `AuthThrottle` zijn in fase 0 als eerste additieve migratie geïmplementeerd. `PasswordResetToken` volgt als afzonderlijke additieve beveiligingsmigratie. Taak- en overige productmodellen volgen pas in hun eigen fase.
 
 ---
 

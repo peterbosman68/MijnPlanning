@@ -44,6 +44,41 @@ test("het wachtwoord kan tijdelijk zichtbaar en weer verborgen worden", async ({
   await expect(password).toHaveAttribute("type", "password");
 });
 
+test("wachtwoordherstel is vanaf de login bereikbaar op desktop en mobiel", async ({
+  page,
+}) => {
+  await page.goto("/login");
+  await page.getByRole("link", { name: "Wachtwoord vergeten?" }).click();
+
+  await expect(page).toHaveURL(/\/wachtwoord-vergeten$/);
+  await expect(
+    page.getByRole("heading", { name: "Wachtwoord vergeten?" }),
+  ).toBeVisible();
+  await expect(page.getByLabel("E-mailadres")).toBeVisible();
+  expect(
+    await page.evaluate(
+      () =>
+        document.documentElement.scrollWidth >
+        document.documentElement.clientWidth,
+    ),
+  ).toBe(false);
+});
+
+test("de herstelpagina verbergt de token uit de adresbalk en heeft oogknoppen", async ({
+  page,
+}) => {
+  await page.goto(`/wachtwoord-herstellen?token=${"a".repeat(43)}`);
+
+  await expect(page).toHaveURL(/\/wachtwoord-herstellen$/);
+  const newPassword = page.locator("#new-password");
+  await newPassword.fill("uitsluitend-testinvoer");
+  await expect(newPassword).toHaveAttribute("type", "password");
+  await page.getByRole("button", { name: "Nieuw wachtwoord tonen" }).click();
+  await expect(newPassword).toHaveAttribute("type", "text");
+  await page.getByRole("button", { name: "Nieuw wachtwoord verbergen" }).click();
+  await expect(newPassword).toHaveAttribute("type", "password");
+});
+
 test("browserextensie-attributen veroorzaken geen hydrationwaarschuwing", async ({
   page,
 }) => {

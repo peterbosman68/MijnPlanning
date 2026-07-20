@@ -214,6 +214,8 @@ De eerste gebruiker wordt aangemaakt via de geïmplementeerde eenmalige server-o
 
 Nieuwe en gewijzigde wachtwoorden bevatten minimaal 8 tekens; langer en uniek blijft aanbevolen. De lokale server-only CLI `npm run user:change-password` controleert het huidige wachtwoord, vraagt het nieuwe wachtwoord tweemaal verborgen, wijzigt de Argon2id-hash transactioneel en trekt daarna alle bestaande sessies in.
 
+Webherstel verloopt via een dunne aanvraagaction, een afzonderlijke authenticatieservice en een kleine server-only Resend-adapter. Een cryptografisch willekeurige token wordt dertig minuten geldig uitgegeven; alleen de contextgescheiden HMAC-SHA-256-hash wordt in PostgreSQL opgeslagen. De aanvraagmelding is altijd generiek. Tokenverbruik, Argon2id-wachtwoordwijziging, intrekking van sessies en overige tokens en het wissen van auththrottles gebeuren transactioneel. Het bestaande interactieve lokale noodherstel blijft de provider-onafhankelijke terugvalroute.
+
 De sessie gebruikt een cryptografisch willekeurig opaque token. Alleen een HMAC-SHA-256-hash met het server-side `SESSION_SECRET` wordt opgeslagen. Login-rate-limiting staat centraal in PostgreSQL, zodat afzonderlijke serverless instanties dezelfde blokkering gebruiken.
 
 Microsoft wordt niet gebruikt als primaire login.
@@ -363,13 +365,14 @@ Minimaal verwacht in fase 0 en 1:
 ```text
 DATABASE_URL
 SESSION_SECRET
+RESEND_API_KEY
+PASSWORD_RESET_EMAIL_FROM
 ```
 
 Er is in de MVP geen `PASSWORD_PEPPER`. De volgende variabelen horen pas bij hun latere integratiefase en worden niet in fase 0 geprovisioneerd:
 
 ```text
 BLOB_READ_WRITE_TOKEN
-RESEND_API_KEY
 MICROSOFT_CLIENT_ID
 MICROSOFT_CLIENT_SECRET
 MICROSOFT_TOKEN_ENCRYPTION_KEY

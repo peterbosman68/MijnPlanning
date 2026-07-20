@@ -43,6 +43,11 @@ Fase-0-implementatie:
 - de bootstrap- en wijzigings-CLI vereisen een wachtwoord van minimaal 8 tekens en loggen geen invoer of hash; een langer, uniek wachtwoord blijft aanbevolen;
 - de wijzigings-CLI controleert het huidige wachtwoord en trekt na succes alle bestaande sessies in;
 - de noodherstel-CLI is uitsluitend interactief en server-side, vereist het exacte single-user-e-mailadres plus de bevestiging `HERSTEL`, accepteert geen wachtwoord via argumenten of procesvariabelen, trekt alle sessies in en wist bestaande loginblokkades;
+- `Wachtwoord vergeten?` blijft altijd zichtbaar en de aanvraag geeft voor bekende en onbekende adressen dezelfde neutrale melding;
+- een webresettoken bevat 32 cryptografisch willekeurige bytes, wordt alleen als contextgescheiden HMAC-SHA-256-hash opgeslagen, vervalt na dertig minuten en kan één keer worden gebruikt;
+- herstelverzoeken zijn begrensd op drie per uur per account/bron en tien per uur per bron; tokenpogingen op twintig per uur per bron; alle sleutels zijn gehasht;
+- een geslaagde webreset maakt overige tokens ongeldig, trekt alle sessies in en wist auththrottles in dezelfde transactie;
+- de Resend API-key blijft server-side, en token, reset-URL, bestemmingsadres en providerantwoord komen niet in applicatielogs;
 - onbekend e-mailadres en verkeerd wachtwoord geven dezelfde gebruikersmelding;
 - na vijf mislukte pogingen binnen vijftien minuten volgt een blokkering van vijftien minuten;
 - de throttlekey is gehasht en bevat geen leesbaar e-mailadres of IP-adres.

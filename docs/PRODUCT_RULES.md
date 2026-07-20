@@ -313,7 +313,12 @@ Sla de volledige planning niet iedere seconde opnieuw op.
 - De eerste gebruiker wordt via een eenmalige server-only CLI aangemaakt; deze logt geen wachtwoord of hash en is geen publieke productieroute.
 - Een nieuw of gewijzigd wachtwoord bevat minimaal 8 tekens; een langer, uniek wachtwoord blijft aanbevolen.
 - Een lokale server-only wijzigingsopdracht controleert eerst het huidige wachtwoord en trekt na een geslaagde wijziging alle bestaande sessies in.
-- Lokaal noodherstel zonder het huidige wachtwoord is uitsluitend toegestaan via een interactieve server-only CLI met het exacte single-user-e-mailadres en een expliciete herstelbevestiging; deze route is geen webendpoint en trekt na succes alle sessies in.
+- Lokaal noodherstel zonder het huidige wachtwoord blijft toegestaan via een interactieve server-only CLI met het exacte single-user-e-mailadres en een expliciete herstelbevestiging; deze route is geen webendpoint en trekt na succes alle sessies in.
+- Het inlogscherm toont altijd `Wachtwoord vergeten?`, ook na een loginblokkering.
+- Het webformulier voor wachtwoordherstel geeft altijd dezelfde neutrale bevestiging en verraadt niet of het e-mailadres bestaat, of een token is gemaakt of dat de e-mailprovider de mail heeft geaccepteerd.
+- Een webresettoken is cryptografisch willekeurig, wordt uitsluitend gehasht opgeslagen, is dertig minuten geldig en kan één keer worden gebruikt.
+- Een geslaagde webreset maakt alle overige resettokens ongeldig, trekt alle actieve sessies in en wist bestaande loginblokkades.
+- Voor deze single-user-MVP gebruikt Resend uitsluitend de beperkte afzender `onboarding@resend.dev` naar het eigen Resend-accountadres. Wijziging van het bestemmingsadres of uitbreiding naar meerdere gebruikers vereist een eigen geverifieerd domein of een nieuw providerbesluit.
 - Wachtwoord met Argon2id en een goede unieke salt.
 - Geen password pepper in de MVP.
 - Veilige server-side sessie.

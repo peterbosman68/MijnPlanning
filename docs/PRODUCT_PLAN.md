@@ -583,7 +583,7 @@ Voor de MVP:
 - rate limiting;
 - sessie-intrekking.
 
-Het wachtwoord kan via een lokale server-only opdracht worden gewijzigd. De gewone wijzigingsroute vereist het huidige wachtwoord. Voor het geval dit echt vergeten is, bestaat daarnaast uitsluitend lokaal noodherstel met het exacte account-e-mailadres en een expliciete bevestiging. Na iedere geslaagde wijziging of reset worden alle bestaande sessies ingetrokken.
+Het wachtwoord kan via een lokale server-only opdracht worden gewijzigd. De gewone wijzigingsroute vereist het huidige wachtwoord. Bij een vergeten wachtwoord kan de gebruiker via een generiek webformulier een eenmalige herstelmail aanvragen. De link is dertig minuten geldig, kan één keer worden gebruikt en verraadt niet of het account bestaat. Het interactieve lokale noodherstel blijft als laatste herstelmogelijkheid bestaan. Na iedere geslaagde wijziging of reset worden alle bestaande sessies ingetrokken.
 
 Microsoft wordt niet gebruikt als primaire MijnPlanning-login.
 

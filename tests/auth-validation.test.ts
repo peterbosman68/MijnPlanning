@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import {
   bootstrapUserSchema,
+  completePasswordResetSchema,
   loginInputSchema,
   normalizeEmail,
+  passwordResetRequestSchema,
 } from "@/lib/auth/validation";
 
 describe("loginvalidatie", () => {
@@ -31,6 +33,26 @@ describe("loginvalidatie", () => {
       bootstrapUserSchema.safeParse({
         email: "peter@example.com",
         password: "zeven!!",
+      }).success,
+    ).toBe(false);
+  });
+
+  it("valideert herstelmail en twee gelijke nieuwe wachtwoorden", () => {
+    expect(
+      passwordResetRequestSchema.parse({ email: " PETER@EXAMPLE.COM " }),
+    ).toEqual({ email: "peter@example.com" });
+    expect(
+      completePasswordResetSchema.safeParse({
+        token: "a".repeat(43),
+        newPassword: "nieuw-123",
+        confirmPassword: "nieuw-123",
+      }).success,
+    ).toBe(true);
+    expect(
+      completePasswordResetSchema.safeParse({
+        token: "a".repeat(43),
+        newPassword: "nieuw-123",
+        confirmPassword: "anders-123",
       }).success,
     ).toBe(false);
   });

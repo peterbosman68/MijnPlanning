@@ -344,3 +344,17 @@ Nieuwe besluiten worden onderaan toegevoegd met datum.
 - Het nieuwe wachtwoord voldoet aan hetzelfde minimum van acht tekens, wordt met Argon2id gehasht en mag niet gelijk zijn aan het bestaande wachtwoord.
 - Een geslaagde reset trekt transactioneel alle actieve sessies in en wist bestaande loginblokkades, zodat opnieuw inloggen direct mogelijk is.
 - De opdracht logt geen wachtwoord, hash, database-URL of andere secret. De gebruiker moet zelf vooraf de bedoelde lokale, Preview- of Production-databaseomgeving kiezen.
+
+## 20 juli 2026 — besluit O31
+
+### O31 — aanvullend wachtwoordherstel per e-mail
+
+- Peters actuele opdracht breidt O30 uit: het lokale noodherstel blijft bestaan, maar is niet langer de enige herstelroute.
+- Het inlogscherm toont altijd `Wachtwoord vergeten?`, ook wanneer login na vijf mislukte pogingen tijdelijk is geblokkeerd.
+- Een herstelverzoek toont altijd dezelfde neutrale bevestiging en verraadt niet of een account bestaat, een token is gemaakt of Resend de mail heeft geaccepteerd.
+- Een resettoken bevat 32 cryptografisch willekeurige bytes, wordt uitsluitend als contextgescheiden HMAC-SHA-256-hash opgeslagen, is dertig minuten geldig en kan één keer worden gebruikt.
+- Een geslaagde reset wijzigt het wachtwoord met Argon2id, maakt overige resettokens ongeldig, trekt alle sessies in en wist auththrottles transactioneel.
+- Verzoeken worden begrensd op drie per uur per account/verzoekbron en tien per uur per verzoekbron; tokenpogingen op twintig per uur per verzoekbron. Alleen gehashte throttlesleutels worden opgeslagen.
+- Peter heeft geen eigen domein. Voor deze persoonlijke single-user-MVP gebruikt Resend daarom uitsluitend `MijnPlanning <onboarding@resend.dev>` en alleen naar het e-mailadres van hetzelfde Resend-account.
+- `resend.dev` is een beperkte testafzender. Een ander bestemmingsadres of meerdere gebruikers vereisen een eigen geverifieerd domein of een nieuw expliciet providerbesluit.
+- `RESEND_API_KEY` wordt uitsluitend als server-side secret geconfigureerd en nooit via chat, Git of clientcode gedeeld.

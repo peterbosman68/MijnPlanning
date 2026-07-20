@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 
@@ -73,6 +74,12 @@ export function LoginForm() {
       ) : null}
 
       <SubmitButton />
+
+      <div className={styles.authLinks}>
+        <Link className={styles.secondaryLink} href="/wachtwoord-vergeten">
+          Wachtwoord vergeten?
+        </Link>
+      </div>
     </form>
   );
 }
