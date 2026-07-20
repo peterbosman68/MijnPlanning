@@ -274,7 +274,7 @@ Nieuwe besluiten worden onderaan toegevoegd met datum.
 - De laatst gekozen indeling wordt onthouden via `localStorage` in de browser en hersteld na verversen, na sluiten en opnieuw openen van de browser, en bij een nieuwe lokale sessie.
 - De visuele proef gebruikt uitsluitend `localStorage`; er wordt niets naar Neon geschreven. De definitieve applicatie kan de indeling later aan het gebruikersprofiel koppelen, maar dat is geen onderdeel van dit besluit.
 - Wanneer het scherm smaller is geworden dan de opgeslagen indeling toelaat, wordt de opgeslagen indeling automatisch begrensd tot bruikbare waarden.
-- Een actie "Standaardindeling herstellen" is beschikbaar en keert direct terug naar de vaste standaardbreedtes; deze keuze wordt daarna opnieuw opgeslagen.
+- Een actie "Kolombreedtes herstellen" is beschikbaar en keert direct terug naar de vaste standaardbreedtes; deze keuze wordt daarna opnieuw opgeslagen.
 - Mobiel en smalle tablet gebruiken geen instelbare kolombreedtes en geen opslag van kolombreedtes; daar blijft de bestaande stapnavigatie navigatie → lijst → detail gelden.
 - Het aanpassen van de kolombreedte heeft geen invloed op taakgegevens, timer, selectie of formulierstatus.
 
@@ -330,6 +330,17 @@ Nieuwe besluiten worden onderaan toegevoegd met datum.
 - De blauw-gele drieluikrichting uit O26 is niet langer een losstaande route naast een tweede technische applicatieshell, maar vormt de gedeelde beveiligde shell voor de werkweergaven.
 - Na inloggen blijft `/vandaag` de functionele landingsroute; deze route toont het drieluik met `Vandaag` geselecteerd. `/taken` toont dezelfde shell met `ToDo` geselecteerd.
 - De tijdelijke witte fase-0-header, technische statuskaarten en afzonderlijke Vandaag-opmaak worden niet naast het goedgekeurde ontwerp behouden.
-- E-mailadres, uitloggen en `Alle sessies intrekken` worden compact in de linkernavigatie opgenomen. De bestaande server-side sessiecontrole, origincontrole, sessie-intrekking en veilige cookies blijven ongewijzigd leidend.
+- E-mailadres, `Uitloggen` en `Op alle apparaten uitloggen` worden compact in de linkernavigatie opgenomen. De bestaande server-side sessiecontrole, origincontrole, sessie-intrekking en veilige cookies blijven ongewijzigd leidend.
 - De instelbare desktopkolommen en mobiele stapweergave uit O23 blijven behouden.
 - Taken, Afspraken, E-mail, WhatsApp en de overige proefinteracties blijven voorlopig expliciete lokale voorbeelddata en React-state. Deze shellintegratie voegt geen productieopslag, externe synchronisatie of planningslogica toe.
+
+## 20 juli 2026 — besluit O30
+
+### O30 — uitsluitend lokaal wachtwoordnoodherstel
+
+- Er komt in deze stap geen publieke accountregistratie, geen knop `Nieuw account aanmaken`, geen webgebaseerde resetroute en geen resetmail.
+- Wanneer het huidige single-userwachtwoord echt vergeten is, mag het uitsluitend via een interactieve lokale server-only opdracht worden vervangen.
+- De opdracht vereist het exacte account-e-mailadres en de hoofdlettergevoelige bevestiging `HERSTEL`. Het nieuwe wachtwoord en de herhaling blijven verborgen en kunnen niet via argumenten of procesvariabelen worden aangeleverd.
+- Het nieuwe wachtwoord voldoet aan hetzelfde minimum van acht tekens, wordt met Argon2id gehasht en mag niet gelijk zijn aan het bestaande wachtwoord.
+- Een geslaagde reset trekt transactioneel alle actieve sessies in en wist bestaande loginblokkades, zodat opnieuw inloggen direct mogelijk is.
+- De opdracht logt geen wachtwoord, hash, database-URL of andere secret. De gebruiker moet zelf vooraf de bedoelde lokale, Preview- of Production-databaseomgeving kiezen.

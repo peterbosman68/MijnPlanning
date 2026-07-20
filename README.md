@@ -66,6 +66,16 @@ Wijzig het wachtwoord uitsluitend via de interactieve lokale opdracht. Het huidi
 npm.cmd run user:change-password
 ```
 
+## Wachtwoord lokaal herstellen
+
+Gebruik het interactieve noodherstel uitsluitend wanneer het huidige wachtwoord echt niet meer bekend is. De opdracht vereist het exacte account-e-mailadres en de bevestiging `HERSTEL`. De nieuwe wachtwoordinvoer blijft verborgen. Na succes worden alle actieve sessies ingetrokken en bestaande loginblokkades gewist:
+
+```powershell
+npm.cmd run user:reset-password
+```
+
+Gebruik deze opdracht alleen in een vertrouwde lokale terminal met de bewust gekozen `DATABASE_URL`. Geef het wachtwoord nooit mee als argument, procesvariabele of chatbericht.
+
 ## Lokaal starten
 
 ```powershell
@@ -75,8 +85,8 @@ npm.cmd run dev
 Belangrijke routes:
 
 - `/login` — eigen MijnPlanning-login;
-- `/vandaag` — beschermde technische fase-0-basis;
-- `/taken` — beschermde goedgekeurde visuele proef;
+- `/vandaag` — beschermd drieluik met Vandaag geselecteerd;
+- `/taken` — beschermd drieluik met ToDo geselecteerd;
 - `/api/health` — minimale geheimvrije healthstatus.
 
 ## Kwaliteitscontroles

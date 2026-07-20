@@ -313,6 +313,7 @@ Sla de volledige planning niet iedere seconde opnieuw op.
 - De eerste gebruiker wordt via een eenmalige server-only CLI aangemaakt; deze logt geen wachtwoord of hash en is geen publieke productieroute.
 - Een nieuw of gewijzigd wachtwoord bevat minimaal 8 tekens; een langer, uniek wachtwoord blijft aanbevolen.
 - Een lokale server-only wijzigingsopdracht controleert eerst het huidige wachtwoord en trekt na een geslaagde wijziging alle bestaande sessies in.
+- Lokaal noodherstel zonder het huidige wachtwoord is uitsluitend toegestaan via een interactieve server-only CLI met het exacte single-user-e-mailadres en een expliciete herstelbevestiging; deze route is geen webendpoint en trekt na succes alle sessies in.
 - Wachtwoord met Argon2id en een goede unieke salt.
 - Geen password pepper in de MVP.
 - Veilige server-side sessie.

@@ -42,6 +42,7 @@ Fase-0-implementatie:
 - Argon2id gebruikt minimaal 19 MiB geheugen, twee iteraties en parallelisme één;
 - de bootstrap- en wijzigings-CLI vereisen een wachtwoord van minimaal 8 tekens en loggen geen invoer of hash; een langer, uniek wachtwoord blijft aanbevolen;
 - de wijzigings-CLI controleert het huidige wachtwoord en trekt na succes alle bestaande sessies in;
+- de noodherstel-CLI is uitsluitend interactief en server-side, vereist het exacte single-user-e-mailadres plus de bevestiging `HERSTEL`, accepteert geen wachtwoord via argumenten of procesvariabelen, trekt alle sessies in en wist bestaande loginblokkades;
 - onbekend e-mailadres en verkeerd wachtwoord geven dezelfde gebruikersmelding;
 - na vijf mislukte pogingen binnen vijftien minuten volgt een blokkering van vijftien minuten;
 - de throttlekey is gehasht en bevat geen leesbaar e-mailadres of IP-adres.

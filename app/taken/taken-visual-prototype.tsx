@@ -839,13 +839,13 @@ export function TakenVisualPrototype({
                 </form>
                 <form action={revokeAllSessionsAction}>
                   <button type="submit" className={styles.revokeButton}>
-                    Alle sessies intrekken
+                    Op alle apparaten uitloggen
                   </button>
                 </form>
               </div>
             </section>
             <button type="button" className={styles.resetLayoutButton} onClick={resetLayout}>
-              Standaardindeling herstellen
+              Kolombreedtes herstellen
             </button>
             <p className={styles.prototypeNote}>
               <span aria-hidden="true" />

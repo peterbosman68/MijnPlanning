@@ -24,7 +24,8 @@
     "prisma:validate": "prisma validate",
     "db:migrate:deploy": "prisma migrate deploy",
     "user:create": "node scripts/create-user.mjs",
-    "user:change-password": "node scripts/change-password.mjs"
+    "user:change-password": "node scripts/change-password.mjs",
+    "user:reset-password": "node scripts/reset-password.mjs"
   },
   "dependencies": {
     "@prisma/client": "6.19.3",

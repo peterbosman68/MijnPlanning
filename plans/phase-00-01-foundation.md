@@ -949,7 +949,7 @@ Deze visuele stopconditie is op 20 juli 2026 opgeheven door Peters expliciete go
 - Op de actieve branch `feature/visual-foundation-v3` is de O22-drieluikstructuur (navigatie links, compacte lijst midden, detailpaneel rechts) ongewijzigd behouden; alleen de visuele vormgeving en de kolombreedtes zijn aangepast.
 - Het kleurenpalet is vastgesteld op blauw als primaire huisstijlkleur en geel als spaarzame ondersteunende bijkleur, met groen/oranje/rood uitsluitend semantisch voor planningsrisico. Zie `docs/DESIGN_SYSTEM.md` en `docs/DECISIONS.md` (O23) voor de vastgelegde tokens.
 - De navigatiekolom, geselecteerde hoofdtaak, knoppen, timerweergave, subtakenlijst en risico-indicatoren zijn visueel verfijnd binnen de bestaande informatiearchitectuur; er zijn geen nieuwe navigatie-items, tellers of badges toegevoegd.
-- De drie desktopzones zijn nu instelbaar in breedte via twee versleepbare scheidingslijnen, met vaste minimum- en maximumbreedtes per zone, toetsenbordbediening en een actie "Standaardindeling herstellen". De gekozen indeling wordt onthouden via `localStorage` (sleutel `mijnplanning.taken.paneLayout.v1`) en hersteld na verversen of een nieuwe sessie. Zie `docs/DECISIONS.md` (O23) voor de volledige regels.
+- De drie desktopzones zijn nu instelbaar in breedte via twee versleepbare scheidingslijnen, met vaste minimum- en maximumbreedtes per zone, toetsenbordbediening en een actie "Kolombreedtes herstellen". De gekozen indeling wordt onthouden via `localStorage` (sleutel `mijnplanning.taken.paneLayout.v1`) en hersteld na verversen of een nieuwe sessie. Zie `docs/DECISIONS.md` (O23) voor de volledige regels.
 - Mobiel en smalle tablet blijven de bestaande stapnavigatie navigatie → lijst → detail gebruiken, zonder versleepbare scheidingslijnen en zonder opslag van kolombreedtes.
 - Alle wijzigingen blijven beperkt tot de visuele proef (`app/taken/taken-visual-prototype.tsx` en de bijbehorende CSS-module) en deze documentatie. Er zijn geen Neon-writes, geen Microsoft Graph-koppeling en geen nieuwe dependencies toegevoegd.
 - Deze verfijning is later in `main` geconsolideerd; de uiteindelijke status staat in de voortgang van 20 juli 2026.
@@ -1001,3 +1001,11 @@ Deze visuele stopconditie is op 20 juli 2026 opgeheven door Peters expliciete go
 - De tijdelijke witte fase-0-appshell en technische statuskaarten zijn verwijderd; accountinformatie, uitloggen en het intrekken van alle sessies zijn compact in de bestaande linkernavigatie opgenomen.
 - Routeautorisatie blijft server-side via `requireUser` plaatsvinden. De bestaande sessieacties, origincontrole, veilige cookies, rate limiting en logging zijn niet afgezwakt.
 - De instelbare desktopkolommen, mobiele stapweergave, tijdelijke voorbeelddata en lokale React-state blijven behouden. Er zijn geen databasemigraties, Neon-writes, Microsoft-aanroepen of nieuwe dependencies toegevoegd.
+
+### 20 juli 2026 — lokaal wachtwoordnoodherstel (O30)
+
+- Peter heeft besloten eerst uitsluitend lokaal noodherstel te bouwen; zelfregistratie, een webresetformulier, Resend en resetmails zijn niet toegevoegd.
+- `npm.cmd run user:reset-password` werkt alleen interactief en server-side, vereist het exacte account-e-mailadres en de bevestiging `HERSTEL`, en vraagt het nieuwe wachtwoord tweemaal verborgen.
+- De reset gebruikt Argon2id en dezelfde minimumlengte van acht tekens. Een ongewijzigd wachtwoord, verkeerd e-mailadres, ontbrekende single-userconfiguratie of concurrerende wijziging wordt geweigerd.
+- Wachtwoordvervanging, intrekking van actieve sessies en het wissen van bestaande loginblokkades vinden transactioneel plaats. De opdracht logt uitsluitend veilige resultaat- of foutcodes.
+- Er is geen schemawijziging of migratie nodig en tijdens de implementatie wordt geen opdracht tegen Neon uitgevoerd.

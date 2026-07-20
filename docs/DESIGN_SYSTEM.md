@@ -249,7 +249,7 @@ Het scherm Taken gebruikt op desktop drie vaste zones naast elkaar: navigatie, c
 - Iedere zone heeft een vaste minimum- en maximumbreedte, zodat geen enkele zone door slepen onbruikbaar klein kan worden.
 - De laatst gekozen indeling wordt per browser onthouden via `localStorage` en teruggezet na verversen, na het opnieuw openen van de browser en in een nieuwe lokale sessie.
 - Wanneer het scherm smaller wordt dan de opgeslagen indeling toelaat, wordt de indeling automatisch begrensd tot bruikbare waarden.
-- Een rustige actie "Standaardindeling herstellen" zet de drie zones direct terug op de vaste standaardbreedtes.
+- Een rustige actie "Kolombreedtes herstellen" zet de drie zones direct terug op de vaste standaardbreedtes.
 - Mobiel en smalle tablet gebruiken geen versleepbare scheidingslijnen en geen opslag van kolombreedtes; daar geldt de bestaande stapnavigatie navigatie → lijst → detail.
 - Het slepen zelf heeft geen invloed op taakgegevens, timer, taakselectie of een geopend formulier.
 
