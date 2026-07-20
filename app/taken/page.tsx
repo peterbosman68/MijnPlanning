@@ -1,5 +1,5 @@
-import { TakenVisualPrototype } from "./taken-visual-prototype";
+import { AuthenticatedPlanningShell } from "@/app/authenticated-planning-shell";
 
 export default function TakenPage() {
-  return <TakenVisualPrototype />;
+  return <AuthenticatedPlanningShell initialView="tasks" />;
 }

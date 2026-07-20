@@ -238,6 +238,69 @@
   margin-top: 24px;
 }
 
+.accountPanel {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+  padding: 11px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.accountLabel {
+  color: #aabde8;
+  font-size: 9px;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.accountEmail {
+  overflow: hidden;
+  color: #ffffff;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.accountActions {
+  display: grid;
+  gap: 3px;
+  margin-top: 4px;
+}
+
+.accountActions form {
+  margin: 0;
+}
+
+.logoutButton,
+.revokeButton {
+  width: 100%;
+  min-height: 30px;
+  padding: 5px 0;
+  border: 0;
+  background: transparent;
+  color: #d7e2fb;
+  cursor: pointer;
+  font-size: 10.5px;
+  font-weight: 650;
+  text-align: left;
+}
+
+.logoutButton:hover,
+.revokeButton:hover {
+  color: #ffffff;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.logoutButton:focus-visible,
+.revokeButton:focus-visible {
+  outline: 3px solid rgba(242, 201, 76, 0.72);
+  outline-offset: 2px;
+}
+
 .resetLayoutButton {
   min-height: 36px;
   padding: 8px 11px;
@@ -1775,6 +1838,8 @@
 
   .navButton,
   .navActive,
+  .logoutButton,
+  .revokeButton,
   .resetLayoutButton,
   .paneDivider::before,
   .taskRow,

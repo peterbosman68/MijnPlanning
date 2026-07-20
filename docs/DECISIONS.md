@@ -322,3 +322,14 @@ Nieuwe besluiten worden onderaan toegevoegd met datum.
 - Een nieuw of gewijzigd wachtwoord bevat minimaal 8 tekens. Een langer, uniek wachtwoord uit een wachtwoordmanager blijft aanbevolen.
 - De eerste gebruiker blijft via de eenmalige server-only bootstrapopdracht worden aangemaakt.
 - Wachtwoordwijziging verloopt via een afzonderlijke lokale server-only opdracht die eerst het huidige wachtwoord controleert, geen invoer of hash logt en na succes alle bestaande sessies intrekt.
+
+## 20 juli 2026 — besluit O29
+
+### O29 — goedgekeurd drieluik als beveiligde applicatieshell
+
+- De blauw-gele drieluikrichting uit O26 is niet langer een losstaande route naast een tweede technische applicatieshell, maar vormt de gedeelde beveiligde shell voor de werkweergaven.
+- Na inloggen blijft `/vandaag` de functionele landingsroute; deze route toont het drieluik met `Vandaag` geselecteerd. `/taken` toont dezelfde shell met `ToDo` geselecteerd.
+- De tijdelijke witte fase-0-header, technische statuskaarten en afzonderlijke Vandaag-opmaak worden niet naast het goedgekeurde ontwerp behouden.
+- E-mailadres, uitloggen en `Alle sessies intrekken` worden compact in de linkernavigatie opgenomen. De bestaande server-side sessiecontrole, origincontrole, sessie-intrekking en veilige cookies blijven ongewijzigd leidend.
+- De instelbare desktopkolommen en mobiele stapweergave uit O23 blijven behouden.
+- Taken, Afspraken, E-mail, WhatsApp en de overige proefinteracties blijven voorlopig expliciete lokale voorbeelddata en React-state. Deze shellintegratie voegt geen productieopslag, externe synchronisatie of planningslogica toe.

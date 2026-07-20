@@ -180,7 +180,7 @@ function usePaneLayout() {
   return { widths, startDrag, nudgeDivider, resetLayout };
 }
 
-type ViewKey =
+export type PlanningViewKey =
   | "today"
   | "week"
   | "tasks"
@@ -189,6 +189,8 @@ type ViewKey =
   | "whatsapp"
   | "waiting"
   | "completed";
+
+type ViewKey = PlanningViewKey;
 
 type MobilePane = "navigation" | "list" | "detail";
 type TaskStatus = "normal" | "active" | "waiting" | "completed";
@@ -591,9 +593,21 @@ const EMAIL_CATEGORY_FILTERS: Array<{ id: EmailCategory | "all"; label: string }
   { id: "newsletter", label: "Nieuwsbrieven" },
 ];
 
-export function TakenVisualPrototype() {
+type TakenVisualPrototypeProps = Readonly<{
+  initialView: PlanningViewKey;
+  userEmail: string;
+  logoutAction: () => Promise<void>;
+  revokeAllSessionsAction: () => Promise<void>;
+}>;
+
+export function TakenVisualPrototype({
+  initialView,
+  userEmail,
+  logoutAction,
+  revokeAllSessionsAction,
+}: TakenVisualPrototypeProps) {
   const { widths: paneWidths, startDrag, nudgeDivider, resetLayout } = usePaneLayout();
-  const [activeView, setActiveView] = useState<ViewKey>("tasks");
+  const [activeView, setActiveView] = useState<ViewKey>(initialView);
   const [mobilePane, setMobilePane] = useState<MobilePane>("navigation");
   const [tasks, setTasks] = useState<MainTask[]>(INITIAL_TASKS);
   const [selectedTaskId, setSelectedTaskId] = useState("truckparking");
@@ -784,13 +798,13 @@ export function TakenVisualPrototype() {
   return (
     <main className={styles.page}>
       <div className={styles.shell} data-mobile-pane={mobilePane} style={shellStyle}>
-        <aside className={styles.navPane} aria-label="Navigatie van de visuele proef">
+        <aside className={styles.navPane} aria-label="Hoofdnavigatie">
           <div>
             <div className={styles.brand}>
               <span className={styles.brandMark} aria-hidden="true">M</span>
               <span>
                 <strong>MijnPlanning</strong>
-                <small>Visuele proef</small>
+                <small>Persoonlijke planning</small>
               </span>
             </div>
 
@@ -812,6 +826,24 @@ export function TakenVisualPrototype() {
           </div>
 
           <div className={styles.navFooter}>
+            <section className={styles.accountPanel} aria-label="Account en sessies">
+              <span className={styles.accountLabel}>Ingelogd als</span>
+              <span className={styles.accountEmail} title={userEmail}>
+                {userEmail}
+              </span>
+              <div className={styles.accountActions}>
+                <form action={logoutAction}>
+                  <button type="submit" className={styles.logoutButton}>
+                    Uitloggen
+                  </button>
+                </form>
+                <form action={revokeAllSessionsAction}>
+                  <button type="submit" className={styles.revokeButton}>
+                    Alle sessies intrekken
+                  </button>
+                </form>
+              </div>
+            </section>
             <button type="button" className={styles.resetLayoutButton} onClick={resetLayout}>
               Standaardindeling herstellen
             </button>

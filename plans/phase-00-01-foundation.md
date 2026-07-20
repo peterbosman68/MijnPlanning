@@ -993,3 +993,11 @@ Deze visuele stopconditie is op 20 juli 2026 opgeheven door Peters expliciete go
 - De bestaande eerste gebruiker blijft behouden. Een afzonderlijke interactieve server-only opdracht controleert het huidige wachtwoord, schrijft een nieuwe Argon2id-hash en trekt transactioneel alle bestaande sessies in.
 - De loginvelden onderdrukken uitsluitend hydrationwaarschuwingen voor attributen die browserextensies vóór React-hydration toevoegen; andere hydrationfouten blijven zichtbaar.
 - Secrets zijn niet in Git, documentatie of chat opgenomen.
+
+### 20 juli 2026 — beveiligde drieluikshell geïntegreerd (O29)
+
+- Peter heeft het plan goedgekeurd om de eigen login rechtstreeks te verbinden met de eerder goedgekeurde blauw-gele drieluikrichting.
+- `/vandaag` en `/taken` gebruiken één gedeelde server-side beveiligde shell. Vandaag opent met `Vandaag` geselecteerd en Taken met `ToDo` geselecteerd.
+- De tijdelijke witte fase-0-appshell en technische statuskaarten zijn verwijderd; accountinformatie, uitloggen en het intrekken van alle sessies zijn compact in de bestaande linkernavigatie opgenomen.
+- Routeautorisatie blijft server-side via `requireUser` plaatsvinden. De bestaande sessieacties, origincontrole, veilige cookies, rate limiting en logging zijn niet afgezwakt.
+- De instelbare desktopkolommen, mobiele stapweergave, tijdelijke voorbeelddata en lokale React-state blijven behouden. Er zijn geen databasemigraties, Neon-writes, Microsoft-aanroepen of nieuwe dependencies toegevoegd.
