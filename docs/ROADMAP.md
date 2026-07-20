@@ -27,7 +27,7 @@ Onderdelen:
 - Tailwind CSS 3;
 - Neon Postgres via Vercel Marketplace op het gratis abonnement, zonder lokale PostgreSQL-installatie;
 - Prisma 6;
-- alleen noodzakelijke Vercel-configuratievoorbereiding;
+- koppeling van de bestaande private GitHub-repository aan het bestaande Vercel-project `mijnplanning`, zonder daarmee secrets, databases of betaalde infrastructuur vrij te geven;
 - eenvoudige single-user login;
 - alleen e-mailadres en wachtwoord als verplichte loginvelden;
 - eerste gebruiker via een eenmalige server-only CLI;
@@ -43,7 +43,7 @@ Onderdelen:
 - na goedkeuring de eerste gedeelde ontwerpcomponenten;
 - beschermde technische basis van Vandaag, zonder planningsmotor.
 
-De uitvoering pauzeert bij de visuele goedkeuringspoort totdat Peter het voorstel expliciet heeft goedgekeurd. Vercel Preview wordt pas ingericht nadat alle lokale fase-0-controles slagen. Vercel Blob, uploads en bijlagen horen niet bij fase 0 en blijven uitgesteld tot fase 10. Een betaalde Neon-upgrade vereist altijd expliciete toestemming.
+Peter heeft de blauw-gele drieluikrichting op 20 juli 2026 expliciet goedgekeurd op desktop en mobiel; de visuele goedkeuringspoort is voltooid. De bestaande GitHub-repository is aan Vercel-project `mijnplanning` gekoppeld. Preview of productie wordt pas functioneel vrijgegeven nadat de relevante lokale controles slagen. Vercel Blob, uploads en bijlagen horen niet bij fase 0 en blijven uitgesteld tot fase 10. Een betaalde Neon-upgrade vereist altijd expliciete toestemming.
 
 Resultaat:
 

@@ -574,7 +574,7 @@ Voor de MVP:
 - e-mailadres en wachtwoord zijn verplicht;
 - een gebruikersnaam is niet verplicht;
 - een weergavenaam kan later optioneel worden toegevoegd;
-- sterk wachtwoord;
+- wachtwoord van minimaal 8 tekens, bij voorkeur langer en uniek;
 - Argon2id-wachtwoordhash;
 - veilige server-side sessie;
 - HttpOnly-cookie;
@@ -582,6 +582,8 @@ Voor de MVP:
 - passende SameSite-instelling;
 - rate limiting;
 - sessie-intrekking.
+
+Het wachtwoord kan alleen via een lokale server-only opdracht worden gewijzigd. Daarvoor is het huidige wachtwoord nodig en na succes worden alle bestaande sessies ingetrokken.
 
 Microsoft wordt niet gebruikt als primaire MijnPlanning-login.
 
@@ -624,6 +626,8 @@ Kleursemantiek:
 - rood: werkelijk deadlinegevaar;
 - blauw of grijs: Outlook-afspraak;
 - één accentkleur: primaire actie.
+
+De blauw-gele drieluikrichting voor MijnPlanning is op 20 juli 2026 door Peter expliciet goedgekeurd op desktop en mobiel. Deze richting is de visuele basis voor verdere schermen. Tijdelijke voorbeelddata en lokale proefinteracties worden pas in hun betreffende implementatiefase vervangen door echte domeinlogica, autorisatie en opslag.
 
 ---
 

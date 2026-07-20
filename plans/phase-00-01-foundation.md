@@ -47,14 +47,15 @@ Bij verschillen geldt de vastgelegde volgorde: actuele instructie van Peter, `do
 
 ## 3. Huidige situatie
 
-- De werkmap bevat uitsluitend Markdown-documentatie; er is nog geen applicatiecode, `package.json`, Prisma-schema, migratie, testconfiguratie of CI-configuratie.
-- De bestaande private GitHub-repository is `https://github.com/peterbosman68/MijnPlanning`. Er wordt geen nieuwe repository aangemaakt.
-- De lokale Git-status wordt pas bij de goedgekeurde implementatiestart opnieuw gecontroleerd. Als de bestaande projectmap dan nog geen Git-repository is, wordt Git daar geïnitialiseerd en wordt de bestaande repository als `origin` gekoppeld.
-- Bestaande lokale of remote bestanden worden niet overschreven voordat inhoud en Git-status zijn gecontroleerd.
+- De werkmap bevat een werkende minimale Next.js 16-projectbasis met React 19, TypeScript 5, Tailwind CSS 3, Prisma 6, Vitest en een responsieve visuele proef op `/taken`.
+- De bestaande private GitHub-repository is `https://github.com/peterbosman68/MijnPlanning`; zij is als `origin` gekoppeld en `main` is de enige branch voor verdere ontwikkeling totdat Peter dit expliciet wijzigt.
+- De nieuwste complete visuele versie is via checkpointcommit `8890f6f6548be8a1bc852c397ea43aeb5e785783` in `main` geconsolideerd. De lokale tag `backup-before-main-consolidation` wijst naar hetzelfde herstelpunt.
+- Bestaande oude branches blijven voorlopig uitsluitend als historische herstelpunten bestaan. Er worden geen nieuwe branches gemaakt zonder Peters expliciete opdracht.
 - Alleen het top-level `PLANS.md` is de bron voor uitvoeringsplanregels.
-- `plans/phase-00-01-foundation.md` was leeg vóór deze planwijziging.
-- Neon Postgres via Vercel Marketplace is als provider gekozen, maar er is nog geen database geprovisioneerd.
-- Er zijn nog geen npm-pakketten geïnstalleerd en er is geen lockfile.
+- De Neon Free-compatibiliteitsproef is geslaagd en daarna opgeschoond; er bestaan nog geen productmodellen of productgegevens. Verdere databasewrites vereisen de passende goedgekeurde implementatiestap.
+- `.env` en `.env.local` blijven lokaal, genegeerd en niet gevolgd door Git.
+- De private GitHub-repository is gekoppeld aan het bestaande Vercel-project `mijnplanning`; deze koppeling geeft geen toestemming voor secretwijzigingen, Neon-writes, Blob of betaalde infrastructuur.
+- Peter heeft de blauw-gele drieluikrichting op 20 juli 2026 expliciet goedgekeurd op desktop en mobiel. De visuele proef gebruikt nog tijdelijke voorbeelddata en lokale React-state.
 - De map staat in OneDrive. Dat is bruikbaar voor documentatie, maar `node_modules`, `.next` en gelijktijdige synchronisatie kunnen performance-, lock- of padproblemen geven.
 
 ## 4. Consistentiecontrole
@@ -87,7 +88,7 @@ De kerndocumenten zijn op de volgende punten consistent:
 
 ### 4.3 Besluitenstatus
 
-O1 tot en met O21 zijn door Peter beantwoord en staan definitief in hoofdstuk 15 en `docs/DECISIONS.md`. Er resteert geen open productkeuze uit deze lijst.
+O1 tot en met O21 en O23 tot en met O28 zijn door Peter beantwoord en staan definitief in hoofdstuk 15 en `docs/DECISIONS.md`. O22 was het ontwerpvoorstel voor de tweede visuele proef en geen afzonderlijk productbesluit. Er resteert geen open productkeuze uit deze lijst.
 
 Voor de implementatiestart blijven wel controlepoorten bestaan:
 
@@ -342,6 +343,8 @@ Na het opzetten van de technische projectbasis en vóór brede frontendimplement
 
 De beoordeling gaat minimaal over rust, volwassenheid, compactheid, betrouwbaarheid, leesbaarheid, informatiehiërarchie, mobiele bruikbaarheid en toegankelijkheid. Paarse gradients, een generiek AI-dashboard, grote lege vlakken, te veel afgeronde kaarten en te kleine grijze tekst zijn afkeurcriteria.
 
+**Status:** voltooid op 20 juli 2026. Peter heeft de uiteindelijke blauw-gele drieluikrichting expliciet goedgekeurd op desktop en mobiel. De goedgekeurde visuele taal mag vanaf dit moment per scherm en volgens het proces in `docs/DESIGN_SYSTEM.md` verder worden toegepast.
+
 ### 9.2 Taken — eerste visuele plan
 
 Desktop:
@@ -419,12 +422,12 @@ O21 is onderdeel van deze proef: `+ Subtaak` blijft zichtbaar bij een open, acti
 
 ### Stap 0.2 — Git- en repositorybasis
 
-- **Doel:** de bestaande private repository `https://github.com/peterbosman68/MijnPlanning` veilig koppelen zonder rechtstreeks op `main` te ontwikkelen of bestaande inhoud te overschrijven.
+- **Doel:** de bestaande private repository `https://github.com/peterbosman68/MijnPlanning` veilig als enige repository gebruiken, met `main` als enige ontwikkelhoofdlijn en zonder bestaande inhoud te overschrijven.
 - **Bestanden:** na vergelijking van lokale en remote inhoud eventueel `.gitignore`, `.gitattributes`, `.editorconfig` en aanvulling van `README.md`; top-level `PLANS.md` blijft de enige planinstructiebron.
 - **Databasegevolgen:** geen.
 - **Beveiligingsgevolgen:** `.env*`, logs, backups, exports, Prisma testdata, `.next`, `node_modules` en private bestanden expliciet uitsluiten; bij implementatiestart bevestigen dat de bestaande repository nog privé is en secret scanning en branch protection controleren waar beschikbaar.
 - **Tests:** pas na implementatiegoedkeuring: lokale Git-status, remote inhoud, tracked files, dummy-secretbestandsnamen en actieve branch controleren vóór een write of push.
-- **Acceptatiecriteria:** er is geen nieuwe repository aangemaakt; de bestaande repository is privé; zo nodig is Git in de bestaande map geïnitialiseerd; de bestaande repository is als `origin` gekoppeld; lokale en remote inhoud zijn eerst vergeleken; implementatie gebeurt op `feature/phase-00-foundation` en geen secret of bestaande inhoud is overschreven.
+- **Acceptatiecriteria:** er is geen nieuwe repository aangemaakt; de bestaande repository is privé; Git is in de bestaande map actief; de bestaande repository is als `origin` gekoppeld; lokale en remote inhoud zijn eerst vergeleken; verdere implementatie gebeurt uitsluitend op `main`; geen secret of bestaande inhoud is overschreven.
 - **Risico’s:** remote en lokale documentatie kunnen uiteenlopen; een onzorgvuldige eerste koppeling kan bestaande bestanden overschrijven. OneDrive kan Git-lockfiles tijdelijk blokkeren.
 - **Afhankelijkheden:** stap 0.1 en vastgestelde besluiten O1–O2.
 
@@ -503,7 +506,7 @@ O21 is onderdeel van deze proef: `+ Subtaak` blijft zichtbaar bij een open, acti
 - **Tests:** browsercontrole op minimaal 1440×900, 1024×768, 390×844 en 360×800; toetsenbord, focus, contrast, zoom tot 200%, lange titels, foutstatus en lege staat.
 - **Acceptatiecriteria:** Peter ontvangt een concreet kleurenpalet met hexwaarden en vastgelegde typografie, spacing, knoppen, formulieren en statuslabels; één werkende Taken-versie is op desktop en mobiel getoond; Peter heeft het ontwerp expliciet goedgekeurd voordat andere schermen of projectbrede patronen worden gebouwd.
 - **Risico’s:** een visueel prototype kan ten onrechte als functioneel afgeronde CRUD worden gezien; voorbeeldinteracties en nog niet aangesloten functies worden daarom expliciet gemarkeerd. Te brede componentbouw vóór goedkeuring veroorzaakt rework.
-- **Afhankelijkheden:** stappen 0.3 en 0.8, hoofdstuk 9 en vastgesteld besluit O20. Deze stap eindigt verplicht met wachten op Peter.
+- **Afhankelijkheden:** stappen 0.3 en 0.8, hoofdstuk 9 en vastgesteld besluit O20. De visuele stop/go-poort is op 20 juli 2026 met Peters expliciete desktop- en mobiele goedkeuring voltooid; de nog ontbrekende technische afhankelijkheden uit fase 0 blijven ongewijzigd.
 
 ### Stap 0.10 — App-shell, goedgekeurde ontwerptokens en technische basis Vandaag
 
@@ -519,20 +522,20 @@ O21 is onderdeel van deze proef: `+ Subtaak` blijft zichtbaar bij een open, acti
 ### Stap 0.11 — Fase-0-verificatie en overdracht
 
 - **Doel:** aantonen dat de basis veilig en reproduceerbaar is voordat fase 1 start.
-- **Bestanden:** testresultaten/voortgang in dit plan, `README.md` met setup zonder secrets en pas na lokale groene gates de noodzakelijke Vercel Preview-configuratie; geen Blob-SDK.
+- **Bestanden:** testresultaten/voortgang in dit plan, `README.md` met setup zonder secrets en verificatie van de al bestaande GitHub–Vercel-koppeling na lokale groene gates; geen Blob-SDK.
 - **Databasegevolgen:** migraties op schone testdatabase en staging; geen productiedata.
 - **Beveiligingsgevolgen:** dependency audit, secretscan, clientbundelcontrole, sessie-/authreview en database-TLS/poolingreview.
 - **Tests:** `npm run lint`, `npm run typecheck`, `npm run test`, `npm run build`, e2e login/logout en handmatige desktop/mobiele controle.
-- **Acceptatiecriteria:** alle lokale gates slagen voordat Vercel Preview wordt ingericht; open risico’s zijn vastgelegd; fase-0-branch heeft kleine commits en een reviewbare PR; Peter kan veilig inloggen op de overeengekomen omgeving; Blob, uploads en bijlagen zijn niet toegevoegd.
+- **Acceptatiecriteria:** alle relevante lokale gates slagen voordat Preview of productie functioneel wordt vrijgegeven; open risico’s zijn vastgelegd; `main` bevat kleine, duidelijke commits; Peter kan veilig inloggen op de overeengekomen omgeving; Blob, uploads en bijlagen zijn niet toegevoegd.
 - **Risico’s:** Neon en Vercel zijn externe state; het gratis abonnement heeft limieten en iedere betaalde upgrade vereist nieuwe toestemming.
 - **Afhankelijkheden:** stappen 0.2–0.10 en vastgestelde besluiten O14 en O20.
 
 ## 11. Implementatiestappen fase 1
 
-### Stap 1.1 — Featurebranch en domeincontracten
+### Stap 1.1 — Main en domeincontracten
 
-- **Doel:** fase 1 geïsoleerd starten en alle invoer-, output- en foutcontracten vastleggen vóór database- of UI-code.
-- **Bestanden:** nieuwe branch `feature/phase-01-task-core`; `lib/tasks/domain/types.ts`, `status.ts`, `errors.ts`, `validation.ts`; unit-tests.
+- **Doel:** fase 1 gecontroleerd op `main` starten en alle invoer-, output- en foutcontracten vastleggen vóór database- of UI-code.
+- **Bestanden:** geen nieuwe branch; `lib/tasks/domain/types.ts`, `status.ts`, `errors.ts`, `validation.ts`; unit-tests.
 - **Databasegevolgen:** geen in deze stap.
 - **Beveiligingsgevolgen:** allowlists, lengtegrenzen, datumvalidatie en veilige foutcodes; geen `any` of vertrouwen in browserpayloads.
 - **Tests:** geldige/ongeldige titel, duur, enum, datum, lege strings, te grote payloads en locale datumranden.
@@ -749,13 +752,13 @@ Regels:
 ### 14.2 Branches en commits
 
 - gebruik uitsluitend de bestaande repository `https://github.com/peterbosman68/MijnPlanning`;
-- controleer vóór iedere koppeling lokale inhoud, remote inhoud en Git-status; initialiseer alleen zo nodig in de bestaande projectmap en koppel daarna `origin`;
-- fase 0 op `feature/phase-00-foundation`;
-- fase 1 pas na fase-0-review op `feature/phase-01-task-core`;
-- niet rechtstreeks op `main` werken;
+- controleer vóór iedere wijziging dat `main` actief is en dat de lokale Git-status begrepen is;
+- voer fase 0, fase 1 en verdere ontwikkeling uitsluitend op `main` uit totdat Peter dit expliciet wijzigt;
+- maak geen nieuwe featurebranch of andere branch zonder Peters expliciete opdracht;
+- behoud bestaande oude branches als historische herstelpunten totdat Peter opdracht geeft ze te verwijderen;
 - kleine commits per functionele stap, bijvoorbeeld `chore: scaffold pinned application stack`, `feat(auth): add revocable database sessions`, `feat(tasks): enforce deadline hierarchy` en `feat(tasks): reject dependency cycles`;
 - geen twee agents tegelijk dezelfde bestanden in dezelfde branch;
-- merge alleen na groene gates en review.
+- push `main` alleen na de relevante groene gates en gebruik geen force push.
 
 ### 14.3 Terugrol
 
@@ -766,7 +769,7 @@ Regels:
 - **Feature:** UI kan tijdelijk achter een server-side featureflag of routeblokkade worden gehouden zonder dat schema wordt verwijderd.
 - **Backups:** vóór eerste productie- of stagingmigratie de beschikbare Neon Free-restorefunctie en beperkingen controleren; geen backup in Git of OneDrive-projectmap en geen betaalde upgrade zonder toestemming.
 
-## 15. Vastgestelde besluiten O1–O21
+## 15. Vastgestelde besluiten O1–O28
 
 Alle onderstaande besluiten zijn definitief vastgelegd. Ze zijn geen open keuzes meer; implementatie wacht uitsluitend op expliciete goedkeuring van dit bijgewerkte plan en de technische controlepoorten uit paragraaf 4.3.
 
@@ -785,7 +788,7 @@ Alle onderstaande besluiten zijn definitief vastgelegd. Ze zijn geen open keuzes
 | O11 | Server Actions als dunne transportlaag; bedrijfsregels in domeinservices. | Iedere action herhaalt auth, autorisatie, Origin- en Zod-validatie. | Besloten |
 | O12 | Zod, Vitest en Playwright. | Vastgelegde validatie-, unit/integratie- en browsertestbasis. | Besloten |
 | O13 | Servicevalidatie, PostgreSQL-bescherming voor kritieke deadline-integriteit en transactionele cycluscontrole. Het fase-1-plan werkt de databasebescherming concreet uit als versioned triggers. | Verantwoordelijkheid per validatieregel documenteren; PostgreSQL is het integriteitsvangnet en de domeinservice is leidend voor bedrijfsfouten. | Besloten |
-| O14 | Vercel Preview pas na lokaal geslaagde fase 0; Blob/uploads/bijlagen later. | Fase 0 bevat alleen noodzakelijke configuratievoorbereiding en geen Blob-SDK. | Besloten |
+| O14 | De Git-providerkoppeling met het bestaande Vercel-project mag zijn vastgelegd; functionele vrijgave van Preview of productie volgt pas na de relevante lokale controles. Blob/uploads/bijlagen blijven later. | De koppeling staat los van toestemming voor secrets, Neon-writes, Blob of betaalde infrastructuur. | Besloten, verfijnd door O27 |
 | O15 | Taak- en subtaakformulieren gebruiken `Opslaan`; timer, status en verslepen mogen later direct opslaan met feedback. | Fase 1 gebruikt expliciete formuliercommits; eventuele latere directe acties krijgen zichtbare bevestiging of een foutmelding. | Besloten |
 | O16 | Standaard archiveren; hard delete blokkeren bij tijdregistratie, bijlagen, importhistorie of dependencies; nooit dependencycascade. | `RESTRICT`, referentiechecks en geen stille gegevensverwijdering. | Besloten |
 | O17 | Taakduur mag eerst leeg zijn; taak zonder subtaken is dan niet planbaar; taak met subtaken krijgt geen extra hoofdtaakduur. | Nullable taakduur en afgeleide som van open subtaken. | Besloten |
@@ -793,6 +796,12 @@ Alle onderstaande besluiten zijn definitief vastgelegd. Ze zijn geen open keuzes
 | O19 | Alleen top-level `PLANS.md` is de planinstructiebron. | Alle verwijzingen naar uitvoeringsplanregels gebruiken top-level `PLANS.md`. | Besloten |
 | O20 | Na de technische projectbasis volgt vóór brede frontendimplementatie een verplichte visuele goedkeuringspoort: concreet palet met hexwaarden, vastgelegde typografie, spacing, knoppen, formulieren en statuslabels, plus één werkende Taken-versie op desktop en mobiel. | Geen overige volledige schermen of brede toepassing van het ontwerp vóór Peters expliciete goedkeuring. | Besloten |
 | O21 | Bij een open, actieve of wachtende hoofdtaak kan op ieder moment via de blijvend zichtbare actie `+ Subtaak` een subtaak worden toegevoegd. Een actieve timer loopt door; titel en deadline zijn verplicht; een eventuele hoofdtaakdeadline begrenst de subtaakdeadline; na opslaan wordt herpland en de nieuwe subtaak wordt niet automatisch actief. Afgeronde taken moeten eerst opnieuw worden geopend en gearchiveerde of geannuleerde taken eerst worden hersteld. | De visuele proef demonstreert dit uitsluitend met lokale state. Productieopslag, servervalidatie en echte herplanning volgen in de passende implementatiefase. | Besloten |
+| O23 | De drie desktopzones blijven zichtbaar en zijn binnen veilige grenzen instelbaar; de indeling wordt lokaal onthouden. Mobiel gebruikt de vaste stapweergave. | De goedgekeurde UI behoudt instelbare desktopkolommen zonder invloed op taakdata of timerstatus. | Besloten |
+| O24 | De zichtbare navigatie gebruikt `ToDo`; E-mail heeft drie lokale proefcategorieën; WhatsApp is uitsluitend een lokale screeningsproef zonder API, synchronisatie of opslag. | Productie-integraties en externe acties vallen buiten de visuele proef en vereisen latere expliciete besluiten. | Besloten |
+| O25 | Verdere ontwikkeling gebeurt uitsluitend op `main`; geen nieuwe branches zonder Peters expliciete opdracht. | Kleine commits en relevante groene gates vóór iedere push; oude branches blijven voorlopig als historie bestaan. | Besloten |
+| O26 | De blauw-gele drieluikrichting is op desktop en mobiel definitief goedgekeurd. | De O20-poort is voltooid; visuele patronen mogen per scherm gecontroleerd verder worden toegepast. | Besloten |
+| O27 | De private GitHub-repository is gekoppeld aan Vercel-project `mijnplanning`, met `main` als productiebranch. | Automatische deployments zijn mogelijk; secrets, Neon, Blob en betaalde infrastructuur blijven afzonderlijk beschermd. | Besloten |
+| O28 | De eigen login blijft los van Microsoft; nieuwe en gewijzigde wachtwoorden hebben minimaal 8 tekens en wijziging trekt alle sessies in. | Een lokale server-only wijzigingsopdracht controleert het huidige wachtwoord en logt geen invoer of hash. | Besloten |
 
 ## 16. Belangrijkste risico’s
 
@@ -811,7 +820,7 @@ Alle onderstaande besluiten zijn definitief vastgelegd. Ze zijn geen open keuzes
 
 ### Fase 0 gereed
 
-- de bestaande private GitHub-repository is na inhoudscontrole veilig gekoppeld en de featurebranchworkflow is ingericht;
+- de bestaande private GitHub-repository is na inhoudscontrole veilig gekoppeld, `main` is de enige ontwikkelhoofdlijn en de repository is verbonden met Vercel-project `mijnplanning`;
 - de eerste technische stop/go-test voor Node.js 24, Next.js 16, Prisma 6 en de gekozen actuele veilige patches is geslaagd voordat bredere implementatie begon;
 - Next.js 16 App Router draait met React 19, TypeScript 5 en Tailwind 3 op Node.js 24;
 - de gekozen Prisma 6-patch is aantoonbaar compatibel met Node.js 24 en maakt veilig verbinding met geïsoleerde Neon-omgevingen;
@@ -824,7 +833,7 @@ Alle onderstaande besluiten zijn definitief vastgelegd. Ze zijn geen open keuzes
 - lint, typecheck, unit/integratietests en build slagen;
 - desktop en mobiel zijn handmatig gecontroleerd;
 - er is geen secret, token, wachtwoord, productiedata of private inhoud gecommit;
-- Vercel Preview is pas na de lokale gates ingericht; Blob, uploads en bijlagen zijn niet toegevoegd.
+- de bestaande GitHub–Vercel-koppeling is na lokale gates gecontroleerd voordat Preview of productie functioneel wordt vrijgegeven; Blob, uploads en bijlagen zijn niet toegevoegd.
 
 ### Fase 1 gereed
 
@@ -849,7 +858,7 @@ Alle onderstaande besluiten zijn definitief vastgelegd. Ze zijn geen open keuzes
 
 ## 18. Expliciete stopconditie
 
-Dit document bevat twee afzonderlijke stopcondities.
+Dit document bevat drie afzonderlijke stopcondities. De oorspronkelijke implementatiegoedkeuring, de technische stop/go-test en de visuele goedkeuringspoort zijn inmiddels doorlopen. Nieuwe grote implementatiestappen blijven onderworpen aan het goedgekeurde plan en hun eigen externe-state- en migratiecontroles.
 
 **Vóór implementatie:** tot Peter dit bijgewerkte plan expliciet goedkeurt:
 
@@ -865,6 +874,8 @@ Dit document bevat twee afzonderlijke stopcondities.
 - worden geen overige volledige schermen gebouwd;
 - worden visuele tokens en patronen nog niet projectbreed uitgerold;
 - wordt gewacht op Peters expliciete visuele goedkeuring.
+
+Deze visuele stopconditie is op 20 juli 2026 opgeheven door Peters expliciete goedkeuring van de blauw-gele drieluikrichting op desktop en mobiel.
 
 **Tijdens de eerste technische stop/go-test:** als Node.js 24, Next.js 16, Prisma 6 of de gekozen actuele veilige patchversies niet compatibel blijken:
 
@@ -931,7 +942,7 @@ Dit document bevat twee afzonderlijke stopcondities.
 - Hoofdtaken, Afspraken en E-mail zijn als werkende proefstaten uitgewerkt. Normale taken hebben geen label `Open` en geen groene status; oranje en rood worden alleen voor aandacht respectievelijk werkelijk deadlinegevaar gebruikt.
 - O21 is in `docs/DECISIONS.md` en hoofdstuk 15 van dit plan definitief vastgelegd en in het lokale subtaakformulier zichtbaar gemaakt.
 - Alle inhoud bestaat uit expliciete voorbeelddata en lokale React-state. Er zijn geen Neon-, Microsoft Graph- of andere externe writes uitgevoerd.
-- De proef blijft ongecommit en ongepusht en wacht na de lokale kwaliteitscontroles op Peters visuele beoordeling.
+- Deze proef is later samen met de verdere visuele verfijningen in `main` geconsolideerd; de uiteindelijke status staat in de voortgang van 20 juli 2026.
 
 ### 19 juli 2026 — visuele verfijning, blauw/geel-palet en instelbare desktopkolommen (O23)
 
@@ -941,7 +952,7 @@ Dit document bevat twee afzonderlijke stopcondities.
 - De drie desktopzones zijn nu instelbaar in breedte via twee versleepbare scheidingslijnen, met vaste minimum- en maximumbreedtes per zone, toetsenbordbediening en een actie "Standaardindeling herstellen". De gekozen indeling wordt onthouden via `localStorage` (sleutel `mijnplanning.taken.paneLayout.v1`) en hersteld na verversen of een nieuwe sessie. Zie `docs/DECISIONS.md` (O23) voor de volledige regels.
 - Mobiel en smalle tablet blijven de bestaande stapnavigatie navigatie → lijst → detail gebruiken, zonder versleepbare scheidingslijnen en zonder opslag van kolombreedtes.
 - Alle wijzigingen blijven beperkt tot de visuele proef (`app/taken/taken-visual-prototype.tsx` en de bijbehorende CSS-module) en deze documentatie. Er zijn geen Neon-writes, geen Microsoft Graph-koppeling en geen nieuwe dependencies toegevoegd.
-- De proef blijft ongecommit en ongepusht en wacht op Peters visuele beoordeling.
+- Deze verfijning is later in `main` geconsolideerd; de uiteindelijke status staat in de voortgang van 20 juli 2026.
 
 ### 19 juli 2026 — navigatiecontrast, ToDo-label, WhatsApp-screeningsproef en e-mailcategorisatie (O24)
 
@@ -952,4 +963,33 @@ Dit document bevat twee afzonderlijke stopcondities.
 - Nieuwsbrieven kunnen per bericht worden aangevinkt met "Markeren voor afmelding"; de verzamelactie "Geselecteerde nieuwsbrieven afmelden" toont uitsluitend een lokale proefmelding en voert geen echte afmelding, externe aanroep of verzending uit.
 - Mobiel blijft het bestaande stappenpatroon navigatie → lijst → detail gelden voor ToDo, E-mail en WhatsApp, met behoud van de bestaande terug-knoppen en zonder horizontale overflow.
 - Alle wijzigingen blijven beperkt tot de visuele proef (`app/taken/taken-visual-prototype.tsx` en de bijbehorende CSS-module) en deze documentatie. Er zijn geen Neon-writes, geen Microsoft Graph-aanroepen, geen WhatsApp-API-aanroepen en geen nieuwe dependencies toegevoegd.
-- De proef blijft ongecommit en ongepusht en wacht op Peters visuele beoordeling.
+- Deze proefstatus is later in `main` geconsolideerd; de uiteindelijke status staat in de voortgang van 20 juli 2026.
+
+### 20 juli 2026 — consolidatie, Vercel-koppeling en visuele goedkeuring
+
+- De nieuwste complete lokale werkversie op `feature/visual-foundation-v3` is veilig vastgelegd in checkpointcommit `8890f6f6548be8a1bc852c397ea43aeb5e785783` en voorzien van de lokale tag `backup-before-main-consolidation`.
+- `main` is zonder mergeconflict en uitsluitend via fast-forward naar deze checkpointcommit gebracht. Lint, typecheck, twee tests, productiebuild en dependency-audit zijn geslaagd; `main` is daarna zonder force push naar `origin` gepusht.
+- Peter heeft besloten dat verdere ontwikkeling uitsluitend op `main` plaatsvindt en dat geen nieuwe branches worden aangemaakt. De bestaande oude branches blijven voorlopig als historische herstelpunten bestaan.
+- De bestaande private GitHub-repository `peterbosman68/MijnPlanning` is gekoppeld aan het bestaande Vercel-project `mijnplanning`, met `main` als productiebranch. Deze koppeling heeft geen lokale bestanden of `.env` gewijzigd en er is niets naar Neon geschreven.
+- Peter heeft de blauw-gele drieluikrichting expliciet goedgekeurd op desktop en mobiel. De verplichte visuele goedkeuringspoort uit O20 is daarmee voltooid.
+- De goedkeuring omvat de desktopdrieluikstructuur, de mobiele stapweergave, het blauw-gele palet, de instelbare desktopkolommen, het navigatiecontrast, `ToDo`, de lokale E-mailcategorieën en de lokale WhatsApp-screeningsproef.
+- Taken, E-mail, WhatsApp, `+ Subtaak`, proefmeldingen en voorbeeldgesprekken gebruiken nog tijdelijke voorbeelddata en lokale React-state. Productieopslag, server-side validatie, autorisatie en echte herplanning volgen in de passende implementatiefasen.
+
+### 20 juli 2026 — technisch fase-0-fundament lokaal afgerond
+
+- Het productieschema bevat nu de additieve fase-0-modellen `User`, `Session` en `AuthThrottle`. Migratie `20260720120000_auth_foundation` is toegepast op de geïsoleerde Neon-ontwikkeldatabase; een afsluitende controle bevestigt de juiste migratie en nul gebruikers, sessies en throttlerecords.
+- De single-user-authenticatie gebruikt Argon2id, genormaliseerde e-mailadressen, willekeurige sessietokens waarvan uitsluitend een HMAC-SHA-256-hash wordt opgeslagen, een absolute sessieduur van 30 dagen en een inactiviteitsgrens van 7 dagen.
+- Inloggen, uitloggen, alle sessies intrekken, centrale database-rate-limiting, origincontrole, veilige cookies, basisbeveiligingsheaders, beperkte gestructureerde logging en een detailarme healthroute zijn lokaal geïmplementeerd.
+- `/login`, het beschermde `/vandaag` en de bestaande visuele proef onder `/taken` zijn via een beschermde layoutshell gekoppeld. De login en routebeveiliging zijn in Chromium op desktop- en mobiel formaat gecontroleerd.
+- Een interactieve bootstrapopdracht (`npm.cmd run user:create`) maakt uitsluitend de eerste gebruiker aan, vraagt het wachtwoord verborgen op en weigert vervolggebruik zodra al een gebruiker bestaat.
+- CI controleert op Node.js 24.18.0 en npm 11.16.0 Prisma-generatie en -validatie, lint, typecheck, unit-/integratietests, productiebuild, Chromium-E2E en dependency-audit zonder echte infrastructuursecrets te gebruiken.
+- Afsluitende lokale resultaten: lint geslaagd; typecheck geslaagd; 16 reguliere tests geslaagd en 1 database-integratietest conditioneel overgeslagen; de echte Neon-authintegratietest afzonderlijk geslaagd en volledig opgeruimd; 8 Playwright-tests geslaagd; productiebuild geslaagd; `npm audit` meldt nul kwetsbaarheden.
+- `.env` en `.env.local` blijven genegeerd en ongewijzigd. Alleen `.env.example` is documentair uitgebreid; geen database-URL, token of wachtwoord staat in commitbare bestanden of de statische clientbundel. Er is niets gestaged, gecommit of gepusht.
+- De code en migratie zijn technisch gereed. Peter heeft lokaal `SESSION_SECRET` en de eerste gebruiker ingesteld; `DATABASE_URL` en `SESSION_SECRET` staan versleuteld in Vercel Preview en Production. Een werkelijke succesvolle login moet nog door Peter worden bevestigd.
+
+### 20 juli 2026 — wachtwoordbeleid en lokale wijzigingsroute (O28)
+
+- Peter heeft bevestigd dat de eigen MijnPlanning-login los van Microsoft blijft en dat de minimumlengte voor nieuwe en gewijzigde wachtwoorden 8 tekens wordt.
+- De bestaande eerste gebruiker blijft behouden. Een afzonderlijke interactieve server-only opdracht controleert het huidige wachtwoord, schrijft een nieuwe Argon2id-hash en trekt transactioneel alle bestaande sessies in.
+- De loginvelden onderdrukken uitsluitend hydrationwaarschuwingen voor attributen die browserextensies vóór React-hydration toevoegen; andere hydrationfouten blijven zichtbaar.
+- Secrets zijn niet in Git, documentatie of chat opgenomen.

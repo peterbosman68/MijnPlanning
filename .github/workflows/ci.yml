@@ -1,0 +1,61 @@
+name: Kwaliteitscontrole
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/mijnplanning_ci
+      SESSION_SECRET: ci-only-session-secret-with-at-least-32-characters
+
+    steps:
+      - name: Repository ophalen
+        uses: actions/checkout@v6
+
+      - name: Node.js instellen
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24.18.0
+          cache: npm
+
+      - name: npm-versie vastzetten
+        run: npm install --global npm@11.16.0
+
+      - name: Dependencies installeren
+        run: npm ci
+
+      - name: Prisma Client genereren
+        run: npm run prisma:generate
+
+      - name: Prisma-schema valideren
+        run: npm run prisma:validate
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Tests
+        run: npm run test
+
+      - name: Build
+        run: npm run build
+
+      - name: Chromium installeren
+        run: npx playwright install --with-deps chromium
+
+      - name: Browsertests
+        run: npm run test:e2e
+
+      - name: Dependency-audit
+        run: npm audit --audit-level=high

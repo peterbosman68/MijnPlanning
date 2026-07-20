@@ -418,7 +418,7 @@ Voor de MVP volstaat een eenvoudige single-user login.
 Vereisten:
 
 - e-mailadres als enige verplichte login-identificatie; geen verplichte gebruikersnaam;
-- sterk wachtwoord;
+- wachtwoord van minimaal 8 tekens, bij voorkeur langer en uniek;
 - Argon2id-wachtwoordhash;
 - veilige server-side sessie;
 - `HttpOnly` cookie;
@@ -537,6 +537,8 @@ Na het opzetten van de technische projectbasis en vóór brede frontendimplement
 
 Zonder deze goedkeuring stopt de bredere frontendimplementatie.
 
+De visuele proef met de blauw-gele drieluikstructuur is op 20 juli 2026 door Peter expliciet goedgekeurd op desktop en mobiel. Deze eerste goedkeuringspoort is daarmee voltooid. `docs/DESIGN_SYSTEM.md`, O23, O24 en de goedgekeurde proef op `/taken` zijn vanaf dat moment de visuele basis voor verdere schermen.
+
 Na goedkeuring, per volgend scherm:
 
 1. maak eerst een visueel plan binnen het goedgekeurde systeem;
@@ -552,23 +554,16 @@ Na goedkeuring, per volgend scherm:
 
 ## 18. Git-werkwijze
 
-- Werk niet rechtstreeks op `main`.
-- Gebruik één featurebranch per functionaliteit.
+- Werk vanaf 20 juli 2026 uitsluitend op `main`, totdat Peter deze werkwijze expliciet wijzigt.
+- Maak geen nieuwe featurebranches of andere branches zonder Peters expliciete opdracht.
+- Controleer vóór iedere wijziging dat `main` actief is en dat de lokale Git-status begrepen is.
 - Laat niet meerdere agents tegelijk dezelfde bestanden in dezelfde branch wijzigen.
 - Maak kleine, duidelijke commits.
 - Vermeld in commits wat functioneel is veranderd.
+- Push `main` alleen na de voor de wijziging relevante groene kwaliteitscontroles.
+- Gebruik geen force push.
+- Bestaande oude branches blijven als historie behouden en worden alleen op expliciete opdracht verwijderd.
 - Voer geen destructieve databasemigratie uit zonder expliciete goedkeuring en terugrolplan.
-
-Voorbeelden:
-
-```text
-feature/task-model
-feature/planning-engine
-feature/ai-estimation
-feature/todo-import
-feature/outlook-calendar
-feature/email-assistant
-```
 
 ---
 

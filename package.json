@@ -2,6 +2,7 @@
   "name": "mijnplanning",
   "version": "0.0.0",
   "private": true,
+  "type": "module",
   "engines": {
     "node": ">=24.18.0 <25",
     "npm": ">=11.16.0 <12"
@@ -17,15 +18,24 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "prisma:generate": "prisma generate"
+    "test:e2e": "playwright test",
+    "prisma:generate": "prisma generate",
+    "prisma:validate": "prisma validate",
+    "db:migrate:deploy": "prisma migrate deploy",
+    "user:create": "node scripts/create-user.mjs",
+    "user:change-password": "node scripts/change-password.mjs"
   },
   "dependencies": {
     "@prisma/client": "6.19.3",
+    "argon2": "0.45.0",
     "next": "16.2.10",
     "react": "19.2.7",
-    "react-dom": "19.2.7"
+    "react-dom": "19.2.7",
+    "server-only": "0.0.1",
+    "zod": "4.4.3"
   },
   "devDependencies": {
+    "@playwright/test": "1.61.1",
     "@types/node": "24.13.3",
     "@types/react": "19.2.17",
     "@types/react-dom": "19.2.3",
@@ -41,6 +51,7 @@
   "allowScripts": {
     "@prisma/client@6.19.3": true,
     "@prisma/engines@6.19.3": true,
+    "argon2@0.45.0": true,
     "prisma@6.19.3": true,
     "sharp@0.34.5": true,
     "unrs-resolver@1.12.2": true

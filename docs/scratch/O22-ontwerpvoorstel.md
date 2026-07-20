@@ -319,4 +319,4 @@ Zelfde volgorde nav→lijst→detail als desktop, vervangend gestapeld, nooit al
 
 ---
 
-*Dit voorstel is op 19 juli 2026 als basis gebruikt voor de lokale proef op `feature/visual-foundation-claude`. De proef blijft ongecommit en gebruikt uitsluitend tijdelijke voorbeelddata en lokale state totdat Peter de visuele richting heeft beoordeeld.*
+*Dit voorstel is op 19 juli 2026 als basis gebruikt voor de lokale proef die later via `feature/visual-foundation-v3` in `main` is geconsolideerd. Peter heeft de uiteindelijke blauw-gele drieluikrichting op 20 juli 2026 goedgekeurd op desktop en mobiel. De proef gebruikt nog steeds uitsluitend tijdelijke voorbeelddata en lokale state; echte domeinlogica en opslag volgen per implementatiefase.*

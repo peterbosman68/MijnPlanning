@@ -37,6 +37,23 @@ Velden:
 
 Handmatig uitloggen trekt de actuele sessie in. Alle sessies van de gebruiker kunnen gezamenlijk worden ingetrokken. Alleen een hash van het sessietoken wordt opgeslagen.
 
+### AuthThrottle
+
+Technisch, privacybewust model voor centrale login-rate-limiting:
+
+- id;
+- keyHash, verplicht en uniek; hash van doelaccount en verzoekbron, nooit het ruwe IP-adres of e-mailadres;
+- failureCount;
+- windowStartedAt;
+- blockedUntil, optioneel;
+- expiresAt;
+- createdAt;
+- updatedAt.
+
+De eerste fase blokkeert een combinatie na vijf mislukte pogingen binnen vijftien minuten gedurende vijftien minuten. Het record verloopt automatisch als opruimbare technische state en bevat geen wachtwoord, sessietoken of ruwe requestbron.
+
+De modellen `User`, `Session` en `AuthThrottle` zijn in fase 0 als eerste additive migratie geïmplementeerd. Taak- en overige productmodellen volgen pas in hun eigen fase.
+
 ---
 
 ## 3. Taken

@@ -6,3 +6,45 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  timeZone     String    @default("Europe/Amsterdam")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  sessions     Session[]
+
+  @@map("users")
+}
+
+model Session {
+  id         String    @id @default(cuid())
+  userId     String
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime  @default(now())
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+model AuthThrottle {
+  id              String    @id @default(cuid())
+  keyHash         String    @unique
+  failureCount    Int       @default(0)
+  windowStartedAt DateTime
+  blockedUntil    DateTime?
+  expiresAt       DateTime
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([blockedUntil])
+  @@index([expiresAt])
+  @@map("auth_throttles")
+}

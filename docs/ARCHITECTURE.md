@@ -40,7 +40,7 @@ De architectuur moet:
 | AI | Verwisselbare AI-providerlaag |
 | Mobiel | Responsive webapp, later PWA |
 
-Gebruik binnen de gekozen majors actuele veilige versies en wijzig geen ander stackonderdeel zonder expliciete toestemming. Neon start op het gratis abonnement; een betaalde upgrade vereist expliciete toestemming. Vercel Preview wordt pas ingericht nadat fase 0 lokaal volledig slaagt.
+Gebruik binnen de gekozen majors actuele veilige versies en wijzig geen ander stackonderdeel zonder expliciete toestemming. Neon start op het gratis abonnement; een betaalde upgrade vereist expliciete toestemming. De bestaande private GitHub-repository is gekoppeld aan het bestaande Vercel-project `mijnplanning`; functionele vrijgave van Preview of productie blijft afhankelijk van geslaagde relevante lokale controles en geeft geen toestemming voor secret-, database- of betaalde infrastructuurwijzigingen.
 
 ---
 
@@ -210,7 +210,11 @@ Voor de MVP:
 - maximale inactiviteit van 7 dagen;
 - handmatig uitloggen en de mogelijkheid alle sessies in te trekken.
 
-De eerste gebruiker wordt later aangemaakt via een eenmalige server-only CLI. Deze CLI logt geen wachtwoord of wachtwoordhash en krijgt geen publiek toegankelijke productieroute.
+De eerste gebruiker wordt aangemaakt via de geïmplementeerde eenmalige server-only CLI `npm run user:create`. Deze opdracht vraagt e-mailadres en tweemaal een verborgen wachtwoord in een interactieve terminal; alleen voor gecontroleerde automatisering accepteert zij tijdelijke procesvariabelen. De CLI logt geen wachtwoord of wachtwoordhash, weigert wanneer al een gebruiker bestaat en heeft geen publiek toegankelijke productieroute.
+
+Nieuwe en gewijzigde wachtwoorden bevatten minimaal 8 tekens; langer en uniek blijft aanbevolen. De lokale server-only CLI `npm run user:change-password` controleert het huidige wachtwoord, vraagt het nieuwe wachtwoord tweemaal verborgen, wijzigt de Argon2id-hash transactioneel en trekt daarna alle bestaande sessies in.
+
+De sessie gebruikt een cryptografisch willekeurig opaque token. Alleen een HMAC-SHA-256-hash met het server-side `SESSION_SECRET` wordt opgeslagen. Login-rate-limiting staat centraal in PostgreSQL, zodat afzonderlijke serverless instanties dezelfde blokkering gebruiken.
 
 Microsoft wordt niet gebruikt als primaire login.
 

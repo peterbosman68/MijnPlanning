@@ -1,0 +1,117 @@
+.shell {
+  min-height: 100vh;
+  background: #f4f7fc;
+  color: #17233f;
+}
+
+.header {
+  min-height: 64px;
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) auto minmax(180px, 1fr);
+  align-items: center;
+  gap: 24px;
+  padding: 8px 24px;
+  border-bottom: 1px solid #d9e1ef;
+  background: #ffffff;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: #17233f;
+  text-decoration: none;
+}
+
+.brand span {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  background: #2457d6;
+  color: #ffffff;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.navigation {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.navigation a {
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 14px;
+  border-radius: 6px;
+  color: #30405f;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.navigation a:hover {
+  background: #edf3ff;
+  color: #173c8f;
+}
+
+.navigation a:focus-visible,
+.brand:focus-visible,
+.account button:focus-visible {
+  outline: 3px solid #f2c94c;
+  outline-offset: 3px;
+}
+
+.account {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.account span {
+  max-width: 220px;
+  overflow: hidden;
+  color: #52607a;
+  font-size: 0.88rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account button {
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1px solid #aebbd3;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #263a64;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+@media (max-width: 760px) {
+  .header {
+    grid-template-columns: 1fr auto;
+    gap: 12px;
+    padding: 10px 16px;
+  }
+
+  .navigation {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-content: stretch;
+  }
+
+  .navigation a {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .account span {
+    display: none;
+  }
+}

@@ -208,7 +208,7 @@ Nieuwe besluiten worden onderaan toegevoegd met datum.
 
 ### O14 — infrastructuurvolgorde
 
-- Vercel Preview wordt pas ingericht nadat fase 0 lokaal slaagt.
+- De oorspronkelijke volgorde was dat Vercel Preview pas na een lokaal geslaagde fase 0 werd ingericht. O27 verfijnt dit: de Git-providerkoppeling met het bestaande project mag eerder worden vastgelegd, maar functionele vrijgave en verdere infrastructuur blijven aan de relevante lokale controles gebonden.
 - In fase 0 wordt alleen noodzakelijke configuratievoorbereiding voor latere infrastructuur opgenomen.
 - Vercel Blob, uploads en bijlagen worden uitgesteld tot de daarvoor bestemde latere fase.
 
@@ -288,3 +288,37 @@ Nieuwe besluiten worden onderaan toegevoegd met datum.
 - E-mail kent drie categorieën waaraan een gebruiker ieder bericht kan toewijzen: Belangrijk / urgent, Normaal en Nieuwsbrieven. Rood wordt uitsluitend gebruikt bij Belangrijk / urgent met een concrete reden (deadline, afspraak of financieel risico); Normaal is een neutrale categorie zonder groene succesmarkering.
 - Nieuwsbrieven kunnen met een selectievakje worden gemarkeerd voor afmelding ("Markeren voor afmelding"), met een verzamelactie "Geselecteerde nieuwsbrieven afmelden". In deze proef wordt de selectie alleen lokaal in component-state bijgehouden; er vindt geen echte afmelding, geen externe aanroep en geen e-mailverzending plaats. De definitieve applicatie vraagt later altijd eerst Peters expliciete bevestiging voordat een echte afmelding wordt uitgevoerd.
 - De proef gebruikt uitsluitend lokale voorbeeldgegevens; er zijn geen Neon-writes, geen Microsoft Graph-aanroepen en geen WhatsApp-API-aanroepen toegevoegd.
+
+## 20 juli 2026 — besluiten O25–O27
+
+### O25 — één ontwikkelhoofdlijn op main
+
+- De nieuwste complete werkende versie is geconsolideerd in `main`.
+- Verdere ontwikkeling vindt uitsluitend plaats op `main`, totdat Peter dit expliciet wijzigt.
+- Er worden geen nieuwe featurebranches of andere branches aangemaakt zonder Peters expliciete opdracht.
+- Bestaande oude branches blijven voorlopig als historische herstelpunten bestaan en worden niet verwijderd zonder expliciete opdracht.
+- `main` wordt alleen gepusht nadat de voor de wijziging relevante lokale kwaliteitscontroles slagen; force push is niet toegestaan.
+
+### O26 — visuele richting definitief goedgekeurd
+
+- Peter heeft de blauw-gele drieluikrichting op 20 juli 2026 expliciet goedgekeurd op desktop en mobiel.
+- De goedkeuring omvat de desktopstructuur navigatie → compacte lijst → detailpaneel, de mobiele stapweergave, het kleur- en contrastsysteem, de instelbare desktopkolommen uit O23 en de visuele patronen uit O24.
+- De verplichte visuele goedkeuringspoort uit O20 is daarmee voltooid en de goedgekeurde richting mag per scherm gecontroleerd verder worden toegepast.
+- Tijdelijke voorbeelddata, lokale React-state en proefmeldingen blijven prototypeonderdelen; productiefunctionaliteit vereist nog server-side validatie, autorisatie, domeinlogica en opslag.
+
+### O27 — GitHub-repository gekoppeld aan Vercel
+
+- De bestaande private repository `peterbosman68/MijnPlanning` is op 20 juli 2026 gekoppeld aan het bestaande Vercel-project `mijnplanning`.
+- `main` is de productiebranch voor Git-gestuurde deployments.
+- De koppeling is blijvend en mag automatische deployments na pushes naar `main` activeren.
+- De koppeling wijzigt geen `.env`-bestanden en geeft geen toestemming voor nieuwe secrets, Neon-writes, Vercel Blob, betaalde infrastructuur of andere externe voorzieningen.
+- Preview of productie wordt pas functioneel vrijgegeven nadat de relevante lokale kwaliteits-, beveiligings- en migratiecontroles slagen.
+
+## 20 juli 2026 — besluit O28
+
+### O28 — eigen login en wachtwoordbeleid
+
+- De eigen MijnPlanning-login blijft losstaan van Microsoft; Microsoft wordt niet als primaire login ingevoerd.
+- Een nieuw of gewijzigd wachtwoord bevat minimaal 8 tekens. Een langer, uniek wachtwoord uit een wachtwoordmanager blijft aanbevolen.
+- De eerste gebruiker blijft via de eenmalige server-only bootstrapopdracht worden aangemaakt.
+- Wachtwoordwijziging verloopt via een afzonderlijke lokale server-only opdracht die eerst het huidige wachtwoord controleert, geen invoer of hash logt en na succes alle bestaande sessies intrekt.

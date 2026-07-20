@@ -386,7 +386,19 @@ Na het opzetten van de technische projectbasis en vóór brede frontendimplement
 
 Zonder deze goedkeuring stopt de bredere frontendimplementatie. Paarse gradients, een generiek AI-dashboard, grote lege vlakken, te veel afgeronde kaarten en te kleine grijze tekst zijn afkeurcriteria.
 
-### 18.2 Proces na goedkeuring
+### 18.2 Goedkeuringsstatus
+
+Peter heeft de blauw-gele drieluikrichting op 20 juli 2026 expliciet goedgekeurd op desktop en mobiel. De goedkeuring omvat:
+
+- navigatie links, compacte lijst in het midden en detailpaneel rechts;
+- de mobiele stapweergave navigatie → lijst → detail;
+- het blauw-gele palet en de vastgelegde kleursemantiek;
+- de instelbare desktopkolommen uit O23;
+- het navigatiecontrast, het label `ToDo`, de lokale WhatsApp-screeningsproef en de e-mailcategorisatie uit O24.
+
+Deze goedkeuring betreft de visuele richting en interactiepatronen. Voorbeeldgegevens, lokale React-state en proefmeldingen zijn daarmee niet automatisch als productiefunctionaliteit goedgekeurd; zij worden per implementatiefase vervangen door gevalideerde domeinlogica en opslag.
+
+### 18.3 Proces na goedkeuring
 
 Pas na Peters visuele goedkeuring wordt per volgend scherm gewerkt:
 

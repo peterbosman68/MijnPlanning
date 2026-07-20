@@ -6,7 +6,11 @@ describe("technische projectbasis", () => {
     expect(process.versions.node.split(".")[0]).toBe("24");
   });
 
-  it("bevat nog geen productdatamodel", () => {
-    expect(Prisma.dmmf.datamodel.models).toEqual([]);
+  it("bevat uitsluitend het fase-0-authdatamodel", () => {
+    expect(Prisma.dmmf.datamodel.models.map((model) => model.name).sort()).toEqual([
+      "AuthThrottle",
+      "Session",
+      "User",
+    ]);
   });
 });

@@ -311,6 +311,8 @@ Sla de volledige planning niet iedere seconde opnieuw op.
 - Alleen e-mailadres en wachtwoord zijn verplicht.
 - Er is geen verplichte gebruikersnaam; een weergavenaam kan later optioneel worden toegevoegd.
 - De eerste gebruiker wordt via een eenmalige server-only CLI aangemaakt; deze logt geen wachtwoord of hash en is geen publieke productieroute.
+- Een nieuw of gewijzigd wachtwoord bevat minimaal 8 tekens; een langer, uniek wachtwoord blijft aanbevolen.
+- Een lokale server-only wijzigingsopdracht controleert eerst het huidige wachtwoord en trekt na een geslaagde wijziging alle bestaande sessies in.
 - Wachtwoord met Argon2id en een goede unieke salt.
 - Geen password pepper in de MVP.
 - Veilige server-side sessie.
@@ -360,9 +362,10 @@ Formulieren voor taken en subtaken gebruiken een expliciete knop `Opslaan`. Time
 - Een lokale PostgreSQL-installatie is niet nodig.
 - Gebruik Server Actions alleen als dunne transportlaag; bedrijfsregels blijven in domeinservices.
 - Gebruik Zod, Vitest en Playwright.
-- Richt Vercel Preview pas in nadat fase 0 lokaal slaagt.
+- De bestaande private GitHub-repository is gekoppeld aan het bestaande Vercel-project `mijnplanning`. Beschouw Preview of productie pas als functioneel vrijgegeven nadat de relevante lokale fasecontroles slagen; deze koppeling geeft geen toestemming om secrets, databases of betaalde infrastructuur te wijzigen.
 - Voeg Vercel Blob, uploads en bijlagen pas in de latere bijlagenfase toe.
 - Gebruik uitsluitend de bestaande private repository `https://github.com/peterbosman68/MijnPlanning` en maak geen nieuwe repository.
+- Werk vanaf 20 juli 2026 uitsluitend op `main` en maak geen nieuwe branch zonder Peters expliciete opdracht.
 - Gebruik uitsluitend `PLANS.md` in de hoofdmap als bron voor uitvoeringsplanregels.
 
 ---
