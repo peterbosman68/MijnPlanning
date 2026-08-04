@@ -7,6 +7,31 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum TaskStatus {
+  OPEN
+  WAITING
+  COMPLETED
+  ARCHIVED
+  CANCELLED
+}
+
+enum SubtaskStatus {
+  OPEN
+  WAITING
+  COMPLETED
+  ARCHIVED
+  CANCELLED
+}
+
+enum TaskSourceType {
+  MANUAL
+  IMPORTED
+}
+
+enum DependencyType {
+  FINISH_TO_START
+}
+
 model User {
   id                  String               @id @default(cuid())
   email               String               @unique
@@ -14,10 +39,77 @@ model User {
   timeZone            String               @default("Europe/Amsterdam")
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
+  tasks               Task[]
   sessions            Session[]
   passwordResetTokens PasswordResetToken[]
 
   @@map("users")
+}
+
+model Task {
+  id                  String         @id @default(cuid())
+  userId              String
+  title               String
+  descriptionOriginal String         @default("")
+  descriptionPlain    String         @default("")
+  status              TaskStatus     @default(OPEN)
+  deadline            DateTime?
+  estimatedMinutes    Int?
+  remainingMinutes    Int?
+  sourceType          TaskSourceType @default(MANUAL)
+  sourceExternalId    String?
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+  completedAt         DateTime?
+  user                User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subtasks            Subtask[]
+
+  @@index([userId, status])
+  @@index([userId, deadline])
+  @@index([updatedAt])
+  @@map("tasks")
+}
+
+model Subtask {
+  id                       String            @id @default(cuid())
+  taskId                   String
+  title                    String
+  descriptionOriginal      String            @default("")
+  descriptionPlain         String            @default("")
+  deadline                 DateTime
+  earliestStart            DateTime?
+  estimatedMinutes         Int
+  remainingMinutes         Int
+  minimumBlockMinutes      Int               @default(15)
+  splittable               Boolean           @default(false)
+  priority                 Int?
+  context                  String?
+  status                   SubtaskStatus     @default(OPEN)
+  createdAt                DateTime          @default(now())
+  updatedAt                DateTime          @updatedAt
+  completedAt              DateTime?
+  task                     Task              @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  dependenciesAsBlockedBy  TaskDependency[]   @relation("task_dependency_blocked")
+  dependenciesAsPrerequisite TaskDependency[] @relation("task_dependency_prerequisite")
+
+  @@index([taskId, status])
+  @@index([deadline])
+  @@index([status, deadline])
+  @@map("subtasks")
+}
+
+model TaskDependency {
+  id                  String        @id @default(cuid())
+  subtaskId           String
+  dependsOnSubtaskId  String
+  dependencyType      DependencyType @default(FINISH_TO_START)
+  createdAt           DateTime      @default(now())
+  subtask             Subtask       @relation("task_dependency_blocked", fields: [subtaskId], references: [id], onDelete: Restrict)
+  dependsOnSubtask    Subtask       @relation("task_dependency_prerequisite", fields: [dependsOnSubtaskId], references: [id], onDelete: Restrict)
+
+  @@unique([subtaskId, dependsOnSubtaskId])
+  @@index([dependsOnSubtaskId])
+  @@map("task_dependencies")
 }
 
 model PasswordResetToken {

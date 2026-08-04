@@ -11,6 +11,9 @@ describe("technische projectbasis", () => {
       "AuthThrottle",
       "PasswordResetToken",
       "Session",
+      "Subtask",
+      "Task",
+      "TaskDependency",
       "User",
     ]);
   });

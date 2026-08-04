@@ -193,6 +193,7 @@ export type PlanningViewKey =
 type ViewKey = PlanningViewKey;
 
 type MobilePane = "navigation" | "list" | "detail";
+type EditorMode = "none" | "new-main" | "new-sub" | "edit-main" | "edit-sub";
 type TaskStatus = "normal" | "active" | "waiting" | "completed";
 type RiskLevel = "attention" | "danger" | null;
 
@@ -200,7 +201,9 @@ type Subtask = {
   id: string;
   title: string;
   deadline: string;
+  deadlineValue?: string;
   remaining: string;
+  description?: string;
   state?: "active" | "blocked" | "waiting" | "done" | "planned";
 };
 
@@ -283,28 +286,36 @@ const INITIAL_TASKS: MainTask[] = [
         id: "location",
         title: "Locatiegegevens controleren",
         deadline: "20 jul · 12:00",
+        deadlineValue: "2026-07-20T12:00",
         remaining: "—",
+        description: "Maten, ontsluiting en netaansluiting zijn gecontroleerd.",
         state: "done",
       },
       {
         id: "quote",
         title: "Offerte laadpalen beoordelen",
         deadline: "22 jul · 17:00",
+        deadlineValue: "2026-07-22T17:00",
         remaining: "45m",
+        description: "Prijs, capaciteit en onderhoudsvoorwaarden vergelijken.",
         state: "active",
       },
       {
         id: "permit",
         title: "Vergunningsstukken verzamelen",
         deadline: "23 jul · 12:00",
+        deadlineValue: "2026-07-23T12:00",
         remaining: "1u 10m",
+        description: "Ontbrekende documenten aanvragen en checklist afronden.",
         state: "blocked",
       },
       {
         id: "owner",
         title: "Terugkoppeling eigenaar verwerken",
         deadline: "24 jul · 11:00",
+        deadlineValue: "2026-07-24T11:00",
         remaining: "30m",
+        description: "Besproken aanpassingen verwerken in plan en actiepunten.",
         state: "waiting",
       },
     ],
@@ -325,12 +336,14 @@ const INITIAL_TASKS: MainTask[] = [
         id: "receipts",
         title: "Ontbrekende bonnen koppelen",
         deadline: "27 jul · 17:00",
+        deadlineValue: "2026-07-27T17:00",
         remaining: "35m",
       },
       {
         id: "check",
         title: "Kwartaaloverzicht controleren",
         deadline: "29 jul · 15:00",
+        deadlineValue: "2026-07-29T15:00",
         remaining: "40m",
       },
     ],
@@ -353,6 +366,7 @@ const INITIAL_TASKS: MainTask[] = [
         id: "vendor",
         title: "Herinnering aan leverancier sturen",
         deadline: "20 jul · 09:00",
+        deadlineValue: "2026-07-20T09:00",
         remaining: "10m",
         state: "waiting",
       },
@@ -360,6 +374,7 @@ const INITIAL_TASKS: MainTask[] = [
         id: "compare",
         title: "Offertes vergelijken",
         deadline: "24 jul · 14:00",
+        deadlineValue: "2026-07-24T14:00",
         remaining: "40m",
         state: "blocked",
       },
@@ -379,6 +394,7 @@ const INITIAL_TASKS: MainTask[] = [
         id: "archive-files",
         title: "Documenten controleren en archiveren",
         deadline: "16 jul · 17:00",
+        deadlineValue: "2026-07-16T17:00",
         remaining: "—",
         state: "done",
       },
@@ -564,6 +580,34 @@ function formatDeadline(value: string) {
   }).format(date);
 }
 
+function formatDeadlineDateOnly(value: string) {
+  const date = new Date(`${value}T00:00`);
+  return new Intl.DateTimeFormat("nl-NL", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(date);
+}
+
+const DEFAULT_END_OF_WORKDAY = "17:00";
+
+function splitDeadlineValue(value?: string) {
+  if (!value) return { date: "", time: "" };
+  if (value.includes("T")) {
+    const [date, timePart] = value.split("T");
+    return { date, time: timePart.slice(0, 5) };
+  }
+  return { date: value, time: "" };
+}
+
+const DELETE_CONFIRMATION_MESSAGE = "Wil je zeker weten dat je knop wilt verwijderen?";
+
+function buildTaskNote(subtasks: Subtask[]) {
+  const blockedCount = subtasks.filter((item) => item.state === "blocked").length;
+  const blockedSuffix = blockedCount > 0 ? ` · ${blockedCount} geblokkeerd` : "";
+  return `${subtasks.length} subtaken${blockedSuffix}`;
+}
+
 function taskStatusLabel(status: TaskStatus) {
   if (status === "active") return "Actief";
   if (status === "waiting") return "Wachten";
@@ -611,10 +655,12 @@ export function TakenVisualPrototype({
   const [mobilePane, setMobilePane] = useState<MobilePane>("navigation");
   const [tasks, setTasks] = useState<MainTask[]>(INITIAL_TASKS);
   const [selectedTaskId, setSelectedTaskId] = useState("truckparking");
+  const [selectedSubtaskId, setSelectedSubtaskId] = useState<string | null>(null);
   const [selectedAppointmentId, setSelectedAppointmentId] = useState("erwin");
   const [selectedEmailId, setSelectedEmailId] = useState("invoice");
   const [timerSeconds, setTimerSeconds] = useState(47 * 60 + 12);
-  const [subtaskFormOpen, setSubtaskFormOpen] = useState(false);
+  const [editorMode, setEditorMode] = useState<EditorMode>("none");
+  const [mainTaskError, setMainTaskError] = useState<string | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [sourceOpen, setSourceOpen] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -625,6 +671,11 @@ export function TakenVisualPrototype({
   const [emailFilter, setEmailFilter] = useState<EmailCategory | "all">("all");
   const [unsubscribeSelection, setUnsubscribeSelection] = useState<Record<string, boolean>>({});
   const [selectedWhatsAppId, setSelectedWhatsAppId] = useState("erwin-wa");
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const newMainFormRef = useRef<HTMLFormElement | null>(null);
+  const editMainFormRef = useRef<HTMLFormElement | null>(null);
+  const newSubtaskFormRef = useRef<HTMLFormElement | null>(null);
+  const editSubtaskFormRef = useRef<HTMLFormElement | null>(null);
 
   useEffect(() => {
     const timer = window.setInterval(() => setTimerSeconds((value) => value + 1), 1000);
@@ -639,6 +690,11 @@ export function TakenVisualPrototype({
   }, [activeView, tasks]);
 
   const selectedTask = tasks.find((task) => task.id === selectedTaskId) ?? visibleTasks[0] ?? tasks[0];
+  const selectedSubtask = useMemo(() => {
+    if (!selectedTask || selectedTask.subtasks.length === 0) return null;
+    if (!selectedSubtaskId) return selectedTask.subtasks[0];
+    return selectedTask.subtasks.find((subtask) => subtask.id === selectedSubtaskId) ?? selectedTask.subtasks[0];
+  }, [selectedTask, selectedSubtaskId]);
   const selectedAppointment =
     APPOINTMENTS.find((appointment) => appointment.id === selectedAppointmentId) ?? APPOINTMENTS[0];
 
@@ -685,26 +741,269 @@ export function TakenVisualPrototype({
     completed: "Afgerond",
   };
 
+  function getActiveEditorForm() {
+    if (editorMode === "new-main") return newMainFormRef.current;
+    if (editorMode === "edit-main") return editMainFormRef.current;
+    if (editorMode === "new-sub") return newSubtaskFormRef.current;
+    if (editorMode === "edit-sub") return editSubtaskFormRef.current;
+    return null;
+  }
+
+  function runWithEditorCloseGuard(action: () => void) {
+    if (editorMode === "none" || !hasUnsavedChanges) {
+      action();
+      return;
+    }
+
+    const wantsToSave = window.confirm("Je hebt niet-opgeslagen wijzigingen. Wil je eerst opslaan?");
+    if (wantsToSave) {
+      getActiveEditorForm()?.requestSubmit();
+      return;
+    }
+
+    setHasUnsavedChanges(false);
+    action();
+  }
+
   function selectView(view: ViewKey) {
-    setActiveView(view);
-    if (view === "waiting") setSelectedTaskId("roof");
-    else if (view === "completed") setSelectedTaskId("archive");
-    else if (view !== "appointments" && view !== "email" && view !== "whatsapp") setSelectedTaskId("truckparking");
-    setMobilePane("list");
-    setSubtaskFormOpen(false);
-    setDetailsOpen(false);
-    setSourceOpen(false);
-    setFormError(null);
-    setFeedback(null);
+    runWithEditorCloseGuard(() => {
+      setActiveView(view);
+      if (view === "waiting") setSelectedTaskId("roof");
+      else if (view === "completed") setSelectedTaskId("archive");
+      else if (view !== "appointments" && view !== "email" && view !== "whatsapp") setSelectedTaskId("truckparking");
+      setMobilePane("list");
+      setEditorMode("none");
+      setHasUnsavedChanges(false);
+      setSelectedSubtaskId(null);
+      setMainTaskError(null);
+      setDetailsOpen(false);
+      setSourceOpen(false);
+      setFormError(null);
+      setFeedback(null);
+    });
   }
 
   function selectTask(taskId: string) {
-    setSelectedTaskId(taskId);
-    setSubtaskFormOpen(false);
-    setDetailsOpen(false);
+    runWithEditorCloseGuard(() => {
+      const isSameTask = selectedTaskId === taskId;
+      const isMainEditorOpen = editorMode === "edit-main";
+
+      if (isSameTask && isMainEditorOpen) {
+        setEditorMode("none");
+        setHasUnsavedChanges(false);
+        setMainTaskError(null);
+        setFormError(null);
+        setFeedback(null);
+        return;
+      }
+
+      setSelectedTaskId(taskId);
+      const task = tasks.find((item) => item.id === taskId);
+      setSelectedSubtaskId(task?.subtasks[0]?.id ?? null);
+      setEditorMode("edit-main");
+      setHasUnsavedChanges(false);
+      setMainTaskError(null);
+      setDetailsOpen(false);
+      setFormError(null);
+      setFeedback(null);
+      setMobilePane("detail");
+    });
+  }
+
+  function selectSubtask(subtaskId: string) {
+    runWithEditorCloseGuard(() => {
+      const isSameSubtask = selectedSubtask?.id === subtaskId;
+      const isSubEditorOpen = editorMode === "edit-sub";
+
+      if (isSameSubtask && isSubEditorOpen) {
+        setEditorMode("none");
+        setHasUnsavedChanges(false);
+        setFormError(null);
+        setFeedback(null);
+        return;
+      }
+
+      setSelectedSubtaskId(subtaskId);
+      setEditorMode("edit-sub");
+      setHasUnsavedChanges(false);
+      setDetailsOpen(true);
+      setFeedback(null);
+    });
+  }
+
+  function updateMainTask(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const title = String(formData.get("title") ?? "").trim();
+    const deadlineDate = String(formData.get("deadlineDate") ?? "").trim();
+    const deadlineTime = String(formData.get("deadlineTime") ?? "").trim();
+    const description = String(formData.get("description") ?? "").trim();
+
+    if (!title) {
+      setFormError("Vul een titel in.");
+      return;
+    }
+    if (deadlineTime && !deadlineDate) {
+      setFormError("Vul eerst een datum in voordat je een tijd invult.");
+      return;
+    }
+
+    let deadlineValue: string | undefined;
+    let deadlineLabel = "Geen deadline";
+
+    if (deadlineDate) {
+      const effectiveTime = deadlineTime || DEFAULT_END_OF_WORKDAY;
+      const parsed = new Date(`${deadlineDate}T${effectiveTime}`);
+      if (Number.isNaN(parsed.getTime())) {
+        setFormError("Kies een geldige deadline.");
+        return;
+      }
+      deadlineValue = `${deadlineDate}T${effectiveTime}`;
+      deadlineLabel = deadlineTime
+        ? formatDeadline(`${deadlineDate}T${deadlineTime}`)
+        : formatDeadlineDateOnly(deadlineDate);
+    }
+
+    setTasks((current) =>
+      current.map((task) =>
+        task.id === selectedTask.id
+          ? {
+              ...task,
+              title,
+              deadline: deadlineLabel,
+              deadlineValue,
+              description: description || "Nog geen omschrijving toegevoegd.",
+            }
+          : task,
+      ),
+    );
     setFormError(null);
-    setFeedback(null);
-    setMobilePane("detail");
+    setHasUnsavedChanges(false);
+    setFeedback("Hoofdtaak bijgewerkt.");
+  }
+
+  function updateSubtask(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selectedSubtask) return;
+
+    const formData = new FormData(event.currentTarget);
+    const title = String(formData.get("title") ?? "").trim();
+    const deadlineDate = String(formData.get("deadlineDate") ?? "").trim();
+    const deadlineTime = String(formData.get("deadlineTime") ?? "").trim();
+    const description = String(formData.get("description") ?? "").trim();
+
+    if (!title || !deadlineDate) {
+      setFormError("Vul een titel en deadline in.");
+      return;
+    }
+    if (deadlineTime && !deadlineDate) {
+      setFormError("Vul eerst een datum in voordat je een tijd invult.");
+      return;
+    }
+
+    const effectiveTime = deadlineTime || DEFAULT_END_OF_WORKDAY;
+    const childComparable = new Date(`${deadlineDate}T${effectiveTime}`);
+    if (Number.isNaN(childComparable.getTime())) {
+      setFormError("Kies een geldige deadline.");
+      return;
+    }
+
+    if (selectedTask.deadlineValue) {
+      const parent = splitDeadlineValue(selectedTask.deadlineValue);
+      const parentComparable = new Date(`${parent.date}T${parent.time || DEFAULT_END_OF_WORKDAY}`);
+      if (childComparable.getTime() > parentComparable.getTime()) {
+        setFormError(`Kies een deadline op of vóór ${selectedTask.deadline}.`);
+        return;
+      }
+    }
+
+    const deadlineValue = `${deadlineDate}T${effectiveTime}`;
+    const deadlineLabel = deadlineTime
+      ? formatDeadline(`${deadlineDate}T${deadlineTime}`)
+      : formatDeadlineDateOnly(deadlineDate);
+
+    setTasks((current) =>
+      current.map((task) =>
+        task.id === selectedTask.id
+          ? {
+              ...task,
+              subtasks: task.subtasks.map((subtask) =>
+                subtask.id === selectedSubtask.id
+                  ? {
+                      ...subtask,
+                      title,
+                      deadline: deadlineLabel,
+                      deadlineValue,
+                      description: description || undefined,
+                    }
+                  : subtask,
+              ),
+            }
+          : task,
+      ),
+    );
+    setFormError(null);
+    setHasUnsavedChanges(false);
+    setFeedback("Subtaak bijgewerkt.");
+  }
+
+  function addMainTask(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    const title = String(formData.get("title") ?? "").trim();
+    const deadlineDate = String(formData.get("deadlineDate") ?? "").trim();
+    const deadlineTime = String(formData.get("deadlineTime") ?? "").trim();
+    const description = String(formData.get("description") ?? "").trim();
+
+    if (!title) {
+      setMainTaskError("Vul een titel in.");
+      return;
+    }
+
+    if (deadlineTime && !deadlineDate) {
+      setMainTaskError("Vul eerst een datum in voordat je een tijd invult.");
+      return;
+    }
+
+    let deadlineValue: string | undefined;
+    let deadlineLabel = "Geen deadline";
+
+    if (deadlineDate) {
+      const effectiveTime = deadlineTime || DEFAULT_END_OF_WORKDAY;
+      const parsed = new Date(
+        `${deadlineDate}T${effectiveTime}`,
+      );
+      if (Number.isNaN(parsed.getTime())) {
+        setMainTaskError("Kies een geldige deadline.");
+        return;
+      }
+      deadlineValue = `${deadlineDate}T${effectiveTime}`;
+      deadlineLabel = deadlineTime
+        ? formatDeadline(`${deadlineDate}T${deadlineTime}`)
+        : formatDeadlineDateOnly(deadlineDate);
+    }
+
+    const newTask: MainTask = {
+      id: `local-task-${Date.now()}`,
+      title,
+      note: "0 subtaken",
+      deadline: deadlineLabel,
+      deadlineValue,
+      remaining: "Nog te schatten",
+      status: "normal",
+      risk: null,
+      description: description || "Nog geen omschrijving toegevoegd.",
+      subtasks: [],
+    };
+
+    setTasks((current) => [newTask, ...current]);
+    setSelectedTaskId(newTask.id);
+    setEditorMode("edit-main");
+    setHasUnsavedChanges(false);
+    setMainTaskError(null);
+    form.reset();
+    setFeedback("Hoofdtaak lokaal toegevoegd. Planning opnieuw berekend op basis van voorbeelddata.");
   }
 
   function addSubtask(event: FormEvent<HTMLFormElement>) {
@@ -712,23 +1011,47 @@ export function TakenVisualPrototype({
     const form = event.currentTarget;
     const formData = new FormData(form);
     const title = String(formData.get("title") ?? "").trim();
-    const deadline = String(formData.get("deadline") ?? "");
+    const deadlineDate = String(formData.get("deadlineDate") ?? "").trim();
+    const deadlineTime = String(formData.get("deadlineTime") ?? "").trim();
+    const description = String(formData.get("description") ?? "").trim();
 
-    if (!title || !deadline) {
+    if (!title || !deadlineDate) {
       setFormError("Vul een titel en deadline in.");
       return;
     }
 
-    if (selectedTask.deadlineValue && deadline > selectedTask.deadlineValue) {
-      setFormError(`Kies een deadline op of vóór ${selectedTask.deadline}.`);
+    if (deadlineTime && !deadlineDate) {
+      setFormError("Vul eerst een datum in voordat je een tijd invult.");
       return;
+    }
+
+    const effectiveSubtaskTime = deadlineTime || DEFAULT_END_OF_WORKDAY;
+    const childComparable = new Date(`${deadlineDate}T${effectiveSubtaskTime}`);
+    if (Number.isNaN(childComparable.getTime())) {
+      setFormError("Kies een geldige deadline.");
+      return;
+    }
+
+    if (selectedTask.deadlineValue) {
+      const parent = splitDeadlineValue(selectedTask.deadlineValue);
+      const parentComparable = new Date(
+        `${parent.date}T${parent.time || DEFAULT_END_OF_WORKDAY}`,
+      );
+      if (childComparable.getTime() > parentComparable.getTime()) {
+        setFormError(`Kies een deadline op of vóór ${selectedTask.deadline}.`);
+        return;
+      }
     }
 
     const newSubtask: Subtask = {
       id: `local-${Date.now()}`,
       title,
-      deadline: formatDeadline(deadline),
+      deadlineValue: `${deadlineDate}T${effectiveSubtaskTime}`,
+      deadline: deadlineTime
+        ? formatDeadline(`${deadlineDate}T${deadlineTime}`)
+        : formatDeadlineDateOnly(deadlineDate),
       remaining: "Nog te schatten",
+      description: description || undefined,
       state: "planned",
     };
 
@@ -737,18 +1060,69 @@ export function TakenVisualPrototype({
         task.id === selectedTask.id
           ? {
               ...task,
-              note: `${task.subtasks.length + 1} subtaken${task.subtasks.some((item) => item.state === "blocked") ? " · 1 geblokkeerd" : ""}`,
               subtasks: [...task.subtasks, newSubtask],
+              note: buildTaskNote([...task.subtasks, newSubtask]),
             }
           : task,
       ),
     );
     form.reset();
     setFormError(null);
-    setSubtaskFormOpen(false);
+    setSelectedSubtaskId(newSubtask.id);
+    setEditorMode("edit-sub");
+    setHasUnsavedChanges(false);
     setFeedback(
       "Subtaak lokaal toegevoegd. Planning opnieuw berekend; de actieve timer liep door en de nieuwe subtaak is niet gestart.",
     );
+  }
+
+  function deleteMainTask() {
+    if (!selectedTask) return;
+    const confirmed = window.confirm(DELETE_CONFIRMATION_MESSAGE);
+    if (!confirmed) return;
+
+    const remainingTasks = tasks.filter((task) => task.id !== selectedTask.id);
+    const nextTask = remainingTasks[0] ?? null;
+
+    setTasks(remainingTasks);
+    setSelectedTaskId(nextTask?.id ?? "");
+    setSelectedSubtaskId(nextTask?.subtasks[0]?.id ?? null);
+    setEditorMode("none");
+    setHasUnsavedChanges(false);
+    setMainTaskError(null);
+    setFormError(null);
+    setFeedback("Hoofdtaak verwijderd.");
+  }
+
+  function deleteSubtask() {
+    if (!selectedTask || !selectedSubtask) return;
+    const confirmed = window.confirm(DELETE_CONFIRMATION_MESSAGE);
+    if (!confirmed) return;
+
+    let nextSubtaskId: string | null = null;
+
+    setTasks((current) =>
+      current.map((task) => {
+        if (task.id !== selectedTask.id) {
+          return task;
+        }
+
+        const updatedSubtasks = task.subtasks.filter((subtask) => subtask.id !== selectedSubtask.id);
+        nextSubtaskId = updatedSubtasks[0]?.id ?? null;
+
+        return {
+          ...task,
+          subtasks: updatedSubtasks,
+          note: buildTaskNote(updatedSubtasks),
+        };
+      }),
+    );
+
+    setSelectedSubtaskId(nextSubtaskId);
+    setEditorMode("none");
+    setHasUnsavedChanges(false);
+    setFormError(null);
+    setFeedback("Subtaak verwijderd.");
   }
 
   function selectEmail(emailId: string) {
@@ -882,10 +1256,83 @@ export function TakenVisualPrototype({
               {currentKind === "email" && `${visibleEmails.length} van ${EMAIL_PROPOSALS.length} lokale voorstellen`}
               {currentKind === "whatsapp" && "Lokale voorbeeldgesprekken · nog geen koppeling"}
             </p>
+            {currentKind === "tasks" && (
+              <div className={styles.listActions}>
+                <button
+                  type="button"
+                  className={styles.primaryButton}
+                  onClick={() => {
+                    runWithEditorCloseGuard(() => {
+                      setEditorMode((mode) => (mode === "new-main" ? "none" : "new-main"));
+                      setHasUnsavedChanges(false);
+                      setMainTaskError(null);
+                      setFormError(null);
+                      setFeedback(null);
+                    });
+                  }}
+                  aria-expanded={editorMode === "new-main"}
+                >
+                  + Hoofdtaak
+                </button>
+              </div>
+            )}
           </header>
 
           {currentKind === "tasks" && (
             <div className={styles.listBody}>
+              {editorMode === "new-main" && (
+                <form
+                  className={styles.mainTaskForm}
+                  onSubmit={addMainTask}
+                  onChangeCapture={() => setHasUnsavedChanges(true)}
+                  ref={newMainFormRef}
+                  noValidate
+                >
+                  <label>
+                    Titel <span aria-hidden="true">*</span>
+                    <input name="title" type="text" required autoFocus placeholder="Wat wil je afronden?" />
+                  </label>
+                  <label>
+                    Deadline (optioneel)
+                  </label>
+                  <div className={styles.deadlineFields}>
+                    <label>
+                      Datum
+                      <input name="deadlineDate" type="date" />
+                    </label>
+                    <label>
+                      Tijd (optioneel)
+                      <input name="deadlineTime" type="time" />
+                    </label>
+                  </div>
+                  <label>
+                    Omschrijving (optioneel)
+                    <textarea
+                      name="description"
+                      rows={15}
+                      className={styles.descriptionField}
+                      placeholder="Korte of lange context, notities en broninformatie"
+                    />
+                  </label>
+                  {mainTaskError && <p className={styles.formError} role="alert">{mainTaskError}</p>}
+                  <div className={styles.formActions}>
+                    <button
+                      type="button"
+                      className={styles.ghostButton}
+                      onClick={() => {
+                        runWithEditorCloseGuard(() => {
+                          setEditorMode("none");
+                          setHasUnsavedChanges(false);
+                          setMainTaskError(null);
+                        });
+                      }}
+                    >
+                      Annuleren
+                    </button>
+                    <button type="submit" className={styles.primaryButton}>Opslaan</button>
+                  </div>
+                </form>
+              )}
               <div className={styles.taskColumns} aria-hidden="true">
                 <span>Hoofdtaak</span><span>Deadline</span><span>Resterend</span><span />
               </div>
@@ -894,29 +1341,82 @@ export function TakenVisualPrototype({
               ) : (
                 visibleTasks.map((task) => {
                   const status = taskStatusLabel(task.status);
+                  const taskDeadline = splitDeadlineValue(task.deadlineValue);
                   return (
-                    <button
-                      key={task.id}
-                      type="button"
-                      className={selectedTask.id === task.id ? styles.selectedTaskRow : styles.taskRow}
-                      onClick={() => selectTask(task.id)}
-                    >
-                      <span className={styles.taskTitleCell}>
-                        <strong>{task.title}</strong>
-                        <small>{status ?? task.note}</small>
-                      </span>
-                      <span className={styles.deadlineCell}>{task.deadline}</span>
-                      <span className={styles.remainingCell}>{task.remaining}</span>
-                      <span className={styles.riskCell}>
-                        {task.risk && (
-                          <span
-                            className={task.risk === "danger" ? styles.dangerDot : styles.attentionDot}
-                            aria-label={task.risk === "danger" ? "Deadlinegevaar" : "Aandacht nodig"}
-                            role="img"
-                          />
-                        )}
-                      </span>
-                    </button>
+                    <div key={task.id}>
+                      <button
+                        type="button"
+                        className={selectedTask.id === task.id ? styles.selectedTaskRow : styles.taskRow}
+                        onClick={() => selectTask(task.id)}
+                      >
+                        <span className={styles.taskTitleCell}>
+                          <strong>{task.title}</strong>
+                          <small>{status ?? task.note}</small>
+                        </span>
+                        <span className={styles.deadlineCell}>{task.deadline}</span>
+                        <span className={styles.remainingCell}>{task.remaining}</span>
+                        <span className={styles.riskCell}>
+                          {task.risk && (
+                            <span
+                              className={task.risk === "danger" ? styles.dangerDot : styles.attentionDot}
+                              aria-label={task.risk === "danger" ? "Deadlinegevaar" : "Aandacht nodig"}
+                              role="img"
+                            />
+                          )}
+                        </span>
+                      </button>
+
+                      {selectedTask.id === task.id && editorMode === "edit-main" && (
+                        <form
+                          className={`${styles.mainTaskForm} ${styles.inlineTaskEditor}`}
+                          onSubmit={updateMainTask}
+                          onChangeCapture={() => setHasUnsavedChanges(true)}
+                          ref={editMainFormRef}
+                          noValidate
+                        >
+                          <label>
+                            Titel <span aria-hidden="true">*</span>
+                            <input name="title" type="text" required defaultValue={task.title} />
+                          </label>
+                          <div className={styles.deadlineFields}>
+                            <label>
+                              Deadline datum
+                              <input name="deadlineDate" type="date" defaultValue={taskDeadline.date} />
+                            </label>
+                            <label>
+                              Tijd (optioneel)
+                              <input name="deadlineTime" type="time" defaultValue={taskDeadline.time} />
+                            </label>
+                          </div>
+                          <label>
+                            Omschrijving (optioneel)
+                            <textarea
+                              name="description"
+                              rows={15}
+                              className={styles.descriptionField}
+                              defaultValue={task.description}
+                            />
+                          </label>
+                          {formError && <p className={styles.formError} role="alert">{formError}</p>}
+                          <div className={styles.formActions}>
+                            <button
+                              type="button"
+                              className={styles.ghostButton}
+                              onClick={() => {
+                                runWithEditorCloseGuard(() => {
+                                  setEditorMode("none");
+                                  setHasUnsavedChanges(false);
+                                });
+                              }}
+                            >
+                              Annuleren
+                            </button>
+                            <button type="button" className={styles.secondaryButton} onClick={deleteMainTask}>Verwijderen</button>
+                            <button type="submit" className={styles.primaryButton}>Hoofdtaak opslaan</button>
+                          </div>
+                        </form>
+                      )}
+                    </div>
                   );
                 })
               )}
@@ -1100,8 +1600,15 @@ export function TakenVisualPrototype({
                   <button
                     className={styles.primaryButton}
                     type="button"
-                    onClick={() => { setSubtaskFormOpen((open) => !open); setFormError(null); setFeedback(null); }}
-                    aria-expanded={subtaskFormOpen}
+                    onClick={() => {
+                      runWithEditorCloseGuard(() => {
+                        setEditorMode((mode) => (mode === "new-sub" ? "none" : "new-sub"));
+                        setHasUnsavedChanges(false);
+                        setFormError(null);
+                        setFeedback(null);
+                      });
+                    }}
+                    aria-expanded={editorMode === "new-sub"}
                   >
                     + Subtaak
                   </button>
@@ -1118,8 +1625,14 @@ export function TakenVisualPrototype({
                 </div>
               )}
 
-              {subtaskFormOpen && selectedTask.status !== "completed" && (
-                <form className={styles.subtaskForm} onSubmit={addSubtask} noValidate>
+              {editorMode === "new-sub" && selectedTask.status !== "completed" && (
+                <form
+                  className={styles.subtaskForm}
+                  onSubmit={addSubtask}
+                  onChangeCapture={() => setHasUnsavedChanges(true)}
+                  ref={newSubtaskFormRef}
+                  noValidate
+                >
                   <div className={styles.formHeading}>
                     <div>
                       <p className={styles.eyebrow}>Nieuwe subtaak</p>
@@ -1131,14 +1644,41 @@ export function TakenVisualPrototype({
                     Titel <span aria-hidden="true">*</span>
                     <input name="title" type="text" required autoFocus placeholder="Wat moet er gebeuren?" />
                   </label>
+                  <div className={styles.deadlineFields}>
+                    <label>
+                      Deadline datum <span aria-hidden="true">*</span>
+                      <input name="deadlineDate" type="date" required />
+                    </label>
+                    <label>
+                      Tijd (optioneel)
+                      <input name="deadlineTime" type="time" />
+                    </label>
+                  </div>
+                  {selectedTask.deadlineValue && <p className={styles.formHint}>Uiterlijk {selectedTask.deadline}</p>}
                   <label>
-                    Deadline <span aria-hidden="true">*</span>
-                    <input name="deadline" type="datetime-local" required max={selectedTask.deadlineValue} />
-                    {selectedTask.deadlineValue && <small>Uiterlijk {selectedTask.deadline}</small>}
+                    Omschrijving (optioneel)
+                    <textarea
+                      name="description"
+                      rows={15}
+                      className={styles.descriptionField}
+                      placeholder="Extra context of uitgebreid tekstblok"
+                    />
                   </label>
                   {formError && <p className={styles.formError} role="alert">{formError}</p>}
                   <div className={styles.formActions}>
-                    <button type="button" className={styles.ghostButton} onClick={() => { setSubtaskFormOpen(false); setFormError(null); }}>Annuleren</button>
+                    <button
+                      type="button"
+                      className={styles.ghostButton}
+                      onClick={() => {
+                        runWithEditorCloseGuard(() => {
+                          setEditorMode("none");
+                          setHasUnsavedChanges(false);
+                          setFormError(null);
+                        });
+                      }}
+                    >
+                      Annuleren
+                    </button>
                     <button type="submit" className={styles.primaryButton}>Opslaan</button>
                   </div>
                 </form>
@@ -1154,22 +1694,95 @@ export function TakenVisualPrototype({
                 <div className={styles.subtaskList}>
                   {selectedTask.subtasks.map((subtask) => {
                     const stateLabel = subtaskStateLabel(subtask.state);
+                    const selectedClass = selectedSubtask?.id === subtask.id ? styles.selectedSubtaskRow : "";
+                    const isEditingThisSubtask = editorMode === "edit-sub" && selectedSubtask?.id === subtask.id;
                     return (
-                      <div
-                        key={subtask.id}
-                        className={
-                          subtask.state === "active"
-                            ? `${styles.subtaskRow} ${styles.subtaskRowActive}`
-                            : styles.subtaskRow
-                        }
-                      >
-                        <span className={styles.subtaskMarker} aria-hidden="true" />
-                        <span className={styles.subtaskText}>
-                          <strong>{subtask.title}</strong>
-                          <small>{subtask.deadline}</small>
-                        </span>
-                        {stateLabel && <span className={subtask.state === "blocked" ? styles.blockedText : styles.subtaskState}>{stateLabel}</span>}
-                        <span className={styles.subtaskTime}>{subtask.remaining}</span>
+                      <div key={subtask.id}>
+                        <button
+                          type="button"
+                          className={
+                            subtask.state === "active"
+                              ? `${styles.subtaskRow} ${styles.subtaskRowActive} ${selectedClass}`
+                              : `${styles.subtaskRow} ${selectedClass}`
+                          }
+                          onClick={() => selectSubtask(subtask.id)}
+                        >
+                          <span className={styles.subtaskMarker} aria-hidden="true" />
+                          <span className={styles.subtaskText}>
+                            <strong>{subtask.title}</strong>
+                            <small>{subtask.deadline}</small>
+                          </span>
+                          {stateLabel && <span className={subtask.state === "blocked" ? styles.blockedText : styles.subtaskState}>{stateLabel}</span>}
+                          <span className={styles.subtaskTime}>{subtask.remaining}</span>
+                        </button>
+
+                        {isEditingThisSubtask && selectedSubtask && (
+                          <form
+                            className={`${styles.subtaskForm} ${styles.inlineSubtaskEditor}`}
+                            onSubmit={updateSubtask}
+                            onChangeCapture={() => setHasUnsavedChanges(true)}
+                            ref={editSubtaskFormRef}
+                            noValidate
+                          >
+                            <div className={styles.formHeading}>
+                              <div>
+                                <p className={styles.eyebrow}>Subtaak bewerken</p>
+                                <h3>{selectedSubtask.title}</h3>
+                              </div>
+                            </div>
+                            <label>
+                              Titel <span aria-hidden="true">*</span>
+                              <input name="title" type="text" required defaultValue={selectedSubtask.title} />
+                            </label>
+                            <div className={styles.deadlineFields}>
+                              <label>
+                                Deadline datum <span aria-hidden="true">*</span>
+                                <input
+                                  name="deadlineDate"
+                                  type="date"
+                                  required
+                                  defaultValue={splitDeadlineValue(selectedSubtask.deadlineValue).date}
+                                />
+                              </label>
+                              <label>
+                                Tijd (optioneel)
+                                <input
+                                  name="deadlineTime"
+                                  type="time"
+                                  defaultValue={splitDeadlineValue(selectedSubtask.deadlineValue).time}
+                                />
+                              </label>
+                            </div>
+                            {selectedTask.deadlineValue && <p className={styles.formHint}>Uiterlijk {selectedTask.deadline}</p>}
+                            <label>
+                              Omschrijving (optioneel)
+                              <textarea
+                                name="description"
+                                rows={15}
+                                className={styles.descriptionField}
+                                defaultValue={selectedSubtask.description ?? ""}
+                              />
+                            </label>
+                            {formError && <p className={styles.formError} role="alert">{formError}</p>}
+                            <div className={styles.formActions}>
+                              <button
+                                type="button"
+                                className={styles.ghostButton}
+                                onClick={() => {
+                                  runWithEditorCloseGuard(() => {
+                                    setEditorMode("none");
+                                    setHasUnsavedChanges(false);
+                                    setFormError(null);
+                                  });
+                                }}
+                              >
+                                Annuleren
+                              </button>
+                              <button type="button" className={styles.secondaryButton} onClick={deleteSubtask}>Verwijderen</button>
+                              <button type="submit" className={styles.primaryButton}>Subtaak opslaan</button>
+                            </div>
+                          </form>
+                        )}
                       </div>
                     );
                   })}
