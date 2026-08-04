@@ -47,7 +47,7 @@ describe("Resend-adapter voor wachtwoordherstel", () => {
     });
     expect(JSON.parse(request.body as string)).toMatchObject({
       from: "MijnPlanning <onboarding@resend.dev>",
-      to: ["peter@example.com"],
+      to: "peter@example.com",
       subject: "Nieuw wachtwoord instellen voor MijnPlanning",
     });
   });

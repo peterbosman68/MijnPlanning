@@ -42,7 +42,7 @@ export const sendPasswordResetEmail: PasswordResetEmailSender = async (input) =>
     },
     body: JSON.stringify({
       from: env.PASSWORD_RESET_EMAIL_FROM,
-      to: [input.recipient],
+      to: input.recipient,
       subject: "Nieuw wachtwoord instellen voor MijnPlanning",
       text: [
         "Er is gevraagd om een nieuw wachtwoord voor MijnPlanning in te stellen.",
