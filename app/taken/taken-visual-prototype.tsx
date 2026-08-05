@@ -194,7 +194,7 @@ type ViewKey = PlanningViewKey;
 
 type MobilePane = "navigation" | "list" | "detail";
 type EditorMode = "none" | "new-main" | "new-sub" | "edit-main" | "edit-sub";
-type TaskStatus = "normal" | "active" | "waiting" | "completed";
+type TaskStatus = "normal" | "active" | "waiting" | "completed" | "archived";
 type RiskLevel = "attention" | "danger" | null;
 
 type Subtask = {
@@ -204,7 +204,7 @@ type Subtask = {
   deadlineValue?: string;
   remaining: string;
   description?: string;
-  state?: "active" | "blocked" | "waiting" | "done" | "planned";
+  state?: "active" | "blocked" | "waiting" | "done" | "planned" | "archived";
 };
 
 type MainTask = {
@@ -612,6 +612,7 @@ function taskStatusLabel(status: TaskStatus) {
   if (status === "active") return "Actief";
   if (status === "waiting") return "Wachten";
   if (status === "completed") return "Afgerond";
+  if (status === "archived") return "Gearchiveerd";
   return null;
 }
 
@@ -621,7 +622,16 @@ function subtaskStateLabel(state: Subtask["state"]) {
   if (state === "waiting") return "Wachten";
   if (state === "done") return "Klaar";
   if (state === "planned") return "Gepland";
+  if (state === "archived") return "Gearchiveerd";
   return null;
+}
+
+function isArchivedTask(task: MainTask) {
+  return task.status === "archived";
+}
+
+function isArchivedSubtask(subtask: Subtask) {
+  return subtask.state === "archived";
 }
 
 const EMAIL_CATEGORY_LABEL: Record<EmailCategory, string> = {
@@ -685,16 +695,28 @@ export function TakenVisualPrototype({
   const visibleTasks = useMemo(() => {
     if (activeView === "waiting") return tasks.filter((task) => task.status === "waiting");
     if (activeView === "completed") return tasks.filter((task) => task.status === "completed");
-    if (activeView === "today") return tasks.filter((task) => task.id !== "quarter" && task.status !== "completed");
-    return tasks.filter((task) => task.status !== "completed");
+    if (activeView === "today") return tasks.filter((task) => task.id !== "quarter" && task.status !== "completed" && !isArchivedTask(task));
+    return tasks.filter((task) => task.status !== "completed" && !isArchivedTask(task));
   }, [activeView, tasks]);
 
-  const selectedTask = tasks.find((task) => task.id === selectedTaskId) ?? visibleTasks[0] ?? tasks[0];
+  const selectedTask = useMemo(() => {
+    const candidate = tasks.find((task) => task.id === selectedTaskId) ?? null;
+    if (candidate && !isArchivedTask(candidate)) {
+      return candidate;
+    }
+    return visibleTasks.find((task) => task.id === selectedTaskId) ?? visibleTasks[0] ?? tasks.find((task) => !isArchivedTask(task)) ?? tasks[0] ?? null;
+  }, [tasks, selectedTaskId, visibleTasks]);
+
+  const visibleSubtasks = useMemo(() => {
+    if (!selectedTask) return [];
+    return selectedTask.subtasks.filter((subtask) => !isArchivedSubtask(subtask));
+  }, [selectedTask]);
+
   const selectedSubtask = useMemo(() => {
-    if (!selectedTask || selectedTask.subtasks.length === 0) return null;
-    if (!selectedSubtaskId) return selectedTask.subtasks[0];
-    return selectedTask.subtasks.find((subtask) => subtask.id === selectedSubtaskId) ?? selectedTask.subtasks[0];
-  }, [selectedTask, selectedSubtaskId]);
+    if (visibleSubtasks.length === 0) return null;
+    if (!selectedSubtaskId) return visibleSubtasks[0];
+    return visibleSubtasks.find((subtask) => subtask.id === selectedSubtaskId) ?? visibleSubtasks[0];
+  }, [selectedSubtaskId, visibleSubtasks]);
   const selectedAppointment =
     APPOINTMENTS.find((appointment) => appointment.id === selectedAppointmentId) ?? APPOINTMENTS[0];
 
@@ -880,6 +902,7 @@ export function TakenVisualPrototype({
     setFormError(null);
     setHasUnsavedChanges(false);
     setFeedback("Hoofdtaak bijgewerkt.");
+    setEditorMode("none");
   }
 
   function updateSubtask(event: FormEvent<HTMLFormElement>) {
@@ -945,6 +968,7 @@ export function TakenVisualPrototype({
     setFormError(null);
     setHasUnsavedChanges(false);
     setFeedback("Subtaak bijgewerkt.");
+    setEditorMode("none");
   }
 
   function addMainTask(event: FormEvent<HTMLFormElement>) {
@@ -999,7 +1023,7 @@ export function TakenVisualPrototype({
 
     setTasks((current) => [newTask, ...current]);
     setSelectedTaskId(newTask.id);
-    setEditorMode("edit-main");
+    setEditorMode("none");
     setHasUnsavedChanges(false);
     setMainTaskError(null);
     form.reset();
@@ -1069,7 +1093,7 @@ export function TakenVisualPrototype({
     form.reset();
     setFormError(null);
     setSelectedSubtaskId(newSubtask.id);
-    setEditorMode("edit-sub");
+    setEditorMode("none");
     setHasUnsavedChanges(false);
     setFeedback(
       "Subtaak lokaal toegevoegd. Planning opnieuw berekend; de actieve timer liep door en de nieuwe subtaak is niet gestart.",
@@ -1123,6 +1147,55 @@ export function TakenVisualPrototype({
     setHasUnsavedChanges(false);
     setFormError(null);
     setFeedback("Subtaak verwijderd.");
+  }
+
+  function archiveMainTask(taskId: string) {
+    runWithEditorCloseGuard(() => {
+      const currentTask = tasks.find((task) => task.id === taskId);
+      if (!currentTask) return;
+
+      const nextTask = tasks.find((task) => task.id !== taskId && !isArchivedTask(task) && task.status !== "completed")
+        ?? tasks.find((task) => task.id !== taskId && !isArchivedTask(task))
+        ?? null;
+
+      setTasks((current) =>
+        current.map((task) => (task.id === taskId ? { ...task, status: "archived" } : task)),
+      );
+      setSelectedTaskId(nextTask?.id ?? "");
+      setSelectedSubtaskId(nextTask?.subtasks.filter((subtask) => !isArchivedSubtask(subtask))[0]?.id ?? null);
+      setEditorMode("none");
+      setHasUnsavedChanges(false);
+      setMainTaskError(null);
+      setFormError(null);
+      setFeedback(`Hoofdtaak “${currentTask.title}” gearchiveerd.`);
+    });
+  }
+
+  function archiveSubtask(subtaskId: string) {
+    runWithEditorCloseGuard(() => {
+      if (!selectedTask) return;
+      const currentSubtask = selectedTask.subtasks.find((subtask) => subtask.id === subtaskId);
+      if (!currentSubtask) return;
+
+      const nextSubtask = selectedTask.subtasks.find((subtask) => subtask.id !== subtaskId && !isArchivedSubtask(subtask)) ?? null;
+
+      setTasks((current) =>
+        current.map((task) => {
+          if (task.id !== selectedTask.id) return task;
+          return {
+            ...task,
+            subtasks: task.subtasks.map((subtask) =>
+              subtask.id === subtaskId ? { ...subtask, state: "archived" } : subtask,
+            ),
+          };
+        }),
+      );
+      setSelectedSubtaskId(nextSubtask?.id ?? null);
+      setEditorMode("none");
+      setHasUnsavedChanges(false);
+      setFormError(null);
+      setFeedback(`Subtaak “${currentSubtask.title}” gearchiveerd.`);
+    });
   }
 
   function selectEmail(emailId: string) {
@@ -1344,27 +1417,37 @@ export function TakenVisualPrototype({
                   const taskDeadline = splitDeadlineValue(task.deadlineValue);
                   return (
                     <div key={task.id}>
-                      <button
-                        type="button"
-                        className={selectedTask.id === task.id ? styles.selectedTaskRow : styles.taskRow}
-                        onClick={() => selectTask(task.id)}
-                      >
-                        <span className={styles.taskTitleCell}>
-                          <strong>{task.title}</strong>
-                          <small>{status ?? task.note}</small>
-                        </span>
-                        <span className={styles.deadlineCell}>{task.deadline}</span>
-                        <span className={styles.remainingCell}>{task.remaining}</span>
-                        <span className={styles.riskCell}>
-                          {task.risk && (
-                            <span
-                              className={task.risk === "danger" ? styles.dangerDot : styles.attentionDot}
-                              aria-label={task.risk === "danger" ? "Deadlinegevaar" : "Aandacht nodig"}
-                              role="img"
-                            />
-                          )}
-                        </span>
-                      </button>
+                      <div className={selectedTask.id === task.id ? styles.selectedTaskRowShell : styles.taskRowShell}>
+                        <button
+                          type="button"
+                          className={selectedTask.id === task.id ? styles.selectedTaskRow : styles.taskRow}
+                          onClick={() => selectTask(task.id)}
+                        >
+                          <span className={styles.taskTitleCell}>
+                            <strong>{task.title}</strong>
+                            <small>{status ?? task.note}</small>
+                          </span>
+                          <span className={styles.deadlineCell}>{task.deadline}</span>
+                          <span className={styles.remainingCell}>{task.remaining}</span>
+                          <span className={styles.riskCell}>
+                            {task.risk && (
+                              <span
+                                className={task.risk === "danger" ? styles.dangerDot : styles.attentionDot}
+                                aria-label={task.risk === "danger" ? "Deadlinegevaar" : "Aandacht nodig"}
+                                role="img"
+                              />
+                            )}
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.rowArchiveButton}
+                          onClick={() => archiveMainTask(task.id)}
+                          aria-label={`Hoofdtaak archiveren: ${task.title}`}
+                        >
+                          Archiveren
+                        </button>
+                      </div>
 
                       {selectedTask.id === task.id && editorMode === "edit-main" && (
                         <form
@@ -1689,32 +1772,42 @@ export function TakenVisualPrototype({
               <section className={styles.subtasks} aria-labelledby="subtasks-title">
                 <div className={styles.sectionHeading}>
                   <h3 id="subtasks-title">Subtaken</h3>
-                  <span>{selectedTask.subtasks.length}</span>
+                  <span>{visibleSubtasks.length}</span>
                 </div>
                 <div className={styles.subtaskList}>
-                  {selectedTask.subtasks.map((subtask) => {
+                  {visibleSubtasks.map((subtask) => {
                     const stateLabel = subtaskStateLabel(subtask.state);
                     const selectedClass = selectedSubtask?.id === subtask.id ? styles.selectedSubtaskRow : "";
                     const isEditingThisSubtask = editorMode === "edit-sub" && selectedSubtask?.id === subtask.id;
                     return (
                       <div key={subtask.id}>
-                        <button
-                          type="button"
-                          className={
-                            subtask.state === "active"
-                              ? `${styles.subtaskRow} ${styles.subtaskRowActive} ${selectedClass}`
-                              : `${styles.subtaskRow} ${selectedClass}`
-                          }
-                          onClick={() => selectSubtask(subtask.id)}
-                        >
-                          <span className={styles.subtaskMarker} aria-hidden="true" />
-                          <span className={styles.subtaskText}>
-                            <strong>{subtask.title}</strong>
-                            <small>{subtask.deadline}</small>
-                          </span>
-                          {stateLabel && <span className={subtask.state === "blocked" ? styles.blockedText : styles.subtaskState}>{stateLabel}</span>}
-                          <span className={styles.subtaskTime}>{subtask.remaining}</span>
-                        </button>
+                        <div className={selectedSubtask?.id === subtask.id ? styles.selectedSubtaskRowShell : styles.subtaskRowShell}>
+                          <button
+                            type="button"
+                            className={
+                              subtask.state === "active"
+                                ? `${styles.subtaskRow} ${styles.subtaskRowActive} ${selectedClass}`
+                                : `${styles.subtaskRow} ${selectedClass}`
+                            }
+                            onClick={() => selectSubtask(subtask.id)}
+                          >
+                            <span className={styles.subtaskMarker} aria-hidden="true" />
+                            <span className={styles.subtaskText}>
+                              <strong>{subtask.title}</strong>
+                              <small>{subtask.deadline}</small>
+                            </span>
+                            {stateLabel && <span className={subtask.state === "blocked" ? styles.blockedText : styles.subtaskState}>{stateLabel}</span>}
+                            <span className={styles.subtaskTime}>{subtask.remaining}</span>
+                          </button>
+                          <button
+                            type="button"
+                            className={styles.rowArchiveButton}
+                            onClick={() => archiveSubtask(subtask.id)}
+                            aria-label={`Subtaak archiveren: ${subtask.title}`}
+                          >
+                            Archiveren
+                          </button>
+                        </div>
 
                         {isEditingThisSubtask && selectedSubtask && (
                           <form

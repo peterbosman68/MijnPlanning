@@ -529,6 +529,16 @@
   transition: background-color 0.14s ease;
 }
 
+.taskRowShell,
+.selectedTaskRowShell,
+.subtaskRowShell,
+.selectedSubtaskRowShell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: stretch;
+}
+
 .taskRow:hover,
 .emailRow:hover,
 .appointmentRow:hover {
@@ -587,6 +597,30 @@
 .riskCell {
   display: grid;
   place-items: center;
+}
+
+.rowArchiveButton {
+  align-self: stretch;
+  justify-self: end;
+  min-width: 96px;
+  padding: 0 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  transition: background-color 0.14s ease, border-color 0.14s ease, color 0.14s ease;
+}
+
+.rowArchiveButton:hover,
+.rowArchiveButton:focus-visible {
+  border-color: var(--attention);
+  background: var(--attention-soft);
+  color: var(--attention);
+  outline: none;
 }
 
 .attentionDot,
