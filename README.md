@@ -23,6 +23,8 @@ DATABASE_URL=...
 SESSION_SECRET=...
 RESEND_API_KEY=...
 PASSWORD_RESET_EMAIL_FROM="MijnPlanning <onboarding@resend.dev>"
+MICROSOFT_GRAPH_ACCESS_TOKEN=...
+MICROSOFT_GRAPH_CALENDAR_ID=... # optioneel, standaard primaire agenda
 ```
 
 `SESSION_SECRET` bevat minimaal 32 willekeurige tekens. Een veilige waarde kan lokaal worden gegenereerd zonder een waarde in Git te zetten:
@@ -38,6 +40,8 @@ $mpGenerator.Dispose()
 De getoonde waarde is een secret: deel haar niet, log haar niet en plaats haar nooit in documentatie of broncode.
 
 `RESEND_API_KEY` is eveneens een server-side secret. Voor de persoonlijke single-user-MVP mag `onboarding@resend.dev` uitsluitend verzenden naar het e-mailadres van het bijbehorende Resend-account. Deel de API-key nooit via chat en commit hem niet.
+
+`MICROSOFT_GRAPH_ACCESS_TOKEN` is een server-side bearer token met minimaal `Calendars.Read` op het gekoppelde account. Zonder dit token blokkeert de daglimietcontrole het opslaan van taken/subtaken met een duidelijke foutmelding, omdat de Outlook-agenda niet kan worden geraadpleegd.
 
 ## Database
 

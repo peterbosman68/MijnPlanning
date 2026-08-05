@@ -6,7 +6,6 @@ import type { CSSProperties, FormEvent, PointerEvent as ReactPointerEvent, React
 import {
   subtaskPlannedMinutesOnDate,
   taskOwnPlannedMinutesOnDate,
-  totalBookedMinutesForDate,
   totalPlannedWorkMinutesForDate,
 } from "@/lib/tasks/planned-load";
 
@@ -717,8 +716,38 @@ function addDaysToDateValue(dateValue: string, days: number) {
   return `${year}-${month}-${day}`;
 }
 
-function resolveDailyLimitWithCarryOver(dateValue: string, plannedMinutes: number, otherPlannedWorkMinutes: number) {
-  const appointmentMinutes = totalBookedMinutesForDate(APPOINTMENTS, dateValue);
+async function fetchOutlookBookedMinutesForDate(dateValue: string) {
+  const response = await fetch(`/api/outlook/calendar-booked-minutes?date=${encodeURIComponent(dateValue)}`, {
+    method: "GET",
+    cache: "no-store",
+  });
+
+  let payload: { bookedMinutes?: number; error?: string } | null = null;
+  try {
+    payload = await response.json() as { bookedMinutes?: number; error?: string };
+  } catch {
+    payload = null;
+  }
+
+  if (!response.ok) {
+    throw new Error(payload?.error ?? "Outlook-agenda kon niet worden gecontroleerd.");
+  }
+
+  if (typeof payload?.bookedMinutes !== "number") {
+    throw new Error("Outlook-agenda gaf een ongeldige reactie terug.");
+  }
+
+  return payload.bookedMinutes;
+}
+
+async function resolveDailyLimitWithCarryOver(
+  dateValue: string,
+  plannedMinutes: number,
+  otherPlannedWorkMinutes: number,
+  hardDeadline: boolean,
+  hardDeadlineLabel: string,
+) {
+  const appointmentMinutes = await fetchOutlookBookedMinutesForDate(dateValue);
   const workCapacity = Math.max(0, DAILY_TOTAL_MINUTES_LIMIT - appointmentMinutes);
   const remainingCapacity = Math.max(0, workCapacity - otherPlannedWorkMinutes);
 
@@ -732,6 +761,25 @@ function resolveDailyLimitWithCarryOver(dateValue: string, plannedMinutes: numbe
 
   const carryOverMinutes = plannedMinutes - remainingCapacity;
   const carryOverDate = addDaysToDateValue(dateValue, 1);
+
+  if (hardDeadline) {
+    const shiftHardDeadline = window.confirm(
+      `Harde deadline: ${hardDeadlineLabel}.\n` +
+        `Op ${dateValue} is nog ${remainingCapacity} min vrij. ${carryOverMinutes} min moet doorschuiven naar ${carryOverDate}.\n\n` +
+        "Wil je deze harde deadline toch opschuiven?",
+    );
+
+    if (!shiftHardDeadline) {
+      return null;
+    }
+
+    return {
+      todayMinutes: remainingCapacity,
+      carryOverMinutes,
+      carryOverDate,
+    };
+  }
+
   const accepted = window.confirm(
     `Op ${dateValue} is de daglimiet van ${DAILY_TOTAL_MINUTES_LIMIT} minuten bereikt of overschreden.\n` +
       `Afspraken: ${appointmentMinutes} min, al gepland werk: ${otherPlannedWorkMinutes} min, nog vrij: ${remainingCapacity} min.\n\n` +
@@ -968,7 +1016,7 @@ export function TakenVisualPrototype({
     });
   }
 
-  function updateMainTask(event: FormEvent<HTMLFormElement>) {
+  async function updateMainTask(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selectedTask) return;
     const formData = new FormData(event.currentTarget);
@@ -1015,15 +1063,23 @@ export function TakenVisualPrototype({
     if (deadlineDate && requestedMainTaskMinutes > 0) {
       const currentTaskMinutes = taskOwnPlannedMinutesOnDate(selectedTask, deadlineDate);
       const otherPlannedWorkMinutes = Math.max(0, totalPlannedWorkMinutesForDate(tasks, deadlineDate) - currentTaskMinutes);
-      const split = resolveDailyLimitWithCarryOver(deadlineDate, requestedMainTaskMinutes, otherPlannedWorkMinutes);
+      let split: Awaited<ReturnType<typeof resolveDailyLimitWithCarryOver>>;
 
-      if (!split) {
-        setFormError("Opslaan geannuleerd. Kies een andere dag of bevestig het meenemen naar de volgende dag.");
+      try {
+        split = await resolveDailyLimitWithCarryOver(
+          deadlineDate,
+          requestedMainTaskMinutes,
+          otherPlannedWorkMinutes,
+          hardDeadline,
+          `Hoofdtaak \"${title}\"`,
+        );
+      } catch (error) {
+        setFormError(error instanceof Error ? error.message : "Outlook-agenda kon niet worden gecontroleerd.");
         return;
       }
 
-      if (hardDeadline && split.carryOverMinutes > 0) {
-        setFormError("Doorplannen niet mogelijk: hier zit harde deadline.");
+      if (!split) {
+        setFormError("Opslaan geannuleerd. Kies een andere dag of bevestig het meenemen naar de volgende dag.");
         return;
       }
 
@@ -1098,7 +1154,7 @@ export function TakenVisualPrototype({
     setEditorMode("none");
   }
 
-  function updateSubtask(event: FormEvent<HTMLFormElement>) {
+  async function updateSubtask(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selectedTask || !selectedSubtask) return;
 
@@ -1145,15 +1201,23 @@ export function TakenVisualPrototype({
 
     const currentSubtaskMinutes = subtaskPlannedMinutesOnDate(selectedSubtask, deadlineDate);
     const otherPlannedWorkMinutes = Math.max(0, totalPlannedWorkMinutesForDate(tasks, deadlineDate) - currentSubtaskMinutes);
-    const split = resolveDailyLimitWithCarryOver(deadlineDate, plannedMinutes, otherPlannedWorkMinutes);
+    let split: Awaited<ReturnType<typeof resolveDailyLimitWithCarryOver>>;
 
-    if (!split) {
-      setFormError("Opslaan geannuleerd. Kies een andere dag of bevestig het meenemen naar de volgende dag.");
+    try {
+      split = await resolveDailyLimitWithCarryOver(
+        deadlineDate,
+        plannedMinutes,
+        otherPlannedWorkMinutes,
+        hardDeadline,
+        `Subtaak \"${title}\"`,
+      );
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : "Outlook-agenda kon niet worden gecontroleerd.");
       return;
     }
 
-    if (hardDeadline && split.carryOverMinutes > 0) {
-      setFormError("Doorplannen niet mogelijk: hier zit harde deadline.");
+    if (!split) {
+      setFormError("Opslaan geannuleerd. Kies een andere dag of bevestig het meenemen naar de volgende dag.");
       return;
     }
 
@@ -1252,7 +1316,7 @@ export function TakenVisualPrototype({
     setEditorMode("none");
   }
 
-  function addMainTask(event: FormEvent<HTMLFormElement>) {
+  async function addMainTask(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
     const formData = new FormData(form);
@@ -1297,15 +1361,23 @@ export function TakenVisualPrototype({
 
     if (deadlineDate && plannedMinutes !== null) {
       const otherPlannedWorkMinutes = totalPlannedWorkMinutesForDate(tasks, deadlineDate);
-      const split = resolveDailyLimitWithCarryOver(deadlineDate, plannedMinutes, otherPlannedWorkMinutes);
+      let split: Awaited<ReturnType<typeof resolveDailyLimitWithCarryOver>>;
 
-      if (!split) {
-        setMainTaskError("Opslaan geannuleerd. Kies een andere dag of bevestig het meenemen naar de volgende dag.");
+      try {
+        split = await resolveDailyLimitWithCarryOver(
+          deadlineDate,
+          plannedMinutes,
+          otherPlannedWorkMinutes,
+          hardDeadline,
+          `Hoofdtaak \"${title}\"`,
+        );
+      } catch (error) {
+        setMainTaskError(error instanceof Error ? error.message : "Outlook-agenda kon niet worden gecontroleerd.");
         return;
       }
 
-      if (hardDeadline && split.carryOverMinutes > 0) {
-        setMainTaskError("Doorplannen niet mogelijk: hier zit harde deadline.");
+      if (!split) {
+        setMainTaskError("Opslaan geannuleerd. Kies een andere dag of bevestig het meenemen naar de volgende dag.");
         return;
       }
 
@@ -1385,7 +1457,7 @@ export function TakenVisualPrototype({
     }
   }
 
-  function addSubtask(event: FormEvent<HTMLFormElement>) {
+  async function addSubtask(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selectedTask) return;
     const form = event.currentTarget;
@@ -1431,15 +1503,23 @@ export function TakenVisualPrototype({
     let movedCompletelyToNextDay = false;
 
     const otherPlannedWorkMinutes = totalPlannedWorkMinutesForDate(tasks, deadlineDate);
-    const split = resolveDailyLimitWithCarryOver(deadlineDate, plannedMinutes, otherPlannedWorkMinutes);
+    let split: Awaited<ReturnType<typeof resolveDailyLimitWithCarryOver>>;
 
-    if (!split) {
-      setFormError("Opslaan geannuleerd. Kies een andere dag of bevestig het meenemen naar de volgende dag.");
+    try {
+      split = await resolveDailyLimitWithCarryOver(
+        deadlineDate,
+        plannedMinutes,
+        otherPlannedWorkMinutes,
+        hardDeadline,
+        `Subtaak \"${title}\"`,
+      );
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : "Outlook-agenda kon niet worden gecontroleerd.");
       return;
     }
 
-    if (hardDeadline && split.carryOverMinutes > 0) {
-      setFormError("Doorplannen niet mogelijk: hier zit harde deadline.");
+    if (!split) {
+      setFormError("Opslaan geannuleerd. Kies een andere dag of bevestig het meenemen naar de volgende dag.");
       return;
     }
 
