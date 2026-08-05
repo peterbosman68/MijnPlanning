@@ -646,6 +646,18 @@ function parseMinutesFromLabel(label: string) {
   return "";
 }
 
+function getTodayDateValue() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function isPastDateValue(dateValue: string) {
+  return dateValue < getTodayDateValue();
+}
+
 function splitDeadlineValue(value?: string) {
   if (!value) return { date: "", time: "" };
   if (value.includes("T")) {
@@ -781,6 +793,7 @@ export function TakenVisualPrototype({
   const [unsubscribeSelection, setUnsubscribeSelection] = useState<Record<string, boolean>>({});
   const [selectedWhatsAppId, setSelectedWhatsAppId] = useState("erwin-wa");
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const minimumDeadlineDate = getTodayDateValue();
   const newMainFormRef = useRef<HTMLFormElement | null>(null);
   const editMainFormRef = useRef<HTMLFormElement | null>(null);
   const newSubtaskFormRef = useRef<HTMLFormElement | null>(null);
@@ -971,6 +984,10 @@ export function TakenVisualPrototype({
       setFormError("Vul eerst een datum in voordat je een tijd invult.");
       return;
     }
+    if (deadlineDate && isPastDateValue(deadlineDate)) {
+      setFormError("Kies vandaag of een toekomstige datum.");
+      return;
+    }
 
     let plannedMinutes: number | null;
     try {
@@ -1079,6 +1096,10 @@ export function TakenVisualPrototype({
 
     if (!title || !deadlineDate) {
       setFormError("Vul een titel en deadline in.");
+      return;
+    }
+    if (isPastDateValue(deadlineDate)) {
+      setFormError("Kies vandaag of een toekomstige datum.");
       return;
     }
 
@@ -1224,6 +1245,10 @@ export function TakenVisualPrototype({
       setMainTaskError("Vul eerst een datum in voordat je een tijd invult.");
       return;
     }
+    if (deadlineDate && isPastDateValue(deadlineDate)) {
+      setMainTaskError("Kies vandaag of een toekomstige datum.");
+      return;
+    }
 
     let plannedMinutes: number | null;
     try {
@@ -1336,6 +1361,10 @@ export function TakenVisualPrototype({
 
     if (!title || !deadlineDate) {
       setFormError("Vul een titel en deadline in.");
+      return;
+    }
+    if (isPastDateValue(deadlineDate)) {
+      setFormError("Kies vandaag of een toekomstige datum.");
       return;
     }
 
@@ -1778,7 +1807,7 @@ export function TakenVisualPrototype({
                   <div className={styles.deadlineFields}>
                     <label>
                       Datum
-                      <input name="deadlineDate" type="date" />
+                      <input name="deadlineDate" type="date" min={minimumDeadlineDate} />
                     </label>
                     <label>
                       Tijd (optioneel)
@@ -1876,7 +1905,7 @@ export function TakenVisualPrototype({
                           <div className={styles.deadlineFields}>
                             <label>
                               Deadline datum
-                              <input name="deadlineDate" type="date" defaultValue={taskDeadline.date} />
+                              <input name="deadlineDate" type="date" min={minimumDeadlineDate} defaultValue={taskDeadline.date} />
                             </label>
                             <label>
                               Tijd (optioneel)
@@ -2153,7 +2182,7 @@ export function TakenVisualPrototype({
                   <div className={styles.deadlineFields}>
                     <label>
                       Deadline datum <span aria-hidden="true">*</span>
-                      <input name="deadlineDate" type="date" required />
+                      <input name="deadlineDate" type="date" min={minimumDeadlineDate} required />
                     </label>
                     <label>
                       Tijd (optioneel)
@@ -2264,6 +2293,7 @@ export function TakenVisualPrototype({
                                 <input
                                   name="deadlineDate"
                                   type="date"
+                                  min={minimumDeadlineDate}
                                   required
                                   defaultValue={splitDeadlineValue(selectedSubtask.deadlineValue).date}
                                 />
