@@ -1175,6 +1175,26 @@ export function TakenVisualPrototype({
     });
   }
 
+  function restoreMainTask(taskId: string) {
+    runWithEditorCloseGuard(() => {
+      const currentTask = tasks.find((task) => task.id === taskId);
+      if (!currentTask) return;
+
+      setTasks((current) =>
+        current.map((task) => (task.id === taskId ? { ...task, status: "normal" } : task)),
+      );
+      setActiveView("tasks");
+      setMobilePane("detail");
+      setSelectedTaskId(taskId);
+      setSelectedSubtaskId(currentTask.subtasks[0]?.id ?? null);
+      setEditorMode("none");
+      setHasUnsavedChanges(false);
+      setMainTaskError(null);
+      setFormError(null);
+      setFeedback(`Hoofdtaak “${currentTask.title}” is teruggezet uit Afgerond.`);
+    });
+  }
+
   function archiveSubtask(subtaskId: string) {
     runWithEditorCloseGuard(() => {
       if (!selectedTask) return;
@@ -1199,6 +1219,37 @@ export function TakenVisualPrototype({
       setHasUnsavedChanges(false);
       setFormError(null);
       setFeedback(`Subtaak “${currentSubtask.title}” gearchiveerd.`);
+    });
+  }
+
+  function restoreSubtask(subtaskId: string) {
+    runWithEditorCloseGuard(() => {
+      if (!selectedTask) return;
+
+      if (isCompletedBucketTask(selectedTask)) {
+        setFeedback("Dearchiveer eerst de hoofdtaak. Daarna kun je subtaken terugzetten.");
+        return;
+      }
+
+      const currentSubtask = selectedTask.subtasks.find((subtask) => subtask.id === subtaskId);
+      if (!currentSubtask) return;
+
+      setTasks((current) =>
+        current.map((task) => {
+          if (task.id !== selectedTask.id) return task;
+          return {
+            ...task,
+            subtasks: task.subtasks.map((subtask) =>
+              subtask.id === subtaskId ? { ...subtask, state: "planned" } : subtask,
+            ),
+          };
+        }),
+      );
+      setSelectedSubtaskId(subtaskId);
+      setEditorMode("none");
+      setHasUnsavedChanges(false);
+      setFormError(null);
+      setFeedback(`Subtaak “${currentSubtask.title}” is teruggezet.`);
     });
   }
 
@@ -1419,6 +1470,7 @@ export function TakenVisualPrototype({
                 visibleTasks.map((task) => {
                   const status = taskStatusLabel(task.status);
                   const taskDeadline = splitDeadlineValue(task.deadlineValue);
+                  const showRestoreTaskAction = activeView === "completed";
                   return (
                     <div key={task.id}>
                       <div className={selectedTask.id === task.id ? styles.selectedTaskRowShell : styles.taskRowShell}>
@@ -1446,10 +1498,10 @@ export function TakenVisualPrototype({
                         <button
                           type="button"
                           className={styles.rowArchiveButton}
-                          onClick={() => archiveMainTask(task.id)}
-                          aria-label={`Hoofdtaak archiveren: ${task.title}`}
+                          onClick={() => (showRestoreTaskAction ? restoreMainTask(task.id) : archiveMainTask(task.id))}
+                          aria-label={showRestoreTaskAction ? `Hoofdtaak dearchiveren: ${task.title}` : `Hoofdtaak archiveren: ${task.title}`}
                         >
-                          Archiveren
+                          {showRestoreTaskAction ? "Dearchiveren" : "Archiveren"}
                         </button>
                       </div>
 
@@ -1783,6 +1835,8 @@ export function TakenVisualPrototype({
                     const stateLabel = subtaskStateLabel(subtask.state);
                     const selectedClass = selectedSubtask?.id === subtask.id ? styles.selectedSubtaskRow : "";
                     const isEditingThisSubtask = editorMode === "edit-sub" && selectedSubtask?.id === subtask.id;
+                    const showRestoreSubtaskAction = subtask.state === "archived" || activeView === "completed";
+                    const restoreSubtaskBlocked = showRestoreSubtaskAction && Boolean(selectedTask && isCompletedBucketTask(selectedTask));
                     return (
                       <div key={subtask.id}>
                         <div className={selectedSubtask?.id === subtask.id ? styles.selectedSubtaskRowShell : styles.subtaskRowShell}>
@@ -1806,10 +1860,12 @@ export function TakenVisualPrototype({
                           <button
                             type="button"
                             className={styles.rowArchiveButton}
-                            onClick={() => archiveSubtask(subtask.id)}
-                            aria-label={`Subtaak archiveren: ${subtask.title}`}
+                            onClick={() => (showRestoreSubtaskAction ? restoreSubtask(subtask.id) : archiveSubtask(subtask.id))}
+                            aria-label={showRestoreSubtaskAction ? `Subtaak dearchiveren: ${subtask.title}` : `Subtaak archiveren: ${subtask.title}`}
+                            disabled={restoreSubtaskBlocked}
+                            title={restoreSubtaskBlocked ? "Dearchiveer eerst de hoofdtaak" : undefined}
                           >
-                            Archiveren
+                            {showRestoreSubtaskAction ? "Dearchiveren" : "Archiveren"}
                           </button>
                         </div>
 
