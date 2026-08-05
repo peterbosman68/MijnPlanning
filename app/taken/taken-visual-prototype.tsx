@@ -605,6 +605,7 @@ function formatDeadlineDateOnly(value: string) {
 }
 
 const DEFAULT_END_OF_WORKDAY = "17:00";
+const DAILY_TOTAL_MINUTES_LIMIT = 480;
 
 function formatMinutesLabel(totalMinutes: number) {
   const hours = Math.floor(totalMinutes / 60);
@@ -692,74 +693,44 @@ function isArchivedSubtask(subtask: Subtask) {
   return subtask.state === "archived";
 }
 
-function shiftDateTimeValueByOneDay(value?: string) {
-  if (!value) return undefined;
-
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return value;
-
-  parsed.setDate(parsed.getDate() + 1);
-
+function addDaysToDateValue(dateValue: string, days: number) {
+  const parsed = new Date(`${dateValue}T00:00`);
+  if (Number.isNaN(parsed.getTime())) return dateValue;
+  parsed.setDate(parsed.getDate() + days);
   const year = parsed.getFullYear();
   const month = String(parsed.getMonth() + 1).padStart(2, "0");
   const day = String(parsed.getDate()).padStart(2, "0");
-  const hours = String(parsed.getHours()).padStart(2, "0");
-  const minutes = String(parsed.getMinutes()).padStart(2, "0");
-
-  return `${year}-${month}-${day}T${hours}:${minutes}`;
+  return `${year}-${month}-${day}`;
 }
 
-function shiftLaterDeadlinesAfterSave(
-  current: MainTask[],
-  referenceDeadlineValue: string,
-  excludedTaskId?: string,
-  excludedSubtaskId?: string,
-) {
-  const reference = new Date(referenceDeadlineValue);
-  if (Number.isNaN(reference.getTime())) return current;
+function resolveDailyLimitWithCarryOver(dateValue: string, plannedMinutes: number, otherPlannedWorkMinutes: number) {
+  const appointmentMinutes = totalBookedMinutesForDate(APPOINTMENTS, dateValue);
+  const workCapacity = Math.max(0, DAILY_TOTAL_MINUTES_LIMIT - appointmentMinutes);
+  const remainingCapacity = Math.max(0, workCapacity - otherPlannedWorkMinutes);
 
-  return current.map((task) => {
-    const shouldShiftTask =
-      Boolean(task.deadlineValue) &&
-      task.id !== excludedTaskId &&
-      !isCompletedBucketTask(task) &&
-      new Date(task.deadlineValue as string).getTime() >= reference.getTime();
-
-    const shiftedTaskDeadlineValue = shouldShiftTask ? shiftDateTimeValueByOneDay(task.deadlineValue) : task.deadlineValue;
-    const shiftedTaskDeadlineLabel = shiftedTaskDeadlineValue
-      ? formatDeadline(shiftedTaskDeadlineValue)
-      : task.deadline;
-
-    const shiftedSubtasks = task.subtasks.map((subtask) => {
-      const shouldShiftSubtask =
-        Boolean(subtask.deadlineValue) &&
-        subtask.id !== excludedSubtaskId &&
-        subtask.state !== "done" &&
-        subtask.state !== "archived" &&
-        new Date(subtask.deadlineValue as string).getTime() >= reference.getTime();
-
-      if (!shouldShiftSubtask) return subtask;
-
-      const shiftedDeadlineValue = shiftDateTimeValueByOneDay(subtask.deadlineValue);
-
-      return {
-        ...subtask,
-        deadlineValue: shiftedDeadlineValue,
-        deadline: shiftedDeadlineValue ? formatDeadline(shiftedDeadlineValue) : subtask.deadline,
-      };
-    });
-
-    if (!shouldShiftTask && shiftedSubtasks === task.subtasks) {
-      return task;
-    }
-
+  if (plannedMinutes <= remainingCapacity) {
     return {
-      ...task,
-      deadlineValue: shiftedTaskDeadlineValue,
-      deadline: shiftedTaskDeadlineLabel,
-      subtasks: shiftedSubtasks,
+      todayMinutes: plannedMinutes,
+      carryOverMinutes: 0,
+      carryOverDate: addDaysToDateValue(dateValue, 1),
     };
-  });
+  }
+
+  const carryOverMinutes = plannedMinutes - remainingCapacity;
+  const carryOverDate = addDaysToDateValue(dateValue, 1);
+  const accepted = window.confirm(
+    `Op ${dateValue} is de daglimiet van ${DAILY_TOTAL_MINUTES_LIMIT} minuten bereikt of overschreden.\n` +
+      `Afspraken: ${appointmentMinutes} min, al gepland werk: ${otherPlannedWorkMinutes} min, nog vrij: ${remainingCapacity} min.\n\n` +
+      `Wil je ${carryOverMinutes} minuten meenemen naar ${carryOverDate}?`,
+  );
+
+  if (!accepted) return null;
+
+  return {
+    todayMinutes: remainingCapacity,
+    carryOverMinutes,
+    carryOverDate,
+  };
 }
 
 const EMAIL_CATEGORY_LABEL: Record<EmailCategory, string> = {
@@ -1009,79 +980,89 @@ export function TakenVisualPrototype({
       return;
     }
 
-    let shouldShiftLaterWork = false;
-    if (deadlineDate) {
+    const effectiveTime = deadlineTime || DEFAULT_END_OF_WORKDAY;
+    let effectiveDeadlineDate = deadlineDate;
+    let effectivePlannedMinutes = plannedMinutes;
+    let carryOverTask: { minutes: number; date: string } | null = null;
+    let movedCompletelyToNextDay = false;
+
+    if (deadlineDate && plannedMinutes !== null && selectedTask.subtasks.length === 0) {
       const currentTaskMinutes = taskOwnPlannedMinutesOnDate(selectedTask, deadlineDate);
-      const nextTaskMinutes = selectedTask.subtasks.length > 0
-        ? 0
-        : plannedMinutes !== null
-          ? plannedMinutes
-          : Number.parseInt(parseMinutesFromLabel(selectedTask.remaining), 10) || 0;
-      const totalMinutes =
-        totalBookedMinutesForDate(APPOINTMENTS, deadlineDate) +
-        totalPlannedWorkMinutesForDate(tasks, deadlineDate) -
-        currentTaskMinutes +
-        nextTaskMinutes;
+      const otherPlannedWorkMinutes = Math.max(0, totalPlannedWorkMinutesForDate(tasks, deadlineDate) - currentTaskMinutes);
+      const split = resolveDailyLimitWithCarryOver(deadlineDate, plannedMinutes, otherPlannedWorkMinutes);
 
-      if (totalMinutes > 480) {
-        const continueAndShift = window.confirm(
-          `Op ${deadlineDate} staat in totaal ${totalMinutes} minuten gepland (afspraken + werk).\n\n` +
-            "Optie 1 (OK): toch opslaan op deze dag en alle latere taken/subtaken 1 dag doorschuiven.\n" +
-            "Optie 2 (Annuleren): niet opslaan, zodat je een ander moment kunt kiezen.",
-        );
+      if (!split) {
+        setFormError("Opslaan geannuleerd. Kies een andere dag of bevestig het meenemen naar de volgende dag.");
+        return;
+      }
 
-        if (!continueAndShift) {
-          setFormError("Je koos om op een ander moment te plannen. Pas de datum aan en sla opnieuw op.");
-          return;
+      if (split.todayMinutes <= 0) {
+        effectiveDeadlineDate = split.carryOverDate;
+        movedCompletelyToNextDay = true;
+      } else {
+        effectivePlannedMinutes = split.todayMinutes;
+        if (split.carryOverMinutes > 0) {
+          carryOverTask = { minutes: split.carryOverMinutes, date: split.carryOverDate };
         }
-
-        shouldShiftLaterWork = true;
       }
     }
 
     let deadlineValue: string | undefined;
     let deadlineLabel = "Geen deadline";
 
-    if (deadlineDate) {
-      const effectiveTime = deadlineTime || DEFAULT_END_OF_WORKDAY;
-      const parsed = new Date(`${deadlineDate}T${effectiveTime}`);
+    if (effectiveDeadlineDate) {
+      const parsed = new Date(`${effectiveDeadlineDate}T${effectiveTime}`);
       if (Number.isNaN(parsed.getTime())) {
         setFormError("Kies een geldige deadline.");
         return;
       }
-      deadlineValue = `${deadlineDate}T${effectiveTime}`;
+      deadlineValue = `${effectiveDeadlineDate}T${effectiveTime}`;
       deadlineLabel = deadlineTime
-        ? formatDeadline(`${deadlineDate}T${deadlineTime}`)
-        : formatDeadlineDateOnly(deadlineDate);
+        ? formatDeadline(`${effectiveDeadlineDate}T${deadlineTime}`)
+        : formatDeadlineDateOnly(effectiveDeadlineDate);
     }
 
     setTasks((current) => {
-      let next = current.map((task) =>
+      const next = current.map((task) =>
         task.id === selectedTask.id
           ? {
               ...task,
               title,
               deadline: deadlineLabel,
               deadlineValue,
-              remaining: plannedMinutes !== null ? formatMinutesLabel(plannedMinutes) : task.remaining,
+              remaining: effectivePlannedMinutes !== null ? formatMinutesLabel(effectivePlannedMinutes) : task.remaining,
               description: description || "Nog geen omschrijving toegevoegd.",
             }
           : task,
       );
 
-      if (shouldShiftLaterWork && deadlineValue) {
-        next = shiftLaterDeadlinesAfterSave(next, deadlineValue, selectedTask.id);
-      }
+      if (!carryOverTask) return next;
 
-      return next;
+      const overflowDeadlineValue = `${carryOverTask.date}T${effectiveTime}`;
+      const overflowTask: MainTask = {
+        id: `local-task-overflow-${Date.now()}`,
+        title: `${title} (vervolg)`,
+        note: "0 subtaken",
+        deadline: deadlineTime ? formatDeadline(overflowDeadlineValue) : formatDeadlineDateOnly(carryOverTask.date),
+        deadlineValue: overflowDeadlineValue,
+        remaining: formatMinutesLabel(carryOverTask.minutes),
+        status: "normal",
+        risk: null,
+        description: description || "Nog geen omschrijving toegevoegd.",
+        subtasks: [],
+      };
+
+      return [overflowTask, ...next];
     });
     setFormError(null);
     setHasUnsavedChanges(false);
-    setFeedback(
-      shouldShiftLaterWork
-        ? "Hoofdtaak bijgewerkt. Latere taken en subtaken zijn 1 dag doorgeschoven."
-        : "Hoofdtaak bijgewerkt.",
-    );
+    if (carryOverTask) {
+      setFeedback("Hoofdtaak bijgewerkt. Het overschot is als vervolgtaak op de volgende dag gezet.");
+    } else if (movedCompletelyToNextDay) {
+      setFeedback("Hoofdtaak bijgewerkt. Er was geen ruimte meer op deze dag, dus de taak is volledig naar de volgende dag verplaatst.");
+    } else {
+      setFeedback("Hoofdtaak bijgewerkt.");
+    }
     setEditorMode("none");
   }
 
@@ -1114,35 +1095,37 @@ export function TakenVisualPrototype({
       return;
     }
 
-    let shouldShiftLaterWork = false;
-    const currentSubtaskMinutes = subtaskPlannedMinutesOnDate(selectedSubtask, deadlineDate);
-    const totalMinutes =
-      totalBookedMinutesForDate(APPOINTMENTS, deadlineDate) +
-      totalPlannedWorkMinutesForDate(tasks, deadlineDate) -
-      currentSubtaskMinutes +
-      plannedMinutes;
-    if (totalMinutes > 480) {
-      const continueAndShift = window.confirm(
-        `Op ${deadlineDate} staat in totaal ${totalMinutes} minuten gepland (afspraken + werk).\n\n` +
-          "Optie 1 (OK): toch opslaan op deze dag en alle latere taken/subtaken 1 dag doorschuiven.\n" +
-          "Optie 2 (Annuleren): niet opslaan, zodat je een ander moment kunt kiezen.",
-      );
-
-      if (!continueAndShift) {
-        setFormError("Je koos om op een ander moment te plannen. Pas de datum aan en sla opnieuw op.");
-        return;
-      }
-
-      shouldShiftLaterWork = true;
-    }
-
     if (deadlineTime && !deadlineDate) {
       setFormError("Vul eerst een datum in voordat je een tijd invult.");
       return;
     }
 
     const effectiveTime = deadlineTime || DEFAULT_END_OF_WORKDAY;
-    const childComparable = new Date(`${deadlineDate}T${effectiveTime}`);
+    let effectiveDeadlineDate = deadlineDate;
+    let effectivePlannedMinutes = plannedMinutes;
+    let carryOverSubtask: { minutes: number; date: string } | null = null;
+    let movedCompletelyToNextDay = false;
+
+    const currentSubtaskMinutes = subtaskPlannedMinutesOnDate(selectedSubtask, deadlineDate);
+    const otherPlannedWorkMinutes = Math.max(0, totalPlannedWorkMinutesForDate(tasks, deadlineDate) - currentSubtaskMinutes);
+    const split = resolveDailyLimitWithCarryOver(deadlineDate, plannedMinutes, otherPlannedWorkMinutes);
+
+    if (!split) {
+      setFormError("Opslaan geannuleerd. Kies een andere dag of bevestig het meenemen naar de volgende dag.");
+      return;
+    }
+
+    if (split.todayMinutes <= 0) {
+      effectiveDeadlineDate = split.carryOverDate;
+      movedCompletelyToNextDay = true;
+    } else {
+      effectivePlannedMinutes = split.todayMinutes;
+      if (split.carryOverMinutes > 0) {
+        carryOverSubtask = { minutes: split.carryOverMinutes, date: split.carryOverDate };
+      }
+    }
+
+    const childComparable = new Date(`${effectiveDeadlineDate}T${effectiveTime}`);
     if (Number.isNaN(childComparable.getTime())) {
       setFormError("Kies een geldige deadline.");
       return;
@@ -1155,47 +1138,70 @@ export function TakenVisualPrototype({
         setFormError(`Kies een deadline op of vóór ${selectedTask.deadline}.`);
         return;
       }
+
+      if (carryOverSubtask) {
+        const carryComparable = new Date(`${carryOverSubtask.date}T${effectiveTime}`);
+        if (carryComparable.getTime() > parentComparable.getTime()) {
+          setFormError("De daglimiet wordt overschreden, maar doorschuiven kan niet voorbij de deadline van de hoofdtaak.");
+          return;
+        }
+      }
     }
 
-    const deadlineValue = `${deadlineDate}T${effectiveTime}`;
+    const deadlineValue = `${effectiveDeadlineDate}T${effectiveTime}`;
     const deadlineLabel = deadlineTime
-      ? formatDeadline(`${deadlineDate}T${deadlineTime}`)
-      : formatDeadlineDateOnly(deadlineDate);
+      ? formatDeadline(`${effectiveDeadlineDate}T${deadlineTime}`)
+      : formatDeadlineDateOnly(effectiveDeadlineDate);
 
-    setTasks((current) => {
-      let next = current.map((task) =>
-        task.id === selectedTask.id
-          ? {
-              ...task,
-              subtasks: task.subtasks.map((subtask) =>
-                subtask.id === selectedSubtask.id
-                  ? {
-                      ...subtask,
-                      title,
-                      deadline: deadlineLabel,
-                      deadlineValue,
-                      remaining: formatMinutesLabel(plannedMinutes),
-                      description: description || undefined,
-                    }
-                  : subtask,
-              ),
-            }
-          : task,
-      );
+    const carryOverId = carryOverSubtask ? `local-${Date.now()}-overflow` : null;
+    setTasks((current) =>
+      current.map((task) => {
+        if (task.id !== selectedTask.id) return task;
 
-      if (shouldShiftLaterWork) {
-        next = shiftLaterDeadlinesAfterSave(next, deadlineValue, selectedTask.id, selectedSubtask.id);
-      }
+        const updatedSubtasks = task.subtasks.map((subtask) =>
+          subtask.id === selectedSubtask.id
+            ? {
+                ...subtask,
+                title,
+                deadline: deadlineLabel,
+                deadlineValue,
+                remaining: formatMinutesLabel(effectivePlannedMinutes),
+                description: description || undefined,
+              }
+            : subtask,
+        );
 
-      return next;
-    });
+        if (carryOverSubtask && carryOverId) {
+          const carryDeadlineValue = `${carryOverSubtask.date}T${effectiveTime}`;
+          updatedSubtasks.push({
+            id: carryOverId,
+            title: `${title} (vervolg)`,
+            deadlineValue: carryDeadlineValue,
+            deadline: deadlineTime
+              ? formatDeadline(carryDeadlineValue)
+              : formatDeadlineDateOnly(carryOverSubtask.date),
+            remaining: formatMinutesLabel(carryOverSubtask.minutes),
+            description: description || undefined,
+            state: "planned",
+          });
+        }
+
+        return {
+          ...task,
+          subtasks: updatedSubtasks,
+          note: buildTaskNote(updatedSubtasks),
+        };
+      }),
+    );
     setFormError(null);
     setHasUnsavedChanges(false);
-    setFeedback(
-      shouldShiftLaterWork
-        ? "Subtaak bijgewerkt. Latere taken en subtaken zijn 1 dag doorgeschoven."
-        : "Subtaak bijgewerkt.",
-    );
+    if (carryOverSubtask) {
+      setFeedback("Subtaak bijgewerkt. Het overschot is als vervolgsubtaak op de volgende dag gezet.");
+    } else if (movedCompletelyToNextDay) {
+      setFeedback("Subtaak bijgewerkt. Er was geen ruimte meer op deze dag, dus de subtaak is volledig naar de volgende dag verplaatst.");
+    } else {
+      setFeedback("Subtaak bijgewerkt.");
+    }
     setEditorMode("none");
   }
 
@@ -1227,45 +1233,47 @@ export function TakenVisualPrototype({
       return;
     }
 
-    let shouldShiftLaterWork = false;
-    if (deadlineDate) {
-      const additionalTaskMinutes = plannedMinutes ?? 0;
-      const totalMinutes =
-        totalBookedMinutesForDate(APPOINTMENTS, deadlineDate) +
-        totalPlannedWorkMinutesForDate(tasks, deadlineDate) +
-        additionalTaskMinutes;
-      if (totalMinutes > 480) {
-        const continueAndShift = window.confirm(
-          `Op ${deadlineDate} staat in totaal ${totalMinutes} minuten gepland (afspraken + werk).\n\n` +
-            "Optie 1 (OK): toch opslaan op deze dag en alle latere taken/subtaken 1 dag doorschuiven.\n" +
-            "Optie 2 (Annuleren): niet opslaan, zodat je een ander moment kunt kiezen.",
-        );
+    const effectiveTime = deadlineTime || DEFAULT_END_OF_WORKDAY;
+    let effectiveDeadlineDate = deadlineDate;
+    let effectivePlannedMinutes = plannedMinutes;
+    let carryOverTask: { minutes: number; date: string } | null = null;
+    let movedCompletelyToNextDay = false;
 
-        if (!continueAndShift) {
-          setMainTaskError("Je koos om op een ander moment te plannen. Pas de datum aan en sla opnieuw op.");
-          return;
+    if (deadlineDate && plannedMinutes !== null) {
+      const otherPlannedWorkMinutes = totalPlannedWorkMinutesForDate(tasks, deadlineDate);
+      const split = resolveDailyLimitWithCarryOver(deadlineDate, plannedMinutes, otherPlannedWorkMinutes);
+
+      if (!split) {
+        setMainTaskError("Opslaan geannuleerd. Kies een andere dag of bevestig het meenemen naar de volgende dag.");
+        return;
+      }
+
+      if (split.todayMinutes <= 0) {
+        effectiveDeadlineDate = split.carryOverDate;
+        movedCompletelyToNextDay = true;
+      } else {
+        effectivePlannedMinutes = split.todayMinutes;
+        if (split.carryOverMinutes > 0) {
+          carryOverTask = { minutes: split.carryOverMinutes, date: split.carryOverDate };
         }
-
-        shouldShiftLaterWork = true;
       }
     }
 
     let deadlineValue: string | undefined;
     let deadlineLabel = "Geen deadline";
 
-    if (deadlineDate) {
-      const effectiveTime = deadlineTime || DEFAULT_END_OF_WORKDAY;
+    if (effectiveDeadlineDate) {
       const parsed = new Date(
-        `${deadlineDate}T${effectiveTime}`,
+        `${effectiveDeadlineDate}T${effectiveTime}`,
       );
       if (Number.isNaN(parsed.getTime())) {
         setMainTaskError("Kies een geldige deadline.");
         return;
       }
-      deadlineValue = `${deadlineDate}T${effectiveTime}`;
+      deadlineValue = `${effectiveDeadlineDate}T${effectiveTime}`;
       deadlineLabel = deadlineTime
-        ? formatDeadline(`${deadlineDate}T${deadlineTime}`)
-        : formatDeadlineDateOnly(deadlineDate);
+        ? formatDeadline(`${effectiveDeadlineDate}T${deadlineTime}`)
+        : formatDeadlineDateOnly(effectiveDeadlineDate);
     }
 
     const newTask: MainTask = {
@@ -1274,30 +1282,45 @@ export function TakenVisualPrototype({
       note: "0 subtaken",
       deadline: deadlineLabel,
       deadlineValue,
-      remaining: plannedMinutes !== null ? formatMinutesLabel(plannedMinutes) : "Nog te schatten",
+      remaining: effectivePlannedMinutes !== null ? formatMinutesLabel(effectivePlannedMinutes) : "Nog te schatten",
       status: "normal",
       risk: null,
       description: description || "Nog geen omschrijving toegevoegd.",
       subtasks: [],
     };
 
+    const overflowTask: MainTask | null = carryOverTask
+      ? {
+          id: `local-task-overflow-${Date.now()}`,
+          title: `${title} (vervolg)`,
+          note: "0 subtaken",
+          deadlineValue: `${carryOverTask.date}T${effectiveTime}`,
+          deadline: deadlineTime
+            ? formatDeadline(`${carryOverTask.date}T${effectiveTime}`)
+            : formatDeadlineDateOnly(carryOverTask.date),
+          remaining: formatMinutesLabel(carryOverTask.minutes),
+          status: "normal",
+          risk: null,
+          description: description || "Nog geen omschrijving toegevoegd.",
+          subtasks: [],
+        }
+      : null;
+
     setTasks((current) => {
-      let next = [newTask, ...current];
-      if (shouldShiftLaterWork && newTask.deadlineValue) {
-        next = shiftLaterDeadlinesAfterSave(next, newTask.deadlineValue, newTask.id);
-      }
-      return next;
+      return overflowTask ? [newTask, overflowTask, ...current] : [newTask, ...current];
     });
     setSelectedTaskId(newTask.id);
     setEditorMode("none");
     setHasUnsavedChanges(false);
     setMainTaskError(null);
     form.reset();
-    setFeedback(
-      shouldShiftLaterWork
-        ? "Hoofdtaak opgeslagen. Latere taken en subtaken zijn 1 dag doorgeschoven."
-        : "Hoofdtaak lokaal toegevoegd. Planning opnieuw berekend op basis van voorbeelddata.",
-    );
+    if (overflowTask) {
+      setFeedback("Hoofdtaak opgeslagen. Het overschot is als vervolgtaak op de volgende dag gezet.");
+    } else if (movedCompletelyToNextDay) {
+      setFeedback("Hoofdtaak opgeslagen. Er was geen ruimte meer op deze dag, dus de taak is volledig naar de volgende dag verplaatst.");
+    } else {
+      setFeedback("Hoofdtaak lokaal toegevoegd. Planning opnieuw berekend op basis van voorbeelddata.");
+    }
   }
 
   function addSubtask(event: FormEvent<HTMLFormElement>) {
@@ -1329,33 +1352,36 @@ export function TakenVisualPrototype({
       return;
     }
 
-    let shouldShiftLaterWork = false;
-    const totalMinutes =
-      totalBookedMinutesForDate(APPOINTMENTS, deadlineDate) +
-      totalPlannedWorkMinutesForDate(tasks, deadlineDate) +
-      plannedMinutes;
-    if (totalMinutes > 480) {
-      const continueAndShift = window.confirm(
-        `Op ${deadlineDate} staat in totaal ${totalMinutes} minuten gepland (afspraken + werk).\n\n` +
-          "Optie 1 (OK): toch opslaan op deze dag en alle latere taken/subtaken 1 dag doorschuiven.\n" +
-          "Optie 2 (Annuleren): niet opslaan, zodat je een ander moment kunt kiezen.",
-      );
-
-      if (!continueAndShift) {
-        setFormError("Je koos om op een ander moment te plannen. Pas de datum aan en sla opnieuw op.");
-        return;
-      }
-
-      shouldShiftLaterWork = true;
-    }
-
     if (deadlineTime && !deadlineDate) {
       setFormError("Vul eerst een datum in voordat je een tijd invult.");
       return;
     }
 
     const effectiveSubtaskTime = deadlineTime || DEFAULT_END_OF_WORKDAY;
-    const childComparable = new Date(`${deadlineDate}T${effectiveSubtaskTime}`);
+    let effectiveDeadlineDate = deadlineDate;
+    let effectivePlannedMinutes = plannedMinutes;
+    let carryOverSubtask: { minutes: number; date: string } | null = null;
+    let movedCompletelyToNextDay = false;
+
+    const otherPlannedWorkMinutes = totalPlannedWorkMinutesForDate(tasks, deadlineDate);
+    const split = resolveDailyLimitWithCarryOver(deadlineDate, plannedMinutes, otherPlannedWorkMinutes);
+
+    if (!split) {
+      setFormError("Opslaan geannuleerd. Kies een andere dag of bevestig het meenemen naar de volgende dag.");
+      return;
+    }
+
+    if (split.todayMinutes <= 0) {
+      effectiveDeadlineDate = split.carryOverDate;
+      movedCompletelyToNextDay = true;
+    } else {
+      effectivePlannedMinutes = split.todayMinutes;
+      if (split.carryOverMinutes > 0) {
+        carryOverSubtask = { minutes: split.carryOverMinutes, date: split.carryOverDate };
+      }
+    }
+
+    const childComparable = new Date(`${effectiveDeadlineDate}T${effectiveSubtaskTime}`);
     if (Number.isNaN(childComparable.getTime())) {
       setFormError("Kies een geldige deadline.");
       return;
@@ -1370,47 +1396,65 @@ export function TakenVisualPrototype({
         setFormError(`Kies een deadline op of vóór ${selectedTask.deadline}.`);
         return;
       }
+
+      if (carryOverSubtask) {
+        const carryComparable = new Date(`${carryOverSubtask.date}T${effectiveSubtaskTime}`);
+        if (carryComparable.getTime() > parentComparable.getTime()) {
+          setFormError("De daglimiet wordt overschreden, maar doorschuiven kan niet voorbij de deadline van de hoofdtaak.");
+          return;
+        }
+      }
     }
 
     const newSubtask: Subtask = {
       id: `local-${Date.now()}`,
       title,
-      deadlineValue: `${deadlineDate}T${effectiveSubtaskTime}`,
+      deadlineValue: `${effectiveDeadlineDate}T${effectiveSubtaskTime}`,
       deadline: deadlineTime
-        ? formatDeadline(`${deadlineDate}T${deadlineTime}`)
-        : formatDeadlineDateOnly(deadlineDate),
-      remaining: formatMinutesLabel(plannedMinutes),
+        ? formatDeadline(`${effectiveDeadlineDate}T${deadlineTime}`)
+        : formatDeadlineDateOnly(effectiveDeadlineDate),
+      remaining: formatMinutesLabel(effectivePlannedMinutes),
       description: description || undefined,
       state: "planned",
     };
 
+    const overflowSubtask: Subtask | null = carryOverSubtask
+      ? {
+          id: `local-${Date.now()}-overflow`,
+          title: `${title} (vervolg)`,
+          deadlineValue: `${carryOverSubtask.date}T${effectiveSubtaskTime}`,
+          deadline: deadlineTime
+            ? formatDeadline(`${carryOverSubtask.date}T${effectiveSubtaskTime}`)
+            : formatDeadlineDateOnly(carryOverSubtask.date),
+          remaining: formatMinutesLabel(carryOverSubtask.minutes),
+          description: description || undefined,
+          state: "planned",
+        }
+      : null;
+
     setTasks((current) => {
-      let next = current.map((task) =>
+      return current.map((task) =>
         task.id === selectedTask.id
           ? {
               ...task,
-              subtasks: [...task.subtasks, newSubtask],
-              note: buildTaskNote([...task.subtasks, newSubtask]),
+              subtasks: overflowSubtask ? [...task.subtasks, newSubtask, overflowSubtask] : [...task.subtasks, newSubtask],
+              note: buildTaskNote(overflowSubtask ? [...task.subtasks, newSubtask, overflowSubtask] : [...task.subtasks, newSubtask]),
             }
           : task,
       );
-
-      if (shouldShiftLaterWork) {
-        next = shiftLaterDeadlinesAfterSave(next, newSubtask.deadlineValue as string, selectedTask.id, newSubtask.id);
-      }
-
-      return next;
     });
     form.reset();
     setFormError(null);
     setSelectedSubtaskId(newSubtask.id);
     setEditorMode("none");
     setHasUnsavedChanges(false);
-    setFeedback(
-      shouldShiftLaterWork
-        ? "Subtaak opgeslagen. Latere taken en subtaken zijn 1 dag doorgeschoven."
-        : "Subtaak lokaal toegevoegd. Planning opnieuw berekend; de actieve timer liep door en de nieuwe subtaak is niet gestart.",
-    );
+    if (overflowSubtask) {
+      setFeedback("Subtaak opgeslagen. Het overschot is als vervolgsubtaak op de volgende dag gezet.");
+    } else if (movedCompletelyToNextDay) {
+      setFeedback("Subtaak opgeslagen. Er was geen ruimte meer op deze dag, dus de subtaak is volledig naar de volgende dag verplaatst.");
+    } else {
+      setFeedback("Subtaak lokaal toegevoegd. Planning opnieuw berekend; de actieve timer liep door en de nieuwe subtaak is niet gestart.");
+    }
   }
 
   function deleteMainTask() {
