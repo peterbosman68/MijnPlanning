@@ -3,6 +3,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { CSSProperties, FormEvent, PointerEvent as ReactPointerEvent, ReactNode } from "react";
 
+import {
+  subtaskPlannedMinutesOnDate,
+  taskOwnPlannedMinutesOnDate,
+  totalBookedMinutesForDate,
+  totalPlannedWorkMinutesForDate,
+} from "@/lib/tasks/planned-load";
+
 import styles from "./taken-visual-prototype.module.css";
 
 const PANE_LAYOUT_STORAGE_KEY = "mijnplanning.taken.paneLayout.v1";
@@ -685,44 +692,6 @@ function isArchivedSubtask(subtask: Subtask) {
   return subtask.state === "archived";
 }
 
-function totalBookedMinutesForDate(dateValue: string) {
-  return APPOINTMENTS.filter((appointment) => appointment.dateValue === dateValue).reduce(
-    (sum, appointment) => sum + appointment.durationMinutes,
-    0,
-  );
-}
-
-function extractDateFromDeadlineValue(deadlineValue?: string) {
-  if (!deadlineValue) return null;
-  if (deadlineValue.includes("T")) return deadlineValue.split("T")[0];
-  return deadlineValue;
-}
-
-function taskOwnPlannedMinutesOnDate(task: MainTask, dateValue: string) {
-  const openSubtasks = task.subtasks.filter((subtask) => subtask.state !== "done" && subtask.state !== "archived");
-  if (openSubtasks.length > 0) return 0;
-  if (extractDateFromDeadlineValue(task.deadlineValue) !== dateValue) return 0;
-  return Number.parseInt(parseMinutesFromLabel(task.remaining), 10) || 0;
-}
-
-function subtaskPlannedMinutesOnDate(subtask: Subtask, dateValue: string) {
-  if (subtask.state === "done" || subtask.state === "archived") return 0;
-  if (extractDateFromDeadlineValue(subtask.deadlineValue) !== dateValue) return 0;
-  return Number.parseInt(parseMinutesFromLabel(subtask.remaining), 10) || 0;
-}
-
-function totalPlannedWorkMinutesForDate(tasks: MainTask[], dateValue: string) {
-  return tasks.reduce((sum, task) => {
-    const openSubtasks = task.subtasks.filter((subtask) => subtask.state !== "done" && subtask.state !== "archived");
-
-    if (openSubtasks.length > 0) {
-      return sum + openSubtasks.reduce((subSum, subtask) => subSum + subtaskPlannedMinutesOnDate(subtask, dateValue), 0);
-    }
-
-    return sum + taskOwnPlannedMinutesOnDate(task, dateValue);
-  }, 0);
-}
-
 function shiftDateTimeValueByOneDay(value?: string) {
   if (!value) return undefined;
 
@@ -1049,7 +1018,7 @@ export function TakenVisualPrototype({
           ? plannedMinutes
           : Number.parseInt(parseMinutesFromLabel(selectedTask.remaining), 10) || 0;
       const totalMinutes =
-        totalBookedMinutesForDate(deadlineDate) +
+        totalBookedMinutesForDate(APPOINTMENTS, deadlineDate) +
         totalPlannedWorkMinutesForDate(tasks, deadlineDate) -
         currentTaskMinutes +
         nextTaskMinutes;
@@ -1148,7 +1117,7 @@ export function TakenVisualPrototype({
     let shouldShiftLaterWork = false;
     const currentSubtaskMinutes = subtaskPlannedMinutesOnDate(selectedSubtask, deadlineDate);
     const totalMinutes =
-      totalBookedMinutesForDate(deadlineDate) +
+      totalBookedMinutesForDate(APPOINTMENTS, deadlineDate) +
       totalPlannedWorkMinutesForDate(tasks, deadlineDate) -
       currentSubtaskMinutes +
       plannedMinutes;
@@ -1262,7 +1231,7 @@ export function TakenVisualPrototype({
     if (deadlineDate) {
       const additionalTaskMinutes = plannedMinutes ?? 0;
       const totalMinutes =
-        totalBookedMinutesForDate(deadlineDate) +
+        totalBookedMinutesForDate(APPOINTMENTS, deadlineDate) +
         totalPlannedWorkMinutesForDate(tasks, deadlineDate) +
         additionalTaskMinutes;
       if (totalMinutes > 480) {
@@ -1362,7 +1331,7 @@ export function TakenVisualPrototype({
 
     let shouldShiftLaterWork = false;
     const totalMinutes =
-      totalBookedMinutesForDate(deadlineDate) +
+      totalBookedMinutesForDate(APPOINTMENTS, deadlineDate) +
       totalPlannedWorkMinutesForDate(tasks, deadlineDate) +
       plannedMinutes;
     if (totalMinutes > 480) {
