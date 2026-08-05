@@ -999,14 +999,16 @@ export function TakenVisualPrototype({
 
     const effectiveTime = deadlineTime || DEFAULT_END_OF_WORKDAY;
     let effectiveDeadlineDate = deadlineDate;
-    let effectivePlannedMinutes = plannedMinutes;
+    const existingMainTaskMinutes = Number.parseInt(parseMinutesFromLabel(selectedTask.remaining), 10) || 0;
+    const requestedMainTaskMinutes = plannedMinutes ?? existingMainTaskMinutes;
+    let effectivePlannedMinutes: number | null = requestedMainTaskMinutes > 0 ? requestedMainTaskMinutes : plannedMinutes;
     let carryOverTask: { minutes: number; date: string } | null = null;
     let movedCompletelyToNextDay = false;
 
-    if (deadlineDate && plannedMinutes !== null) {
+    if (deadlineDate && requestedMainTaskMinutes > 0) {
       const currentTaskMinutes = taskOwnPlannedMinutesOnDate(selectedTask, deadlineDate);
       const otherPlannedWorkMinutes = Math.max(0, totalPlannedWorkMinutesForDate(tasks, deadlineDate) - currentTaskMinutes);
-      const split = resolveDailyLimitWithCarryOver(deadlineDate, plannedMinutes, otherPlannedWorkMinutes);
+      const split = resolveDailyLimitWithCarryOver(deadlineDate, requestedMainTaskMinutes, otherPlannedWorkMinutes);
 
       if (!split) {
         setFormError("Opslaan geannuleerd. Kies een andere dag of bevestig het meenemen naar de volgende dag.");
