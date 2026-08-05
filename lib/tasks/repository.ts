@@ -3,6 +3,7 @@ import "server-only";
 import { Prisma, type PrismaClient } from "@prisma/client";
 
 import { prisma } from "@/lib/db/client";
+import type { SubtaskStatus, TaskStatus } from "@/lib/tasks/domain/types";
 
 export type DatabaseClient = PrismaClient | Prisma.TransactionClient;
 
@@ -191,7 +192,7 @@ export function createTaskRecord(database: DatabaseClient, input: {
   remainingMinutes: number | null;
   sourceType: "MANUAL" | "IMPORTED";
   sourceExternalId: string | null;
-  status: "OPEN" | "WAITING" | "COMPLETED" | "ARCHIVED" | "CANCELLED";
+  status: TaskStatus;
   completedAt: Date | null;
 }) {
   return database.task.create({
@@ -226,7 +227,7 @@ export function updateTaskRecord(database: DatabaseClient, input: {
   remainingMinutes: number | null;
   sourceType: "MANUAL" | "IMPORTED";
   sourceExternalId: string | null;
-  status: "OPEN" | "WAITING" | "COMPLETED" | "ARCHIVED" | "CANCELLED";
+  status: TaskStatus;
   completedAt: Date | null;
 }) {
   return database.task.updateMany({
@@ -259,7 +260,7 @@ export function createSubtaskRecord(database: DatabaseClient, input: {
   splittable: boolean;
   priority: number | null;
   context: string;
-  status: "OPEN" | "WAITING" | "COMPLETED" | "ARCHIVED" | "CANCELLED";
+  status: SubtaskStatus;
   completedAt: Date | null;
 }) {
   return database.subtask.create({
@@ -300,7 +301,7 @@ export function updateSubtaskRecord(database: DatabaseClient, input: {
   splittable: boolean;
   priority: number | null;
   context: string;
-  status: "OPEN" | "WAITING" | "COMPLETED" | "ARCHIVED" | "CANCELLED";
+  status: SubtaskStatus;
   completedAt: Date | null;
 }) {
   return database.subtask.updateMany({

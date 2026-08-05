@@ -14,6 +14,7 @@ describe("technische projectbasis", () => {
       "Subtask",
       "Task",
       "TaskDependency",
+      "TimeSession",
       "User",
     ]);
   });

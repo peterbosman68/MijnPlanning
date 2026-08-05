@@ -10,6 +10,9 @@ datasource db {
 enum TaskStatus {
   OPEN
   WAITING
+  ACTIVE
+  PAUSED
+  WAITING_EXTERNAL
   COMPLETED
   ARCHIVED
   CANCELLED
@@ -18,9 +21,28 @@ enum TaskStatus {
 enum SubtaskStatus {
   OPEN
   WAITING
+  ACTIVE
+  PAUSED
+  WAITING_EXTERNAL
   COMPLETED
   ARCHIVED
   CANCELLED
+}
+
+enum TimeSessionType {
+  ACTIVE
+  PAUSED
+  INTERRUPTED
+  WAITING_EXTERNAL
+}
+
+enum InterruptionReason {
+  CONTEXT_SWITCH
+  MEETING
+  BREAK
+  DISTRACTION
+  TECHNICAL_ISSUE
+  OTHER
 }
 
 enum TaskSourceType {
@@ -40,6 +62,7 @@ model User {
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
   tasks               Task[]
+  timeSessions        TimeSession[]
   sessions            Session[]
   passwordResetTokens PasswordResetToken[]
 
@@ -63,6 +86,7 @@ model Task {
   completedAt         DateTime?
   user                User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   subtasks            Subtask[]
+  timeSessions        TimeSession[]
 
   @@index([userId, status])
   @@index([userId, deadline])
@@ -89,6 +113,7 @@ model Subtask {
   updatedAt                DateTime          @updatedAt
   completedAt              DateTime?
   task                     Task              @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  timeSessions             TimeSession[]
   dependenciesAsBlockedBy  TaskDependency[]   @relation("task_dependency_blocked")
   dependenciesAsPrerequisite TaskDependency[] @relation("task_dependency_prerequisite")
 
@@ -96,6 +121,29 @@ model Subtask {
   @@index([deadline])
   @@index([status, deadline])
   @@map("subtasks")
+}
+
+model TimeSession {
+  id                 String             @id @default(cuid())
+  userId             String
+  taskId             String?
+  subtaskId          String?
+  sessionType        TimeSessionType
+  startedAt          DateTime
+  endedAt            DateTime?
+  activeSeconds      Int                @default(0)
+  note               String?
+  interruptionReason InterruptionReason?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task               Task?              @relation(fields: [taskId], references: [id], onDelete: Restrict)
+  subtask            Subtask?           @relation(fields: [subtaskId], references: [id], onDelete: Restrict)
+
+  @@index([userId, startedAt])
+  @@index([taskId, startedAt])
+  @@index([subtaskId, startedAt])
+  @@map("time_sessions")
 }
 
 model TaskDependency {
