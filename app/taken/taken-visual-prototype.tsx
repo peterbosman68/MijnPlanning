@@ -223,6 +223,8 @@ type MainTask = {
 
 type Appointment = {
   id: string;
+  dateValue: string;
+  durationMinutes: number;
   day: string;
   time: string;
   title: string;
@@ -405,6 +407,8 @@ const INITIAL_TASKS: MainTask[] = [
 const APPOINTMENTS: Appointment[] = [
   {
     id: "daily",
+    dateValue: "2026-07-19",
+    durationMinutes: 30,
     day: "Vandaag · 19 juli",
     time: "09:00–09:30",
     title: "Dagstart",
@@ -414,6 +418,8 @@ const APPOINTMENTS: Appointment[] = [
   },
   {
     id: "erwin",
+    dateValue: "2026-07-19",
+    durationMinutes: 30,
     day: "Vandaag · 19 juli",
     time: "14:00–14:30",
     title: "Overleg Erwin — Roodwilligen",
@@ -423,6 +429,8 @@ const APPOINTMENTS: Appointment[] = [
   },
   {
     id: "visit",
+    dateValue: "2026-07-20",
+    durationMinutes: 60,
     day: "Morgen · 20 juli",
     time: "10:00–11:00",
     title: "Locatiebezoek Truckparking Duiven",
@@ -677,6 +685,83 @@ function isArchivedSubtask(subtask: Subtask) {
   return subtask.state === "archived";
 }
 
+function totalBookedMinutesForDate(dateValue: string) {
+  return APPOINTMENTS.filter((appointment) => appointment.dateValue === dateValue).reduce(
+    (sum, appointment) => sum + appointment.durationMinutes,
+    0,
+  );
+}
+
+function shiftDateTimeValueByOneDay(value?: string) {
+  if (!value) return undefined;
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+
+  parsed.setDate(parsed.getDate() + 1);
+
+  const year = parsed.getFullYear();
+  const month = String(parsed.getMonth() + 1).padStart(2, "0");
+  const day = String(parsed.getDate()).padStart(2, "0");
+  const hours = String(parsed.getHours()).padStart(2, "0");
+  const minutes = String(parsed.getMinutes()).padStart(2, "0");
+
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
+function shiftLaterDeadlinesAfterSave(
+  current: MainTask[],
+  referenceDeadlineValue: string,
+  excludedTaskId?: string,
+  excludedSubtaskId?: string,
+) {
+  const reference = new Date(referenceDeadlineValue);
+  if (Number.isNaN(reference.getTime())) return current;
+
+  return current.map((task) => {
+    const shouldShiftTask =
+      Boolean(task.deadlineValue) &&
+      task.id !== excludedTaskId &&
+      !isCompletedBucketTask(task) &&
+      new Date(task.deadlineValue as string).getTime() > reference.getTime();
+
+    const shiftedTaskDeadlineValue = shouldShiftTask ? shiftDateTimeValueByOneDay(task.deadlineValue) : task.deadlineValue;
+    const shiftedTaskDeadlineLabel = shiftedTaskDeadlineValue
+      ? formatDeadline(shiftedTaskDeadlineValue)
+      : task.deadline;
+
+    const shiftedSubtasks = task.subtasks.map((subtask) => {
+      const shouldShiftSubtask =
+        Boolean(subtask.deadlineValue) &&
+        subtask.id !== excludedSubtaskId &&
+        subtask.state !== "done" &&
+        subtask.state !== "archived" &&
+        new Date(subtask.deadlineValue as string).getTime() > reference.getTime();
+
+      if (!shouldShiftSubtask) return subtask;
+
+      const shiftedDeadlineValue = shiftDateTimeValueByOneDay(subtask.deadlineValue);
+
+      return {
+        ...subtask,
+        deadlineValue: shiftedDeadlineValue,
+        deadline: shiftedDeadlineValue ? formatDeadline(shiftedDeadlineValue) : subtask.deadline,
+      };
+    });
+
+    if (!shouldShiftTask && shiftedSubtasks === task.subtasks) {
+      return task;
+    }
+
+    return {
+      ...task,
+      deadlineValue: shiftedTaskDeadlineValue,
+      deadline: shiftedTaskDeadlineLabel,
+      subtasks: shiftedSubtasks,
+    };
+  });
+}
+
 const EMAIL_CATEGORY_LABEL: Record<EmailCategory, string> = {
   urgent: "Belangrijk / urgent",
   normal: "Normaal",
@@ -899,6 +984,7 @@ export function TakenVisualPrototype({
 
   function updateMainTask(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!selectedTask) return;
     const formData = new FormData(event.currentTarget);
     const title = String(formData.get("title") ?? "").trim();
     const deadlineDate = String(formData.get("deadlineDate") ?? "").trim();
@@ -913,6 +999,25 @@ export function TakenVisualPrototype({
     if (deadlineTime && !deadlineDate) {
       setFormError("Vul eerst een datum in voordat je een tijd invult.");
       return;
+    }
+
+    let shouldShiftLaterWork = false;
+    if (deadlineDate) {
+      const bookedMinutes = totalBookedMinutesForDate(deadlineDate);
+      if (bookedMinutes > 480) {
+        const continueAndShift = window.confirm(
+          `Op ${deadlineDate} staat al ${bookedMinutes} minuten aan Outlook-afspraken ingepland.\n\n` +
+            "Optie 1 (OK): toch opslaan op deze dag en alle latere taken/subtaken 1 dag doorschuiven.\n" +
+            "Optie 2 (Annuleren): niet opslaan, zodat je een ander moment kunt kiezen.",
+        );
+
+        if (!continueAndShift) {
+          setFormError("Je koos om op een ander moment te plannen. Pas de datum aan en sla opnieuw op.");
+          return;
+        }
+
+        shouldShiftLaterWork = true;
+      }
     }
 
     let plannedMinutes: number | null;
@@ -939,8 +1044,8 @@ export function TakenVisualPrototype({
         : formatDeadlineDateOnly(deadlineDate);
     }
 
-    setTasks((current) =>
-      current.map((task) =>
+    setTasks((current) => {
+      let next = current.map((task) =>
         task.id === selectedTask.id
           ? {
               ...task,
@@ -951,17 +1056,27 @@ export function TakenVisualPrototype({
               description: description || "Nog geen omschrijving toegevoegd.",
             }
           : task,
-      ),
-    );
+      );
+
+      if (shouldShiftLaterWork && deadlineValue) {
+        next = shiftLaterDeadlinesAfterSave(next, deadlineValue, selectedTask.id);
+      }
+
+      return next;
+    });
     setFormError(null);
     setHasUnsavedChanges(false);
-    setFeedback("Hoofdtaak bijgewerkt.");
+    setFeedback(
+      shouldShiftLaterWork
+        ? "Hoofdtaak bijgewerkt. Latere taken en subtaken zijn 1 dag doorgeschoven."
+        : "Hoofdtaak bijgewerkt.",
+    );
     setEditorMode("none");
   }
 
   function updateSubtask(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!selectedSubtask) return;
+    if (!selectedTask || !selectedSubtask) return;
 
     const formData = new FormData(event.currentTarget);
     const title = String(formData.get("title") ?? "").trim();
@@ -986,6 +1101,23 @@ export function TakenVisualPrototype({
     if (plannedMinutes === null) {
       setFormError("Vul geplande tijd in minuten in voor deze subtaak.");
       return;
+    }
+
+    let shouldShiftLaterWork = false;
+    const bookedMinutes = totalBookedMinutesForDate(deadlineDate);
+    if (bookedMinutes > 480) {
+      const continueAndShift = window.confirm(
+        `Op ${deadlineDate} staat al ${bookedMinutes} minuten aan Outlook-afspraken ingepland.\n\n` +
+          "Optie 1 (OK): toch opslaan op deze dag en alle latere taken/subtaken 1 dag doorschuiven.\n" +
+          "Optie 2 (Annuleren): niet opslaan, zodat je een ander moment kunt kiezen.",
+      );
+
+      if (!continueAndShift) {
+        setFormError("Je koos om op een ander moment te plannen. Pas de datum aan en sla opnieuw op.");
+        return;
+      }
+
+      shouldShiftLaterWork = true;
     }
 
     if (deadlineTime && !deadlineDate) {
@@ -1014,8 +1146,8 @@ export function TakenVisualPrototype({
       ? formatDeadline(`${deadlineDate}T${deadlineTime}`)
       : formatDeadlineDateOnly(deadlineDate);
 
-    setTasks((current) =>
-      current.map((task) =>
+    setTasks((current) => {
+      let next = current.map((task) =>
         task.id === selectedTask.id
           ? {
               ...task,
@@ -1033,11 +1165,21 @@ export function TakenVisualPrototype({
               ),
             }
           : task,
-      ),
-    );
+      );
+
+      if (shouldShiftLaterWork) {
+        next = shiftLaterDeadlinesAfterSave(next, deadlineValue, selectedTask.id, selectedSubtask.id);
+      }
+
+      return next;
+    });
     setFormError(null);
     setHasUnsavedChanges(false);
-    setFeedback("Subtaak bijgewerkt.");
+    setFeedback(
+      shouldShiftLaterWork
+        ? "Subtaak bijgewerkt. Latere taken en subtaken zijn 1 dag doorgeschoven."
+        : "Subtaak bijgewerkt.",
+    );
     setEditorMode("none");
   }
 
@@ -1059,6 +1201,25 @@ export function TakenVisualPrototype({
     if (deadlineTime && !deadlineDate) {
       setMainTaskError("Vul eerst een datum in voordat je een tijd invult.");
       return;
+    }
+
+    let shouldShiftLaterWork = false;
+    if (deadlineDate) {
+      const bookedMinutes = totalBookedMinutesForDate(deadlineDate);
+      if (bookedMinutes > 480) {
+        const continueAndShift = window.confirm(
+          `Op ${deadlineDate} staat al ${bookedMinutes} minuten aan Outlook-afspraken ingepland.\n\n` +
+            "Optie 1 (OK): toch opslaan op deze dag en alle latere taken/subtaken 1 dag doorschuiven.\n" +
+            "Optie 2 (Annuleren): niet opslaan, zodat je een ander moment kunt kiezen.",
+        );
+
+        if (!continueAndShift) {
+          setMainTaskError("Je koos om op een ander moment te plannen. Pas de datum aan en sla opnieuw op.");
+          return;
+        }
+
+        shouldShiftLaterWork = true;
+      }
     }
 
     let plannedMinutes: number | null;
@@ -1100,17 +1261,28 @@ export function TakenVisualPrototype({
       subtasks: [],
     };
 
-    setTasks((current) => [newTask, ...current]);
+    setTasks((current) => {
+      let next = [newTask, ...current];
+      if (shouldShiftLaterWork && newTask.deadlineValue) {
+        next = shiftLaterDeadlinesAfterSave(next, newTask.deadlineValue, newTask.id);
+      }
+      return next;
+    });
     setSelectedTaskId(newTask.id);
     setEditorMode("none");
     setHasUnsavedChanges(false);
     setMainTaskError(null);
     form.reset();
-    setFeedback("Hoofdtaak lokaal toegevoegd. Planning opnieuw berekend op basis van voorbeelddata.");
+    setFeedback(
+      shouldShiftLaterWork
+        ? "Hoofdtaak opgeslagen. Latere taken en subtaken zijn 1 dag doorgeschoven."
+        : "Hoofdtaak lokaal toegevoegd. Planning opnieuw berekend op basis van voorbeelddata.",
+    );
   }
 
   function addSubtask(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!selectedTask) return;
     const form = event.currentTarget;
     const formData = new FormData(form);
     const title = String(formData.get("title") ?? "").trim();
@@ -1135,6 +1307,23 @@ export function TakenVisualPrototype({
     if (plannedMinutes === null) {
       setFormError("Vul geplande tijd in minuten in voor deze subtaak.");
       return;
+    }
+
+    let shouldShiftLaterWork = false;
+    const bookedMinutes = totalBookedMinutesForDate(deadlineDate);
+    if (bookedMinutes > 480) {
+      const continueAndShift = window.confirm(
+        `Op ${deadlineDate} staat al ${bookedMinutes} minuten aan Outlook-afspraken ingepland.\n\n` +
+          "Optie 1 (OK): toch opslaan op deze dag en alle latere taken/subtaken 1 dag doorschuiven.\n" +
+          "Optie 2 (Annuleren): niet opslaan, zodat je een ander moment kunt kiezen.",
+      );
+
+      if (!continueAndShift) {
+        setFormError("Je koos om op een ander moment te plannen. Pas de datum aan en sla opnieuw op.");
+        return;
+      }
+
+      shouldShiftLaterWork = true;
     }
 
     if (deadlineTime && !deadlineDate) {
@@ -1172,8 +1361,8 @@ export function TakenVisualPrototype({
       state: "planned",
     };
 
-    setTasks((current) =>
-      current.map((task) =>
+    setTasks((current) => {
+      let next = current.map((task) =>
         task.id === selectedTask.id
           ? {
               ...task,
@@ -1181,15 +1370,23 @@ export function TakenVisualPrototype({
               note: buildTaskNote([...task.subtasks, newSubtask]),
             }
           : task,
-      ),
-    );
+      );
+
+      if (shouldShiftLaterWork) {
+        next = shiftLaterDeadlinesAfterSave(next, newSubtask.deadlineValue as string, selectedTask.id, newSubtask.id);
+      }
+
+      return next;
+    });
     form.reset();
     setFormError(null);
     setSelectedSubtaskId(newSubtask.id);
     setEditorMode("none");
     setHasUnsavedChanges(false);
     setFeedback(
-      "Subtaak lokaal toegevoegd. Planning opnieuw berekend; de actieve timer liep door en de nieuwe subtaak is niet gestart.",
+      shouldShiftLaterWork
+        ? "Subtaak opgeslagen. Latere taken en subtaken zijn 1 dag doorgeschoven."
+        : "Subtaak lokaal toegevoegd. Planning opnieuw berekend; de actieve timer liep door en de nieuwe subtaak is niet gestart.",
     );
   }
 
