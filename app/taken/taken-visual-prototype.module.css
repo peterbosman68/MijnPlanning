@@ -48,7 +48,7 @@
   --list-width: 400px;
   --detail-width: 520px;
   display: grid;
-  grid-template-columns: var(--nav-width) 6px var(--list-width) 6px minmax(360px, 1fr);
+  grid-template-columns: var(--nav-width) 6px minmax(0, 1fr) 6px minmax(0, 1fr);
   min-height: 100dvh;
   max-width: 1680px;
   margin: 0 auto;
