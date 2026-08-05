@@ -692,6 +692,37 @@ function totalBookedMinutesForDate(dateValue: string) {
   );
 }
 
+function extractDateFromDeadlineValue(deadlineValue?: string) {
+  if (!deadlineValue) return null;
+  if (deadlineValue.includes("T")) return deadlineValue.split("T")[0];
+  return deadlineValue;
+}
+
+function taskOwnPlannedMinutesOnDate(task: MainTask, dateValue: string) {
+  const openSubtasks = task.subtasks.filter((subtask) => subtask.state !== "done" && subtask.state !== "archived");
+  if (openSubtasks.length > 0) return 0;
+  if (extractDateFromDeadlineValue(task.deadlineValue) !== dateValue) return 0;
+  return Number.parseInt(parseMinutesFromLabel(task.remaining), 10) || 0;
+}
+
+function subtaskPlannedMinutesOnDate(subtask: Subtask, dateValue: string) {
+  if (subtask.state === "done" || subtask.state === "archived") return 0;
+  if (extractDateFromDeadlineValue(subtask.deadlineValue) !== dateValue) return 0;
+  return Number.parseInt(parseMinutesFromLabel(subtask.remaining), 10) || 0;
+}
+
+function totalPlannedWorkMinutesForDate(tasks: MainTask[], dateValue: string) {
+  return tasks.reduce((sum, task) => {
+    const openSubtasks = task.subtasks.filter((subtask) => subtask.state !== "done" && subtask.state !== "archived");
+
+    if (openSubtasks.length > 0) {
+      return sum + openSubtasks.reduce((subSum, subtask) => subSum + subtaskPlannedMinutesOnDate(subtask, dateValue), 0);
+    }
+
+    return sum + taskOwnPlannedMinutesOnDate(task, dateValue);
+  }, 0);
+}
+
 function shiftDateTimeValueByOneDay(value?: string) {
   if (!value) return undefined;
 
@@ -723,7 +754,7 @@ function shiftLaterDeadlinesAfterSave(
       Boolean(task.deadlineValue) &&
       task.id !== excludedTaskId &&
       !isCompletedBucketTask(task) &&
-      new Date(task.deadlineValue as string).getTime() > reference.getTime();
+      new Date(task.deadlineValue as string).getTime() >= reference.getTime();
 
     const shiftedTaskDeadlineValue = shouldShiftTask ? shiftDateTimeValueByOneDay(task.deadlineValue) : task.deadlineValue;
     const shiftedTaskDeadlineLabel = shiftedTaskDeadlineValue
@@ -736,7 +767,7 @@ function shiftLaterDeadlinesAfterSave(
         subtask.id !== excludedSubtaskId &&
         subtask.state !== "done" &&
         subtask.state !== "archived" &&
-        new Date(subtask.deadlineValue as string).getTime() > reference.getTime();
+        new Date(subtask.deadlineValue as string).getTime() >= reference.getTime();
 
       if (!shouldShiftSubtask) return subtask;
 
@@ -1001,12 +1032,31 @@ export function TakenVisualPrototype({
       return;
     }
 
+    let plannedMinutes: number | null;
+    try {
+      plannedMinutes = parsePositiveMinutesInput(plannedMinutesRaw, "hoofdtaak");
+    } catch {
+      setFormError("Geplande tijd voor de hoofdtaak moet een positief aantal minuten zijn.");
+      return;
+    }
+
     let shouldShiftLaterWork = false;
     if (deadlineDate) {
-      const bookedMinutes = totalBookedMinutesForDate(deadlineDate);
-      if (bookedMinutes > 480) {
+      const currentTaskMinutes = taskOwnPlannedMinutesOnDate(selectedTask, deadlineDate);
+      const nextTaskMinutes = selectedTask.subtasks.length > 0
+        ? 0
+        : plannedMinutes !== null
+          ? plannedMinutes
+          : Number.parseInt(parseMinutesFromLabel(selectedTask.remaining), 10) || 0;
+      const totalMinutes =
+        totalBookedMinutesForDate(deadlineDate) +
+        totalPlannedWorkMinutesForDate(tasks, deadlineDate) -
+        currentTaskMinutes +
+        nextTaskMinutes;
+
+      if (totalMinutes > 480) {
         const continueAndShift = window.confirm(
-          `Op ${deadlineDate} staat al ${bookedMinutes} minuten aan Outlook-afspraken ingepland.\n\n` +
+          `Op ${deadlineDate} staat in totaal ${totalMinutes} minuten gepland (afspraken + werk).\n\n` +
             "Optie 1 (OK): toch opslaan op deze dag en alle latere taken/subtaken 1 dag doorschuiven.\n" +
             "Optie 2 (Annuleren): niet opslaan, zodat je een ander moment kunt kiezen.",
         );
@@ -1018,14 +1068,6 @@ export function TakenVisualPrototype({
 
         shouldShiftLaterWork = true;
       }
-    }
-
-    let plannedMinutes: number | null;
-    try {
-      plannedMinutes = parsePositiveMinutesInput(plannedMinutesRaw, "hoofdtaak");
-    } catch {
-      setFormError("Geplande tijd voor de hoofdtaak moet een positief aantal minuten zijn.");
-      return;
     }
 
     let deadlineValue: string | undefined;
@@ -1104,10 +1146,15 @@ export function TakenVisualPrototype({
     }
 
     let shouldShiftLaterWork = false;
-    const bookedMinutes = totalBookedMinutesForDate(deadlineDate);
-    if (bookedMinutes > 480) {
+    const currentSubtaskMinutes = subtaskPlannedMinutesOnDate(selectedSubtask, deadlineDate);
+    const totalMinutes =
+      totalBookedMinutesForDate(deadlineDate) +
+      totalPlannedWorkMinutesForDate(tasks, deadlineDate) -
+      currentSubtaskMinutes +
+      plannedMinutes;
+    if (totalMinutes > 480) {
       const continueAndShift = window.confirm(
-        `Op ${deadlineDate} staat al ${bookedMinutes} minuten aan Outlook-afspraken ingepland.\n\n` +
+        `Op ${deadlineDate} staat in totaal ${totalMinutes} minuten gepland (afspraken + werk).\n\n` +
           "Optie 1 (OK): toch opslaan op deze dag en alle latere taken/subtaken 1 dag doorschuiven.\n" +
           "Optie 2 (Annuleren): niet opslaan, zodat je een ander moment kunt kiezen.",
       );
@@ -1203,12 +1250,24 @@ export function TakenVisualPrototype({
       return;
     }
 
+    let plannedMinutes: number | null;
+    try {
+      plannedMinutes = parsePositiveMinutesInput(plannedMinutesRaw, "hoofdtaak");
+    } catch {
+      setMainTaskError("Geplande tijd voor de hoofdtaak moet een positief aantal minuten zijn.");
+      return;
+    }
+
     let shouldShiftLaterWork = false;
     if (deadlineDate) {
-      const bookedMinutes = totalBookedMinutesForDate(deadlineDate);
-      if (bookedMinutes > 480) {
+      const additionalTaskMinutes = plannedMinutes ?? 0;
+      const totalMinutes =
+        totalBookedMinutesForDate(deadlineDate) +
+        totalPlannedWorkMinutesForDate(tasks, deadlineDate) +
+        additionalTaskMinutes;
+      if (totalMinutes > 480) {
         const continueAndShift = window.confirm(
-          `Op ${deadlineDate} staat al ${bookedMinutes} minuten aan Outlook-afspraken ingepland.\n\n` +
+          `Op ${deadlineDate} staat in totaal ${totalMinutes} minuten gepland (afspraken + werk).\n\n` +
             "Optie 1 (OK): toch opslaan op deze dag en alle latere taken/subtaken 1 dag doorschuiven.\n" +
             "Optie 2 (Annuleren): niet opslaan, zodat je een ander moment kunt kiezen.",
         );
@@ -1220,14 +1279,6 @@ export function TakenVisualPrototype({
 
         shouldShiftLaterWork = true;
       }
-    }
-
-    let plannedMinutes: number | null;
-    try {
-      plannedMinutes = parsePositiveMinutesInput(plannedMinutesRaw, "hoofdtaak");
-    } catch {
-      setMainTaskError("Geplande tijd voor de hoofdtaak moet een positief aantal minuten zijn.");
-      return;
     }
 
     let deadlineValue: string | undefined;
@@ -1310,10 +1361,13 @@ export function TakenVisualPrototype({
     }
 
     let shouldShiftLaterWork = false;
-    const bookedMinutes = totalBookedMinutesForDate(deadlineDate);
-    if (bookedMinutes > 480) {
+    const totalMinutes =
+      totalBookedMinutesForDate(deadlineDate) +
+      totalPlannedWorkMinutesForDate(tasks, deadlineDate) +
+      plannedMinutes;
+    if (totalMinutes > 480) {
       const continueAndShift = window.confirm(
-        `Op ${deadlineDate} staat al ${bookedMinutes} minuten aan Outlook-afspraken ingepland.\n\n` +
+        `Op ${deadlineDate} staat in totaal ${totalMinutes} minuten gepland (afspraken + werk).\n\n` +
           "Optie 1 (OK): toch opslaan op deze dag en alle latere taken/subtaken 1 dag doorschuiven.\n" +
           "Optie 2 (Annuleren): niet opslaan, zodat je een ander moment kunt kiezen.",
       );
