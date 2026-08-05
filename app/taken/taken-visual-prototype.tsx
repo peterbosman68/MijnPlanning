@@ -630,6 +630,10 @@ function isArchivedTask(task: MainTask) {
   return task.status === "archived";
 }
 
+function isCompletedBucketTask(task: MainTask) {
+  return task.status === "completed" || task.status === "archived";
+}
+
 function isArchivedSubtask(subtask: Subtask) {
   return subtask.state === "archived";
 }
@@ -694,23 +698,24 @@ export function TakenVisualPrototype({
 
   const visibleTasks = useMemo(() => {
     if (activeView === "waiting") return tasks.filter((task) => task.status === "waiting");
-    if (activeView === "completed") return tasks.filter((task) => task.status === "completed");
+    if (activeView === "completed") return tasks.filter((task) => isCompletedBucketTask(task));
     if (activeView === "today") return tasks.filter((task) => task.id !== "quarter" && task.status !== "completed" && !isArchivedTask(task));
     return tasks.filter((task) => task.status !== "completed" && !isArchivedTask(task));
   }, [activeView, tasks]);
 
   const selectedTask = useMemo(() => {
     const candidate = tasks.find((task) => task.id === selectedTaskId) ?? null;
-    if (candidate && !isArchivedTask(candidate)) {
+    if (candidate && (activeView === "completed" ? isCompletedBucketTask(candidate) : !isArchivedTask(candidate))) {
       return candidate;
     }
     return visibleTasks.find((task) => task.id === selectedTaskId) ?? visibleTasks[0] ?? tasks.find((task) => !isArchivedTask(task)) ?? tasks[0] ?? null;
-  }, [tasks, selectedTaskId, visibleTasks]);
+  }, [activeView, tasks, selectedTaskId, visibleTasks]);
 
   const visibleSubtasks = useMemo(() => {
     if (!selectedTask) return [];
+    if (activeView === "completed") return selectedTask.subtasks;
     return selectedTask.subtasks.filter((subtask) => !isArchivedSubtask(subtask));
-  }, [selectedTask]);
+  }, [activeView, selectedTask]);
 
   const selectedSubtask = useMemo(() => {
     if (visibleSubtasks.length === 0) return null;
@@ -1154,15 +1159,14 @@ export function TakenVisualPrototype({
       const currentTask = tasks.find((task) => task.id === taskId);
       if (!currentTask) return;
 
-      const nextTask = tasks.find((task) => task.id !== taskId && !isArchivedTask(task) && task.status !== "completed")
-        ?? tasks.find((task) => task.id !== taskId && !isArchivedTask(task))
-        ?? null;
-
       setTasks((current) =>
         current.map((task) => (task.id === taskId ? { ...task, status: "archived" } : task)),
       );
-      setSelectedTaskId(nextTask?.id ?? "");
-      setSelectedSubtaskId(nextTask?.subtasks.filter((subtask) => !isArchivedSubtask(subtask))[0]?.id ?? null);
+      const archivedTask = { ...currentTask, status: "archived" as const };
+      setActiveView("completed");
+      setMobilePane("list");
+      setSelectedTaskId(archivedTask.id);
+      setSelectedSubtaskId(archivedTask.subtasks[0]?.id ?? null);
       setEditorMode("none");
       setHasUnsavedChanges(false);
       setMainTaskError(null);
