@@ -591,6 +591,45 @@ function formatDeadlineDateOnly(value: string) {
 
 const DEFAULT_END_OF_WORKDAY = "17:00";
 
+function formatMinutesLabel(totalMinutes: number) {
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+
+  if (hours > 0 && minutes > 0) {
+    return `${hours}u ${minutes}m`;
+  }
+  if (hours > 0) {
+    return `${hours}u`;
+  }
+  return `${minutes}m`;
+}
+
+function parsePositiveMinutesInput(value: string, fieldName: "hoofdtaak" | "subtaak"): number | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  const parsed = Number.parseInt(trimmed, 10);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new Error(fieldName === "hoofdtaak" ? "INVALID_MAIN_PLANNED_MINUTES" : "INVALID_SUBTASK_PLANNED_MINUTES");
+  }
+
+  return parsed;
+}
+
+function parseMinutesFromLabel(label: string) {
+  const trimmed = label.trim().toLowerCase();
+  if (!trimmed || trimmed === "—" || trimmed === "nog te schatten") return "";
+
+  const hourMatch = trimmed.match(/(\d+)u/);
+  const minuteMatch = trimmed.match(/(\d+)m/);
+  const hours = hourMatch ? Number.parseInt(hourMatch[1], 10) : 0;
+  const minutes = minuteMatch ? Number.parseInt(minuteMatch[1], 10) : 0;
+  const total = hours * 60 + minutes;
+
+  if (total > 0) return String(total);
+  return "";
+}
+
 function splitDeadlineValue(value?: string) {
   if (!value) return { date: "", time: "" };
   if (value.includes("T")) {
@@ -865,6 +904,7 @@ export function TakenVisualPrototype({
     const deadlineDate = String(formData.get("deadlineDate") ?? "").trim();
     const deadlineTime = String(formData.get("deadlineTime") ?? "").trim();
     const description = String(formData.get("description") ?? "").trim();
+    const plannedMinutesRaw = String(formData.get("plannedMinutes") ?? "").trim();
 
     if (!title) {
       setFormError("Vul een titel in.");
@@ -872,6 +912,14 @@ export function TakenVisualPrototype({
     }
     if (deadlineTime && !deadlineDate) {
       setFormError("Vul eerst een datum in voordat je een tijd invult.");
+      return;
+    }
+
+    let plannedMinutes: number | null;
+    try {
+      plannedMinutes = parsePositiveMinutesInput(plannedMinutesRaw, "hoofdtaak");
+    } catch {
+      setFormError("Geplande tijd voor de hoofdtaak moet een positief aantal minuten zijn.");
       return;
     }
 
@@ -899,6 +947,7 @@ export function TakenVisualPrototype({
               title,
               deadline: deadlineLabel,
               deadlineValue,
+              remaining: plannedMinutes !== null ? formatMinutesLabel(plannedMinutes) : task.remaining,
               description: description || "Nog geen omschrijving toegevoegd.",
             }
           : task,
@@ -919,11 +968,26 @@ export function TakenVisualPrototype({
     const deadlineDate = String(formData.get("deadlineDate") ?? "").trim();
     const deadlineTime = String(formData.get("deadlineTime") ?? "").trim();
     const description = String(formData.get("description") ?? "").trim();
+    const plannedMinutesRaw = String(formData.get("plannedMinutes") ?? "").trim();
 
     if (!title || !deadlineDate) {
       setFormError("Vul een titel en deadline in.");
       return;
     }
+
+    let plannedMinutes: number | null;
+    try {
+      plannedMinutes = parsePositiveMinutesInput(plannedMinutesRaw, "subtaak");
+    } catch {
+      setFormError("Geplande tijd voor de subtaak moet een positief aantal minuten zijn.");
+      return;
+    }
+
+    if (plannedMinutes === null) {
+      setFormError("Vul geplande tijd in minuten in voor deze subtaak.");
+      return;
+    }
+
     if (deadlineTime && !deadlineDate) {
       setFormError("Vul eerst een datum in voordat je een tijd invult.");
       return;
@@ -962,6 +1026,7 @@ export function TakenVisualPrototype({
                       title,
                       deadline: deadlineLabel,
                       deadlineValue,
+                      remaining: formatMinutesLabel(plannedMinutes),
                       description: description || undefined,
                     }
                   : subtask,
@@ -984,6 +1049,7 @@ export function TakenVisualPrototype({
     const deadlineDate = String(formData.get("deadlineDate") ?? "").trim();
     const deadlineTime = String(formData.get("deadlineTime") ?? "").trim();
     const description = String(formData.get("description") ?? "").trim();
+    const plannedMinutesRaw = String(formData.get("plannedMinutes") ?? "").trim();
 
     if (!title) {
       setMainTaskError("Vul een titel in.");
@@ -992,6 +1058,14 @@ export function TakenVisualPrototype({
 
     if (deadlineTime && !deadlineDate) {
       setMainTaskError("Vul eerst een datum in voordat je een tijd invult.");
+      return;
+    }
+
+    let plannedMinutes: number | null;
+    try {
+      plannedMinutes = parsePositiveMinutesInput(plannedMinutesRaw, "hoofdtaak");
+    } catch {
+      setMainTaskError("Geplande tijd voor de hoofdtaak moet een positief aantal minuten zijn.");
       return;
     }
 
@@ -1019,7 +1093,7 @@ export function TakenVisualPrototype({
       note: "0 subtaken",
       deadline: deadlineLabel,
       deadlineValue,
-      remaining: "Nog te schatten",
+      remaining: plannedMinutes !== null ? formatMinutesLabel(plannedMinutes) : "Nog te schatten",
       status: "normal",
       risk: null,
       description: description || "Nog geen omschrijving toegevoegd.",
@@ -1043,9 +1117,23 @@ export function TakenVisualPrototype({
     const deadlineDate = String(formData.get("deadlineDate") ?? "").trim();
     const deadlineTime = String(formData.get("deadlineTime") ?? "").trim();
     const description = String(formData.get("description") ?? "").trim();
+    const plannedMinutesRaw = String(formData.get("plannedMinutes") ?? "").trim();
 
     if (!title || !deadlineDate) {
       setFormError("Vul een titel en deadline in.");
+      return;
+    }
+
+    let plannedMinutes: number | null;
+    try {
+      plannedMinutes = parsePositiveMinutesInput(plannedMinutesRaw, "subtaak");
+    } catch {
+      setFormError("Geplande tijd voor de subtaak moet een positief aantal minuten zijn.");
+      return;
+    }
+
+    if (plannedMinutes === null) {
+      setFormError("Vul geplande tijd in minuten in voor deze subtaak.");
       return;
     }
 
@@ -1079,7 +1167,7 @@ export function TakenVisualPrototype({
       deadline: deadlineTime
         ? formatDeadline(`${deadlineDate}T${deadlineTime}`)
         : formatDeadlineDateOnly(deadlineDate),
-      remaining: "Nog te schatten",
+      remaining: formatMinutesLabel(plannedMinutes),
       description: description || undefined,
       state: "planned",
     };
@@ -1434,6 +1522,10 @@ export function TakenVisualPrototype({
                     </label>
                   </div>
                   <label>
+                    Geplande tijd (minuten, optioneel)
+                    <input name="plannedMinutes" type="number" min={1} step={1} placeholder="Bijv. 90" />
+                  </label>
+                  <label>
                     Omschrijving (optioneel)
                     <textarea
                       name="description"
@@ -1527,6 +1619,17 @@ export function TakenVisualPrototype({
                               <input name="deadlineTime" type="time" defaultValue={taskDeadline.time} />
                             </label>
                           </div>
+                          <label>
+                            Geplande tijd (minuten, optioneel)
+                            <input
+                              name="plannedMinutes"
+                              type="number"
+                              min={1}
+                              step={1}
+                              placeholder="Bijv. 90"
+                              defaultValue={parseMinutesFromLabel(task.remaining)}
+                            />
+                          </label>
                           <label>
                             Omschrijving (optioneel)
                             <textarea
@@ -1793,6 +1896,10 @@ export function TakenVisualPrototype({
                       <input name="deadlineTime" type="time" />
                     </label>
                   </div>
+                  <label>
+                    Geplande tijd (minuten) <span aria-hidden="true">*</span>
+                    <input name="plannedMinutes" type="number" min={1} step={1} required placeholder="Bijv. 45" />
+                  </label>
                   {selectedTask.deadlineValue && <p className={styles.formHint}>Uiterlijk {selectedTask.deadline}</p>}
                   <label>
                     Omschrijving (optioneel)
@@ -1906,6 +2013,18 @@ export function TakenVisualPrototype({
                                 />
                               </label>
                             </div>
+                            <label>
+                              Geplande tijd (minuten) <span aria-hidden="true">*</span>
+                              <input
+                                name="plannedMinutes"
+                                type="number"
+                                min={1}
+                                step={1}
+                                required
+                                placeholder="Bijv. 45"
+                                defaultValue={parseMinutesFromLabel(selectedSubtask.remaining)}
+                              />
+                            </label>
                             {selectedTask.deadlineValue && <p className={styles.formHint}>Uiterlijk {selectedTask.deadline}</p>}
                             <label>
                               Omschrijving (optioneel)
