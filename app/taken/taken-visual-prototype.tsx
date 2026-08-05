@@ -209,6 +209,7 @@ type Subtask = {
   title: string;
   deadline: string;
   deadlineValue?: string;
+  hardDeadline?: boolean;
   remaining: string;
   description?: string;
   state?: "active" | "blocked" | "waiting" | "done" | "planned" | "archived";
@@ -220,6 +221,7 @@ type MainTask = {
   note: string;
   deadline: string;
   deadlineValue?: string;
+  hardDeadline?: boolean;
   remaining: string;
   status: TaskStatus;
   risk: RiskLevel;
@@ -973,6 +975,7 @@ export function TakenVisualPrototype({
     const title = String(formData.get("title") ?? "").trim();
     const deadlineDate = String(formData.get("deadlineDate") ?? "").trim();
     const deadlineTime = String(formData.get("deadlineTime") ?? "").trim();
+    const hardDeadline = formData.get("hardDeadline") === "on";
     const description = String(formData.get("description") ?? "").trim();
     const plannedMinutesRaw = String(formData.get("plannedMinutes") ?? "").trim();
 
@@ -1019,6 +1022,11 @@ export function TakenVisualPrototype({
         return;
       }
 
+      if (hardDeadline && split.carryOverMinutes > 0) {
+        setFormError("Doorplannen niet mogelijk: hier zit harde deadline.");
+        return;
+      }
+
       if (split.todayMinutes <= 0) {
         effectiveDeadlineDate = split.carryOverDate;
         movedCompletelyToNextDay = true;
@@ -1053,6 +1061,7 @@ export function TakenVisualPrototype({
               title,
               deadline: deadlineLabel,
               deadlineValue,
+              hardDeadline,
               remaining: effectivePlannedMinutes !== null ? formatMinutesLabel(effectivePlannedMinutes) : task.remaining,
               description: description || "Nog geen omschrijving toegevoegd.",
             }
@@ -1097,6 +1106,7 @@ export function TakenVisualPrototype({
     const title = String(formData.get("title") ?? "").trim();
     const deadlineDate = String(formData.get("deadlineDate") ?? "").trim();
     const deadlineTime = String(formData.get("deadlineTime") ?? "").trim();
+    const hardDeadline = formData.get("hardDeadline") === "on";
     const description = String(formData.get("description") ?? "").trim();
     const plannedMinutesRaw = String(formData.get("plannedMinutes") ?? "").trim();
 
@@ -1139,6 +1149,11 @@ export function TakenVisualPrototype({
 
     if (!split) {
       setFormError("Opslaan geannuleerd. Kies een andere dag of bevestig het meenemen naar de volgende dag.");
+      return;
+    }
+
+    if (hardDeadline && split.carryOverMinutes > 0) {
+      setFormError("Doorplannen niet mogelijk: hier zit harde deadline.");
       return;
     }
 
@@ -1196,6 +1211,7 @@ export function TakenVisualPrototype({
                 title,
                 deadline: deadlineLabel,
                 deadlineValue,
+                hardDeadline,
                 remaining: formatMinutesLabel(effectivePlannedMinutes),
                 description: description || undefined,
               }
@@ -1243,6 +1259,7 @@ export function TakenVisualPrototype({
     const title = String(formData.get("title") ?? "").trim();
     const deadlineDate = String(formData.get("deadlineDate") ?? "").trim();
     const deadlineTime = String(formData.get("deadlineTime") ?? "").trim();
+    const hardDeadline = formData.get("hardDeadline") === "on";
     const description = String(formData.get("description") ?? "").trim();
     const plannedMinutesRaw = String(formData.get("plannedMinutes") ?? "").trim();
 
@@ -1287,6 +1304,11 @@ export function TakenVisualPrototype({
         return;
       }
 
+      if (hardDeadline && split.carryOverMinutes > 0) {
+        setMainTaskError("Doorplannen niet mogelijk: hier zit harde deadline.");
+        return;
+      }
+
       if (split.todayMinutes <= 0) {
         effectiveDeadlineDate = split.carryOverDate;
         movedCompletelyToNextDay = true;
@@ -1321,6 +1343,7 @@ export function TakenVisualPrototype({
       note: "0 subtaken",
       deadline: deadlineLabel,
       deadlineValue,
+      hardDeadline,
       remaining: effectivePlannedMinutes !== null ? formatMinutesLabel(effectivePlannedMinutes) : "Nog te schatten",
       status: "normal",
       risk: null,
@@ -1370,6 +1393,7 @@ export function TakenVisualPrototype({
     const title = String(formData.get("title") ?? "").trim();
     const deadlineDate = String(formData.get("deadlineDate") ?? "").trim();
     const deadlineTime = String(formData.get("deadlineTime") ?? "").trim();
+    const hardDeadline = formData.get("hardDeadline") === "on";
     const description = String(formData.get("description") ?? "").trim();
     const plannedMinutesRaw = String(formData.get("plannedMinutes") ?? "").trim();
 
@@ -1411,6 +1435,11 @@ export function TakenVisualPrototype({
 
     if (!split) {
       setFormError("Opslaan geannuleerd. Kies een andere dag of bevestig het meenemen naar de volgende dag.");
+      return;
+    }
+
+    if (hardDeadline && split.carryOverMinutes > 0) {
+      setFormError("Doorplannen niet mogelijk: hier zit harde deadline.");
       return;
     }
 
@@ -1460,6 +1489,7 @@ export function TakenVisualPrototype({
       deadline: deadlineTime
         ? formatDeadline(`${effectiveDeadlineDate}T${deadlineTime}`)
         : formatDeadlineDateOnly(effectiveDeadlineDate),
+      hardDeadline,
       remaining: formatMinutesLabel(effectivePlannedMinutes),
       description: description || undefined,
       state: "planned",
@@ -1837,6 +1867,9 @@ export function TakenVisualPrototype({
                     <input name="plannedMinutes" type="number" min={1} step={1} placeholder="Bijv. 90" />
                   </label>
                   <label>
+                    <input name="hardDeadline" type="checkbox" /> Harde deadline (mag niet doorschuiven)
+                  </label>
+                  <label>
                     Omschrijving (optioneel)
                     <textarea
                       name="description"
@@ -1884,7 +1917,7 @@ export function TakenVisualPrototype({
                         >
                           <span className={styles.taskTitleCell}>
                             <strong>{task.title}</strong>
-                            <small>{status ?? task.note}</small>
+                            <small>{task.hardDeadline ? `${status ?? task.note} · Harde deadline` : (status ?? task.note)}</small>
                           </span>
                           <span className={styles.deadlineCell}>{task.deadline}</span>
                           <span className={styles.remainingCell}>{task.remaining}</span>
@@ -1940,6 +1973,9 @@ export function TakenVisualPrototype({
                               placeholder="Bijv. 90"
                               defaultValue={parseMinutesFromLabel(task.remaining)}
                             />
+                          </label>
+                          <label>
+                            <input name="hardDeadline" type="checkbox" defaultChecked={Boolean(task.hardDeadline)} /> Harde deadline (mag niet doorschuiven)
                           </label>
                           <label>
                             Omschrijving (optioneel)
@@ -2128,6 +2164,7 @@ export function TakenVisualPrototype({
                     </span>
                   )}
                   <span>Deadline {selectedTask.deadline}</span>
+                  {selectedTask.hardDeadline && <span>Harde deadline</span>}
                 </div>
               </header>
 
@@ -2211,6 +2248,9 @@ export function TakenVisualPrototype({
                     Geplande tijd (minuten) <span aria-hidden="true">*</span>
                     <input name="plannedMinutes" type="number" min={1} step={1} required placeholder="Bijv. 45" />
                   </label>
+                  <label>
+                    <input name="hardDeadline" type="checkbox" /> Harde deadline (mag niet doorschuiven)
+                  </label>
                   {selectedTask.deadlineValue && <p className={styles.formHint}>Uiterlijk {selectedTask.deadline}</p>}
                   <label>
                     Omschrijving (optioneel)
@@ -2270,7 +2310,7 @@ export function TakenVisualPrototype({
                             <span className={styles.subtaskMarker} aria-hidden="true" />
                             <span className={styles.subtaskText}>
                               <strong>{subtask.title}</strong>
-                              <small>{subtask.deadline}</small>
+                              <small>{subtask.hardDeadline ? `${subtask.deadline} · Harde deadline` : subtask.deadline}</small>
                             </span>
                             {stateLabel && <span className={subtask.state === "blocked" ? styles.blockedText : styles.subtaskState}>{stateLabel}</span>}
                             <span className={styles.subtaskTime}>{subtask.remaining}</span>
@@ -2336,6 +2376,9 @@ export function TakenVisualPrototype({
                                 placeholder="Bijv. 45"
                                 defaultValue={parseMinutesFromLabel(selectedSubtask.remaining)}
                               />
+                            </label>
+                            <label>
+                              <input name="hardDeadline" type="checkbox" defaultChecked={Boolean(selectedSubtask.hardDeadline)} /> Harde deadline (mag niet doorschuiven)
                             </label>
                             {selectedTask.deadlineValue && <p className={styles.formHint}>Uiterlijk {selectedTask.deadline}</p>}
                             <label>
