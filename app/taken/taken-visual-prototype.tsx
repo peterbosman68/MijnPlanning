@@ -980,6 +980,10 @@ export function TakenVisualPrototype({
       setFormError("Vul een titel in.");
       return;
     }
+    if (!deadlineDate) {
+      setFormError("Kies een deadline op vandaag of later.");
+      return;
+    }
     if (deadlineTime && !deadlineDate) {
       setFormError("Vul eerst een datum in voordat je een tijd invult.");
       return;
@@ -1156,6 +1160,10 @@ export function TakenVisualPrototype({
 
     if (selectedTask.deadlineValue) {
       const parent = splitDeadlineValue(selectedTask.deadlineValue);
+      if (parent.date && isPastDateValue(parent.date)) {
+        setFormError("De hoofdtaakdeadline ligt in het verleden. Pas eerst de hoofdtaak aan naar vandaag of later.");
+        return;
+      }
       const parentComparable = new Date(`${parent.date}T${parent.time || DEFAULT_END_OF_WORKDAY}`);
       if (childComparable.getTime() > parentComparable.getTime()) {
         setFormError(`Kies een deadline op of vóór ${selectedTask.deadline}.`);
@@ -1240,6 +1248,10 @@ export function TakenVisualPrototype({
 
     if (!title) {
       setMainTaskError("Vul een titel in.");
+      return;
+    }
+    if (!deadlineDate) {
+      setMainTaskError("Kies een deadline op vandaag of later.");
       return;
     }
 
@@ -1420,6 +1432,10 @@ export function TakenVisualPrototype({
 
     if (selectedTask.deadlineValue) {
       const parent = splitDeadlineValue(selectedTask.deadlineValue);
+      if (parent.date && isPastDateValue(parent.date)) {
+        setFormError("De hoofdtaakdeadline ligt in het verleden. Pas eerst de hoofdtaak aan naar vandaag of later.");
+        return;
+      }
       const parentComparable = new Date(
         `${parent.date}T${parent.time || DEFAULT_END_OF_WORKDAY}`,
       );
@@ -1804,12 +1820,12 @@ export function TakenVisualPrototype({
                     <input name="title" type="text" required autoFocus placeholder="Wat wil je afronden?" />
                   </label>
                   <label>
-                    Deadline (optioneel)
+                    Deadline <span aria-hidden="true">*</span>
                   </label>
                   <div className={styles.deadlineFields}>
                     <label>
-                      Datum
-                      <input name="deadlineDate" type="date" min={minimumDeadlineDate} />
+                      Datum <span aria-hidden="true">*</span>
+                      <input name="deadlineDate" type="date" min={minimumDeadlineDate} required />
                     </label>
                     <label>
                       Tijd (optioneel)
@@ -1906,8 +1922,8 @@ export function TakenVisualPrototype({
                           </label>
                           <div className={styles.deadlineFields}>
                             <label>
-                              Deadline datum
-                              <input name="deadlineDate" type="date" min={minimumDeadlineDate} defaultValue={taskDeadline.date} />
+                              Deadline datum <span aria-hidden="true">*</span>
+                              <input name="deadlineDate" type="date" min={minimumDeadlineDate} required defaultValue={taskDeadline.date} />
                             </label>
                             <label>
                               Tijd (optioneel)
