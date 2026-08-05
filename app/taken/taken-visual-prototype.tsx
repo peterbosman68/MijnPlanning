@@ -986,7 +986,7 @@ export function TakenVisualPrototype({
     let carryOverTask: { minutes: number; date: string } | null = null;
     let movedCompletelyToNextDay = false;
 
-    if (deadlineDate && plannedMinutes !== null && selectedTask.subtasks.length === 0) {
+    if (deadlineDate && plannedMinutes !== null) {
       const currentTaskMinutes = taskOwnPlannedMinutesOnDate(selectedTask, deadlineDate);
       const otherPlannedWorkMinutes = Math.max(0, totalPlannedWorkMinutesForDate(tasks, deadlineDate) - currentTaskMinutes);
       const split = resolveDailyLimitWithCarryOver(deadlineDate, plannedMinutes, otherPlannedWorkMinutes);
