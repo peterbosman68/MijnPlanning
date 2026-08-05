@@ -269,12 +269,12 @@ type WhatsAppMessage = {
 const NAV_ITEMS: Array<{ id: ViewKey; label: string; icon: ViewKey }> = [
   { id: "today", label: "Vandaag", icon: "today" },
   { id: "week", label: "Week", icon: "week" },
-  { id: "tasks", label: "ToDo", icon: "tasks" },
+  { id: "tasks", label: "Taken", icon: "tasks" },
   { id: "appointments", label: "Afspraken", icon: "appointments" },
   { id: "email", label: "E-mail", icon: "email" },
   { id: "whatsapp", label: "WhatsApp", icon: "whatsapp" },
-  { id: "waiting", label: "Wachten", icon: "waiting" },
-  { id: "completed", label: "Afgerond", icon: "completed" },
+  { id: "waiting", label: "Taken Mogelijk", icon: "waiting" },
+  { id: "completed", label: "Taken Afgerond", icon: "completed" },
 ];
 
 const INITIAL_TASKS: MainTask[] = [
@@ -918,12 +918,12 @@ export function TakenVisualPrototype({
   const viewTitle: Record<ViewKey, string> = {
     today: "Vandaag",
     week: "Deze week",
-    tasks: "ToDo",
+    tasks: "Taken",
     appointments: "Afspraken",
     email: "E-mail",
     whatsapp: "WhatsApp",
-    waiting: "Wachten",
-    completed: "Afgerond",
+    waiting: "Taken Mogelijk",
+    completed: "Taken Afgerond",
   };
 
   function getActiveEditorForm() {
@@ -1884,7 +1884,7 @@ export function TakenVisualPrototype({
               <span aria-hidden="true">←</span> Navigatie
             </button>
             <div>
-              <p className={styles.eyebrow}>Werkoverzicht</p>
+              <p className={styles.eyebrow}>{currentKind === "tasks" ? "Taken" : "Werkoverzicht"}</p>
               <h1 id="list-title">{viewTitle[activeView]}</h1>
             </div>
             <p className={styles.listIntro}>
