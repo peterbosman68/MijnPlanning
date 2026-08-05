@@ -1857,6 +1857,10 @@ export function TakenVisualPrototype({
                       Datum <span aria-hidden="true">*</span>
                       <input name="deadlineDate" type="date" min={minimumDeadlineDate} required />
                     </label>
+                    <label className={styles.hardDeadlineField}>
+                      Hard
+                      <input name="hardDeadline" type="checkbox" />
+                    </label>
                     <label>
                       Tijd (optioneel)
                       <input name="deadlineTime" type="time" />
@@ -1865,9 +1869,6 @@ export function TakenVisualPrototype({
                   <label>
                     Geplande tijd (minuten, optioneel)
                     <input name="plannedMinutes" type="number" min={1} step={1} placeholder="Bijv. 90" />
-                  </label>
-                  <label>
-                    <input name="hardDeadline" type="checkbox" /> Harde deadline (mag niet doorschuiven)
                   </label>
                   <label>
                     Omschrijving (optioneel)
@@ -1958,6 +1959,10 @@ export function TakenVisualPrototype({
                               Deadline datum <span aria-hidden="true">*</span>
                               <input name="deadlineDate" type="date" min={minimumDeadlineDate} required defaultValue={taskDeadline.date} />
                             </label>
+                            <label className={styles.hardDeadlineField}>
+                              Hard
+                              <input name="hardDeadline" type="checkbox" defaultChecked={Boolean(task.hardDeadline)} />
+                            </label>
                             <label>
                               Tijd (optioneel)
                               <input name="deadlineTime" type="time" defaultValue={taskDeadline.time} />
@@ -1973,9 +1978,6 @@ export function TakenVisualPrototype({
                               placeholder="Bijv. 90"
                               defaultValue={parseMinutesFromLabel(task.remaining)}
                             />
-                          </label>
-                          <label>
-                            <input name="hardDeadline" type="checkbox" defaultChecked={Boolean(task.hardDeadline)} /> Harde deadline (mag niet doorschuiven)
                           </label>
                           <label>
                             Omschrijving (optioneel)
@@ -2239,6 +2241,10 @@ export function TakenVisualPrototype({
                       Deadline datum <span aria-hidden="true">*</span>
                       <input name="deadlineDate" type="date" min={minimumDeadlineDate} required />
                     </label>
+                    <label className={styles.hardDeadlineField}>
+                      Hard
+                      <input name="hardDeadline" type="checkbox" />
+                    </label>
                     <label>
                       Tijd (optioneel)
                       <input name="deadlineTime" type="time" />
@@ -2247,9 +2253,6 @@ export function TakenVisualPrototype({
                   <label>
                     Geplande tijd (minuten) <span aria-hidden="true">*</span>
                     <input name="plannedMinutes" type="number" min={1} step={1} required placeholder="Bijv. 45" />
-                  </label>
-                  <label>
-                    <input name="hardDeadline" type="checkbox" /> Harde deadline (mag niet doorschuiven)
                   </label>
                   {selectedTask.deadlineValue && <p className={styles.formHint}>Uiterlijk {selectedTask.deadline}</p>}
                   <label>
@@ -2356,6 +2359,10 @@ export function TakenVisualPrototype({
                                   defaultValue={splitDeadlineValue(selectedSubtask.deadlineValue).date}
                                 />
                               </label>
+                              <label className={styles.hardDeadlineField}>
+                                Hard
+                                <input name="hardDeadline" type="checkbox" defaultChecked={Boolean(selectedSubtask.hardDeadline)} />
+                              </label>
                               <label>
                                 Tijd (optioneel)
                                 <input
@@ -2376,9 +2383,6 @@ export function TakenVisualPrototype({
                                 placeholder="Bijv. 45"
                                 defaultValue={parseMinutesFromLabel(selectedSubtask.remaining)}
                               />
-                            </label>
-                            <label>
-                              <input name="hardDeadline" type="checkbox" defaultChecked={Boolean(selectedSubtask.hardDeadline)} /> Harde deadline (mag niet doorschuiven)
                             </label>
                             {selectedTask.deadlineValue && <p className={styles.formHint}>Uiterlijk {selectedTask.deadline}</p>}
                             <label>
