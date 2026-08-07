@@ -22,7 +22,7 @@ export async function GET(request: Request) {
   }
 
   try {
-    const bookedMinutes = await getOutlookBookedMinutesForDate(dateValue, user.id);
+    const bookedMinutes = await getOutlookBookedMinutesForDate(dateValue, user.user.id);
     return NextResponse.json({ dateValue, bookedMinutes });
   } catch (error) {
     if (error instanceof OutlookCalendarConfigError) {
