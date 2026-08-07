@@ -11,7 +11,7 @@ export function getSessionCookieOptions(
   return {
     httpOnly: true,
     secure: isProduction,
-    sameSite: "strict" as const,
+    sameSite: "lax" as const,
     path: "/",
     expires: expiresAt,
   };

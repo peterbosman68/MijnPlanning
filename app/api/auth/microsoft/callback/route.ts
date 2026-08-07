@@ -89,7 +89,7 @@ export async function GET(request: Request) {
   }
 
   await saveMicrosoftTokens(
-    user.id,
+    user.user.id,
     tokenData.access_token,
     tokenData.refresh_token,
     tokenData.expires_in,

@@ -25,7 +25,7 @@ describe("sessiebeveiliging", () => {
     expect(getSessionCookieOptions(expiresAt, true)).toEqual({
       httpOnly: true,
       secure: true,
-      sameSite: "strict",
+      sameSite: "lax",
       path: "/",
       expires: expiresAt,
     });
