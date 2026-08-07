@@ -1,6 +1,6 @@
 import "server-only";
 
-import { getServerEnv } from "@/lib/config/server-env";
+import { getValidAccessToken } from "./token-service";
 
 class OutlookCalendarConfigError extends Error {
   constructor(message: string) {
@@ -46,20 +46,21 @@ function overlapMinutes(
   return Math.round((endMs - startMs) / (1000 * 60));
 }
 
-export async function getOutlookBookedMinutesForDate(dateValue: string) {
-  const env = getServerEnv();
-  const accessToken = env.MICROSOFT_GRAPH_ACCESS_TOKEN;
-
-  if (!accessToken) {
-    throw new OutlookCalendarConfigError("Outlook-agenda is nog niet geconfigureerd.");
+export async function getOutlookBookedMinutesForDate(dateValue: string, userId: string) {
+  let accessToken: string;
+  try {
+    accessToken = await getValidAccessToken(userId);
+  } catch {
+    throw new OutlookCalendarConfigError("Outlook-agenda is niet gekoppeld of geconfigureerd.");
   }
 
   const startDateTime = toIsoUtc(dateValue);
   const endDateTime = toIsoUtc(nextDateValue(dateValue));
   const encodedStart = encodeURIComponent(startDateTime);
   const encodedEnd = encodeURIComponent(endDateTime);
-  const calendarPath = env.MICROSOFT_GRAPH_CALENDAR_ID
-    ? `/me/calendars/${encodeURIComponent(env.MICROSOFT_GRAPH_CALENDAR_ID)}/calendarView`
+  const calendarId = process.env.MICROSOFT_GRAPH_CALENDAR_ID;
+  const calendarPath = calendarId
+    ? `/me/calendars/${encodeURIComponent(calendarId)}/calendarView`
     : "/me/calendarView";
 
   const endpoint =

@@ -12,7 +12,7 @@ function isIsoDate(value: string) {
 }
 
 export async function GET(request: Request) {
-  await requireUser();
+  const user = await requireUser();
 
   const { searchParams } = new URL(request.url);
   const dateValue = searchParams.get("date")?.trim() ?? "";
@@ -22,7 +22,7 @@ export async function GET(request: Request) {
   }
 
   try {
-    const bookedMinutes = await getOutlookBookedMinutesForDate(dateValue);
+    const bookedMinutes = await getOutlookBookedMinutesForDate(dateValue, user.id);
     return NextResponse.json({ dateValue, bookedMinutes });
   } catch (error) {
     if (error instanceof OutlookCalendarConfigError) {

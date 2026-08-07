@@ -9,6 +9,7 @@ describe("technische projectbasis", () => {
   it("bevat uitsluitend het afgesproken authdatamodel", () => {
     expect(Prisma.dmmf.datamodel.models.map((model) => model.name).sort()).toEqual([
       "AuthThrottle",
+      "MicrosoftToken",
       "PasswordResetToken",
       "Session",
       "Subtask",
