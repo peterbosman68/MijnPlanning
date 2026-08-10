@@ -64,7 +64,7 @@ describe("eenmalige Microsoft To Do-import", () => {
     mocks.findImportItems.mockResolvedValue([]);
   });
 
-  it("behoudt bestaande taken en importeert alleen onbekende To Do-items", async () => {
+  it("behoudt bestaande taken en importeert alleen geselecteerde onbekende To Do-items", async () => {
     const graphResponses = [
       { value: [{ id: "list-1", displayName: "Taken" }] },
       {
@@ -83,6 +83,7 @@ describe("eenmalige Microsoft To Do-import", () => {
               webUrl: "https://example.com/document",
             }],
           },
+          { id: "excluded", title: "Bewust uitgesloten", body: { content: "Niet importeren" } },
         ],
       },
     ];
@@ -93,12 +94,12 @@ describe("eenmalige Microsoft To Do-import", () => {
     vi.stubGlobal("fetch", fetchMock);
     mocks.findMany.mockResolvedValue([{ sourceExternalId: "todo:list-1:existing" }]);
 
-    const result = await executeTodoImport("user-1");
+    const result = await executeTodoImport("user-1", ["todo:list-1:new"]);
 
     expect(mocks.findMany).toHaveBeenCalledWith({
       where: {
         userId: "user-1",
-        sourceExternalId: { in: ["todo:list-1:existing", "todo:list-1:new"] },
+        sourceExternalId: { in: ["todo:list-1:existing", "todo:list-1:new", "todo:list-1:excluded"] },
       },
       select: { sourceExternalId: true },
     });
@@ -130,9 +131,9 @@ describe("eenmalige Microsoft To Do-import", () => {
     expect(result).toEqual({
       batchId: "batch-1",
       listsCount: 1,
-      fetchedCount: 2,
+      fetchedCount: 3,
       importedCount: 1,
-      skippedCount: 1,
+      skippedCount: 2,
     });
     expect(mocks.createImportItem).toHaveBeenCalledWith({
       data: expect.objectContaining({
@@ -148,7 +149,7 @@ describe("eenmalige Microsoft To Do-import", () => {
       data: expect.objectContaining({
         status: "COMPLETED",
         importedCount: 1,
-        skippedCount: 1,
+        skippedCount: 2,
       }),
     });
   });
@@ -165,6 +166,22 @@ describe("eenmalige Microsoft To Do-import", () => {
   it("weigert een onbekende tijdzone in plaats van de deadline stil te verschuiven", () => {
     expect(() => mapTodoDeadline({ dateTime: "2026-08-10T17:00:00", timeZone: "Unknown Zone" }))
       .toThrow("Niet-ondersteunde To Do-tijdzone");
+  });
+
+  it("weigert een verouderde selectie voordat een importbatch wordt gemaakt", async () => {
+    const graphResponses = [
+      { value: [{ id: "list-1", displayName: "Taken" }] },
+      { value: [{ id: "current", title: "Actuele taak", body: { content: "" } }] },
+    ];
+    vi.stubGlobal("fetch", vi.fn().mockImplementation(async () => ({
+      ok: true,
+      json: async () => graphResponses.shift(),
+    })));
+
+    await expect(executeTodoImport("user-1", ["todo:list-1:removed"]))
+      .rejects.toThrow("selectie is verouderd");
+    expect(mocks.createBatch).not.toHaveBeenCalled();
+    expect(mocks.createTask).not.toHaveBeenCalled();
   });
 
   it("importeert taken met documenten zonder de geweigerde attachments-endpoint aan te roepen", async () => {
@@ -193,6 +210,13 @@ describe("eenmalige Microsoft To Do-import", () => {
     expect(preview.attachmentCount).toBe(0);
     expect(preview.manualFileTaskCount).toBe(1);
     expect(preview.manualFileTaskTitles).toEqual(["Taak met bestand"]);
+    expect(preview.importableItems).toEqual([{
+      sourceExternalId: "todo:list-1:task-1",
+      title: "Taak met bestand",
+      listDisplayName: "Taken",
+      status: "OPEN",
+      requiresManualFileTransfer: true,
+    }]);
     expect(fetchMock).not.toHaveBeenCalledWith(
       expect.stringContaining("/attachments"),
       expect.any(Object),

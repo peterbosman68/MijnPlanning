@@ -163,25 +163,9 @@
   font-weight: 700;
 }
 
-.sampleList,
 .stepList {
   margin: 0;
   padding-left: 20px;
-}
-
-.sampleList {
-  display: grid;
-  gap: 10px;
-  padding-left: 0;
-  list-style: none;
-}
-
-.sampleItem {
-  padding: 12px 14px;
-  border-radius: 14px;
-  background: linear-gradient(180deg, rgba(232, 240, 251, 0.72), rgba(245, 249, 255, 0.95));
-  border: 1px solid rgba(103, 133, 175, 0.2);
-  color: #183354;
 }
 
 .stepList {
@@ -213,6 +197,116 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.searchLabel {
+  display: grid;
+  gap: 7px;
+  color: #294664;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.searchLabel input {
+  width: 100%;
+  min-height: 42px;
+  padding: 9px 12px;
+  border: 1px solid rgba(45, 77, 119, 0.3);
+  border-radius: 7px;
+  background: #ffffff;
+  color: #11203a;
+  font: inherit;
+  font-weight: 400;
+}
+
+.searchLabel input:focus-visible {
+  outline: 3px solid rgba(29, 92, 168, 0.2);
+  border-color: #1d5ca8;
+}
+
+.selectionActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.selectionActions button {
+  min-height: 36px;
+  padding: 7px 11px;
+  border: 1px solid rgba(23, 56, 95, 0.22);
+  border-radius: 7px;
+  background: #f7faff;
+  color: #17385f;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.selectionActions button:hover:not(:disabled) {
+  background: #e8f0fb;
+}
+
+.selectionActions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.selectionList {
+  max-height: 560px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  border-block: 1px solid rgba(30, 57, 101, 0.12);
+  list-style: none;
+}
+
+.selectionItem {
+  border-bottom: 1px solid rgba(30, 57, 101, 0.1);
+}
+
+.selectionItem:last-child {
+  border-bottom: 0;
+}
+
+.selectionItem label {
+  display: flex;
+  min-height: 52px;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 8px;
+  cursor: pointer;
+}
+
+.selectionItem label:hover {
+  background: #f4f8fe;
+}
+
+.selectionItem input {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  margin-top: 2px;
+  accent-color: #0f3d7a;
+}
+
+.selectionText {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+  overflow-wrap: anywhere;
+}
+
+.selectionText strong {
+  color: #183354;
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.selectionText small {
+  color: #607695;
+  font-size: 12px;
+  line-height: 1.35;
 }
 
 .importConfirmation {
@@ -310,5 +404,13 @@
 
   .summaryGrid {
     grid-template-columns: 1fr;
+  }
+
+  .selectionList {
+    max-height: 460px;
+  }
+
+  .panelMeta {
+    white-space: nowrap;
   }
 }

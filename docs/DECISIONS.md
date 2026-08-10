@@ -298,6 +298,15 @@ Nieuwe besluiten worden onderaan toegevoegd met datum.
 - Titels, originele notities, deadlines, statussen en veilige gekoppelde links blijven onderdeel van de import.
 - Documentbestanden worden niet door de automatische import opgevraagd of gekopieerd.
 - De preview toont expliciet welke taken na de import handmatige documentoverdracht nodig hebben.
+
+### O31 — handmatige selectie vóór de To Do-import
+
+- Microsoft Graph kan taken blijven teruggeven die Peter niet meer in de To Do-interface ziet.
+- De tijdelijke importpreview toont daarom alle nog importeerbare Graph-kandidaten en selecteert die standaard.
+- Peter kan individuele kandidaten uitschakelen voordat hij de eenmalige import bevestigt.
+- Alleen de expliciet geselecteerde bron-ID's worden geïmporteerd; de server controleert die selectie opnieuw tegen een actuele Graph-respons.
+- Uitgeschakelde kandidaten worden niet in MijnPlanning aangemaakt en To Do blijft ongewijzigd.
+- Peter heeft deze gerichte afwijking van O29 op 11 augustus 2026 expliciet goedgekeurd.
 - De originele Microsoft To Do-taken en documenten blijven ongewijzigd.
 - Peter heeft deze aangepaste importaanpak op 11 augustus 2026 expliciet opgedragen.
 - De eerste echte import vindt op productie plaats na een afzonderlijke expliciete bevestiging op de gecontroleerde preview.

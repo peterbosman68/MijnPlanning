@@ -107,7 +107,15 @@ export type TodoImportPreview = Readonly<{
   linkCount: number;
   manualFileTaskCount: number;
   manualFileTaskTitles: string[];
-  sampleTitles: string[];
+  importableItems: TodoImportPreviewItem[];
+}>;
+
+export type TodoImportPreviewItem = Readonly<{
+  sourceExternalId: string;
+  title: string;
+  listDisplayName: string;
+  status: TaskStatus;
+  requiresManualFileTransfer: boolean;
 }>;
 
 export type TodoImportResult = Readonly<{
@@ -386,21 +394,38 @@ export async function previewTodoImport(userId: string): Promise<TodoImportPrevi
   const { lists, candidates } = await fetchTodoListsAndTasks(userId);
   const attachments = candidates.flatMap((candidate) => candidate.attachments);
   const existingIds = await getPreviouslyImportedSourceIds(userId, candidates);
+  const importableCandidates = candidates.filter((candidate) => !existingIds.has(candidate.sourceExternalId));
 
   return {
     listsCount: lists.length,
     tasksCount: candidates.length,
-    importableCount: candidates.filter((candidate) => !existingIds.has(candidate.sourceExternalId)).length,
+    importableCount: importableCandidates.length,
     attachmentCount: 0,
     linkCount: attachments.filter((attachment) => attachment.kind === "LINK").length,
     manualFileTaskCount: candidates.filter((candidate) => candidate.requiresManualFileTransfer).length,
     manualFileTaskTitles: candidates.filter((candidate) => candidate.requiresManualFileTransfer).map((candidate) => candidate.title),
-    sampleTitles: candidates.slice(0, 10).map((item) => item.title),
+    importableItems: importableCandidates.map((candidate) => ({
+      sourceExternalId: candidate.sourceExternalId,
+      title: candidate.title,
+      listDisplayName: candidate.listDisplayName,
+      status: candidate.status,
+      requiresManualFileTransfer: candidate.requiresManualFileTransfer,
+    })),
   };
 }
 
-export async function executeTodoImport(userId: string): Promise<TodoImportResult> {
+export async function executeTodoImport(
+  userId: string,
+  selectedSourceExternalIds: readonly string[],
+): Promise<TodoImportResult> {
   const { lists, candidates } = await fetchTodoListsAndTasks(userId);
+  const candidateIds = new Set(candidates.map((candidate) => candidate.sourceExternalId));
+  const selectedIds = new Set(selectedSourceExternalIds);
+
+  if (selectedSourceExternalIds.some((sourceExternalId) => !candidateIds.has(sourceExternalId))) {
+    throw new MicrosoftTodoRequestError("De To Do-selectie is verouderd. Vernieuw de preview en controleer de selectie opnieuw.");
+  }
+
   const microsoftToken = await prisma.microsoftToken.findUnique({
     where: { userId },
     select: { microsoftAccountId: true },
@@ -435,7 +460,9 @@ export async function executeTodoImport(userId: string): Promise<TodoImportResul
 
   const existingIds = await getPreviouslyImportedSourceIds(userId, candidates);
 
-  const importCandidates = candidates.filter((candidate) => !existingIds.has(candidate.sourceExternalId));
+  const importCandidates = candidates.filter(
+    (candidate) => selectedIds.has(candidate.sourceExternalId) && !existingIds.has(candidate.sourceExternalId),
+  );
   skippedCount = candidates.length - importCandidates.length;
 
   const preparedAttachmentsByTask = new Map<string, PreparedAttachmentRecord[]>();
