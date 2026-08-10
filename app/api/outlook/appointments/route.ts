@@ -8,9 +8,9 @@ import {
 } from "@/lib/microsoft/outlook-calendar";
 
 function parseDays(value: string | null) {
-  if (!value) return 30;
+  if (!value) return 84;
   const parsed = Number.parseInt(value, 10);
-  if (!Number.isInteger(parsed) || parsed < 1 || parsed > 90) return 30;
+  if (!Number.isInteger(parsed) || parsed < 1 || parsed > 120) return 84;
   return parsed;
 }
 

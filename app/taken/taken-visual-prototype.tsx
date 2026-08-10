@@ -858,7 +858,7 @@ export function TakenVisualPrototype({
       setAppointmentsLoading(true);
       setAppointmentsError(null);
       try {
-        const response = await fetch("/api/outlook/appointments?days=30", {
+        const response = await fetch("/api/outlook/appointments?days=84", {
           method: "GET",
           cache: "no-store",
           signal: controller.signal,
