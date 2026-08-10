@@ -1078,7 +1078,7 @@ export function TakenVisualPrototype({
   }
 
   function openTodoImportPreview() {
-    window.open("/api/todo/import/preview", "_blank", "noopener,noreferrer");
+    window.open("/todo-import-preview", "_blank", "noopener,noreferrer");
   }
 
   async function updateMainTask(event: FormEvent<HTMLFormElement>) {
@@ -1985,7 +1985,7 @@ export function TakenVisualPrototype({
                   className={styles.secondaryButton}
                   onClick={openTodoImportPreview}
                 >
-                  To Do importpreview
+                  To Do import
                 </button>
               </div>
             )}
