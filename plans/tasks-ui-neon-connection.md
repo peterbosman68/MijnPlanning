@@ -155,5 +155,6 @@ Na expliciete goedkeuring wordt deze afgebakende implementatie uitgevoerd. De da
 - [x] Lokale schijnopslag vervangen door Server Actions.
 - [x] Officiële Graph list/get-flow voor bestandsbijlagen fail-closed gemaakt.
 - [x] Gerichte tests en alle kwaliteitsgates groen (lint, typecheck, 46 tests, build en 16 Playwright-tests).
-- [ ] Commit, push en Vercel-productiecontrole afgerond.
+- [x] Commit, push en Vercel-productiecontrole afgerond; deployment `ff52688` is Ready en de healthroute meldt `ok`.
+- [ ] Ingelogde desktop-/mobiele Taken-controle en productiepreview opnieuw uitgevoerd met Peters bestaande sessie.
 - [ ] Productie-import afzonderlijk bevestigd en uitgevoerd.
