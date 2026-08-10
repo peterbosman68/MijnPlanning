@@ -136,6 +136,8 @@ De domeinlaag bevat:
 - importregels;
 - autorisatieregels.
 
+De attachments-module beheert zowel echte bestandskopieën als externe links. Gekoppelde bestanden worden server-side opgeslagen in Vercel Blob Private, terwijl linkbijlagen als metadata worden bewaard en als read-only verwijzing worden getoond. To Do-import mag bijlagen kopiëren naar de bijbehorende hoofdtaak of subtaak, maar schrijft niets terug naar Microsoft.
+
 Deadlines zijn tijdstippen met datum én tijd. Domeinservices converteren invoer uit `Europe/Amsterdam` naar UTC en valideren de deadlinehiërarchie. Een voorgestelde tijd van 17.00 uur bij datumkeuze blijft zichtbaar en aanpasbaar.
 
 ### 4.3 Datalayer
@@ -153,6 +155,8 @@ De datalaag bestaat uit:
 React-componenten mogen Prisma niet rechtstreeks gebruiken.
 
 Een lokale PostgreSQL-installatie is niet nodig. Development-, test- en productiegegevens blijven aantoonbaar gescheiden. Kritieke deadline-integriteit krijgt naast servicevalidatie een PostgreSQL-vangnet; voor fase 1 zijn versioned triggers in de migratie de beoogde concrete vorm. Cycluscontrole op dependencies gebeurt transactioneel en serialiseert conflicterende graafwijzigingen. Archiveren is standaard. Definitief verwijderen is geblokkeerd bij tijdregistraties, bijlagen, importhistorie of dependencies; foreign keys voor dependencies gebruiken geen stille cascade.
+
+Bijlagen zijn first-class gegevens en bestaan zowel voor hoofdtaken als subtaken. De datalaag bewaart daarom attachmentmetadata apart van de taak- of subtaakrecord zelf; echte bestanden worden privé opgeslagen en links blijven als metadata beschikbaar.
 
 ---
 

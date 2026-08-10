@@ -11,6 +11,7 @@ const databaseUrlSchema = z
 export const serverEnvSchema = z.object({
   DATABASE_URL: databaseUrlSchema,
   SESSION_SECRET: z.string().min(32).max(512),
+  BLOB_READ_WRITE_TOKEN: z.string().min(20).optional(),
   MICROSOFT_CLIENT_ID: z.string().min(10).optional(),
   MICROSOFT_CLIENT_SECRET: z.string().min(10).optional(),
   MICROSOFT_TOKEN_ENCRYPTION_KEY: z.string().length(64).optional(),

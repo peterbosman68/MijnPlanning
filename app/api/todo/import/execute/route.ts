@@ -5,12 +5,13 @@ import { requireUser } from "@/lib/auth/require-user";
 import {
   executeTodoImport,
   MicrosoftTodoConfigError,
+  MicrosoftTodoImportConflictError,
   MicrosoftTodoRequestError,
 } from "@/lib/microsoft/todo-import";
 import { assertTrustedRequestOrigin, InvalidRequestOriginError } from "@/lib/security/origin";
 
 type ExecutePayload = {
-  replaceExistingTasks?: boolean;
+  confirmOneTimeImport?: boolean;
 };
 
 export async function POST(request: Request) {
@@ -32,15 +33,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Ongeldige JSON-payload." }, { status: 400 });
   }
 
-  if (payload.replaceExistingTasks !== true) {
+  if (payload.confirmOneTimeImport !== true) {
     return NextResponse.json(
-      { error: "replaceExistingTasks=true is verplicht voor deze importmodus." },
+      { error: "Bevestig de eenmalige import expliciet." },
       { status: 400 },
     );
   }
 
   try {
-    const result = await executeTodoImport(session.user.id, true);
+    const result = await executeTodoImport(session.user.id);
     return NextResponse.json(result);
   } catch (error) {
     if (error instanceof MicrosoftTodoConfigError) {
@@ -49,6 +50,10 @@ export async function POST(request: Request) {
 
     if (error instanceof MicrosoftTodoRequestError) {
       return NextResponse.json({ error: error.message }, { status: 502 });
+    }
+
+    if (error instanceof MicrosoftTodoImportConflictError) {
+      return NextResponse.json({ error: error.message }, { status: 409 });
     }
 
     return NextResponse.json({ error: "To Do import uitvoeren mislukt." }, { status: 500 });

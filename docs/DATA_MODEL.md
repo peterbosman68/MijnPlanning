@@ -86,6 +86,7 @@ Velden:
 - deadline, optioneel tijdstip met datum en tijd;
 - estimatedMinutes, optioneel en alleen relevant wanneer geen subtaken bestaan;
 - remainingMinutes, optioneel zolang geen tijdsinschatting is ingevuld of geaccepteerd;
+- attachmentCount;
 - sourceType;
 - sourceExternalId;
 - createdAt;
@@ -123,6 +124,7 @@ Velden:
 - splittable;
 - priority;
 - context;
+- attachmentCount;
 - status;
 - createdAt;
 - updatedAt;
@@ -441,10 +443,12 @@ Velden:
 - userId;
 - taskId, optioneel;
 - subtaskId, optioneel;
-- blobPath;
-- originalFileName;
-- mimeType;
-- sizeBytes;
+- blobPath, optioneel;
+- sourceUrl, optioneel;
+- originalFileName, optioneel;
+- mimeType, optioneel;
+- sizeBytes, optioneel;
+- sourceExternalId, optioneel;
 - source;
 - createdAt.
 
@@ -457,6 +461,15 @@ EMAIL
 SCREENSHOT
 PHOTO
 ```
+
+Regels:
+
+- een bijlage hangt aan precies één taak of één subtaak;
+- een echte bestandskopie gebruikt `blobPath`;
+- een externe link gebruikt `sourceUrl`;
+- een To Do-bijlage krijgt waar mogelijk zowel de bronlink als een gekopieerde bestandsversie;
+- `sourceExternalId` voorkomt dubbele import van dezelfde bronbijlage;
+- de UI toont op zowel hoofdtaak als subtaak een paperclip wanneer er één of meer bijlagen bestaan.
 
 ---
 
@@ -533,6 +546,7 @@ Velden:
 - externalTaskId;
 - targetTaskId;
 - sourceHash;
+- importedAttachmentCount;
 - status;
 - errorMessage;
 - createdAt.
@@ -613,6 +627,9 @@ Minimaal indexeren:
 - Task.userId;
 - Task.status;
 - Task.deadline;
+- TaskAttachment.userId + taskId;
+- TaskAttachment.userId + subtaskId;
+- TaskAttachment.userId + sourceExternalId;
 - Subtask.taskId;
 - Subtask.status;
 - Subtask.deadline;

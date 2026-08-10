@@ -81,6 +81,8 @@ Een taak heeft:
 - optioneel bijlagen;
 - broninformatie.
 
+Bijlagen kunnen zowel echte bestanden als linkverwijzingen zijn. Dezelfde bijlagenbasis geldt voor hoofdtaken en subtaken.
+
 ### 4.2 Subtaak
 
 Een subtaak is een concreet uitvoerbaar onderdeel.
@@ -109,6 +111,8 @@ Een subtaak kan daarnaast hebben:
 - wel of niet opsplitsbaar;
 - context of locatie;
 - bijlagen.
+
+Bijlagen op subtaken gedragen zich hetzelfde als bijlagen op hoofdtaken: een paperclip maakt zichtbaar dat er één of meer bestanden of links zijn gekoppeld.
 
 ### 4.3 Deadlinehiërarchie
 
@@ -235,6 +239,8 @@ Per voorstel:
 - accepteren;
 - aanpassen;
 - negeren.
+
+Een eenmalige To Do-import mag de originele To Do-taak niet wijzigen; bijlagen, links en documenten worden naar MijnPlanning gekopieerd of als verwijzing vastgelegd.
 
 ### 6.5 Ochtendbrief
 

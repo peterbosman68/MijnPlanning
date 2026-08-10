@@ -62,10 +62,12 @@ model User {
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
   tasks               Task[]
+  taskAttachments     TaskAttachment[]
   timeSessions        TimeSession[]
   sessions            Session[]
   passwordResetTokens PasswordResetToken[]
   microsoftToken      MicrosoftToken?
+  todoImportBatches   TodoImportBatch[]
 
   @@map("users")
 }
@@ -87,10 +89,13 @@ model Task {
   completedAt         DateTime?
   user                User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   subtasks            Subtask[]
+  attachments         TaskAttachment[]
+  todoImportItems     TodoImportItem[]
   timeSessions        TimeSession[]
 
   @@index([userId, status])
   @@index([userId, deadline])
+  @@unique([userId, sourceExternalId])
   @@index([updatedAt])
   @@map("tasks")
 }
@@ -117,6 +122,7 @@ model Subtask {
   timeSessions             TimeSession[]
   dependenciesAsBlockedBy  TaskDependency[]   @relation("task_dependency_blocked")
   dependenciesAsPrerequisite TaskDependency[] @relation("task_dependency_prerequisite")
+  attachments               TaskAttachment[]
 
   @@index([taskId, status])
   @@index([deadline])
@@ -159,6 +165,73 @@ model TaskDependency {
   @@unique([subtaskId, dependsOnSubtaskId])
   @@index([dependsOnSubtaskId])
   @@map("task_dependencies")
+}
+
+model TaskAttachment {
+  id                String   @id @default(cuid())
+  userId            String
+  taskId            String?
+  subtaskId         String?
+  blobPath          String?
+  sourceUrl         String?
+  originalFileName   String?
+  mimeType          String?
+  sizeBytes         Int?
+  sourceExternalId   String?
+  source            String
+  createdAt         DateTime @default(now())
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task              Task?    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  subtask           Subtask? @relation(fields: [subtaskId], references: [id], onDelete: Cascade)
+
+  @@index([userId, taskId])
+  @@index([userId, subtaskId])
+  @@unique([userId, sourceExternalId])
+  @@index([taskId])
+  @@index([subtaskId])
+  @@map("task_attachments")
+}
+
+model TodoImportBatch {
+  id              String           @id @default(cuid())
+  userId          String
+  microsoftConnectionId String
+  sourceLists     Json
+  status          String
+  startedAt       DateTime
+  completedAt     DateTime?
+  sourceCount     Int              @default(0)
+  importedCount   Int              @default(0)
+  skippedCount    Int              @default(0)
+  errorCount      Int              @default(0)
+  createdAt       DateTime         @default(now())
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items           TodoImportItem[]
+
+  @@index([userId, startedAt])
+  @@index([microsoftConnectionId])
+  @@map("todo_import_batches")
+}
+
+model TodoImportItem {
+  id                  String            @id @default(cuid())
+  importBatchId       String
+  externalListId      String
+  externalTaskId      String
+  targetTaskId        String?
+  sourceHash          String
+  importedAttachmentCount Int            @default(0)
+  status              String
+  errorMessage        String?
+  createdAt           DateTime          @default(now())
+  importBatch         TodoImportBatch   @relation(fields: [importBatchId], references: [id], onDelete: Cascade)
+  targetTask          Task?             @relation(fields: [targetTaskId], references: [id], onDelete: SetNull)
+
+  @@unique([externalListId, externalTaskId])
+  @@index([importBatchId])
+  @@index([targetTaskId])
+  @@index([sourceHash])
+  @@map("todo_import_items")
 }
 
 model PasswordResetToken {

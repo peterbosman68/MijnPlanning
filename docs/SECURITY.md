@@ -156,6 +156,14 @@ Vereisten:
 - originele bestandsnaam ontsmetten;
 - nooit lokale padinformatie tonen.
 
+Voor To Do-import en andere bronkopieën geldt aanvullend:
+
+- linkbijlagen worden alleen als veilige metadata opgeslagen;
+- echte bijlagen worden server-side naar private blobopslag gekopieerd;
+- een bron-URL wordt gevalideerd en nooit blind uitgevoerd;
+- de bestandsnaam blijft bewaard voor herkenbaarheid, maar wordt ontsmet voordat die wordt opgeslagen of getoond;
+- dezelfde bronbijlage mag niet stilzwijgend meerdere keren worden geïmporteerd.
+
 ---
 
 ## 9. AI en privacy

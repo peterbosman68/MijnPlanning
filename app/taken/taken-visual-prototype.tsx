@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import type { CSSProperties, FormEvent, PointerEvent as ReactPointerEvent, ReactNode } from "react";
+import type { ChangeEvent, CSSProperties, FormEvent, PointerEvent as ReactPointerEvent, ReactNode } from "react";
 
 import {
   subtaskPlannedMinutesOnDate,
@@ -266,6 +266,14 @@ type WhatsAppMessage = {
   thread: Array<{ from: "them" | "me"; text: string; time: string }>;
 };
 
+type LocalAttachment = {
+  id: string;
+  name: string;
+  sizeLabel: string;
+  mimeType: string;
+  objectUrl?: string;
+};
+
 const NAV_ITEMS: Array<{ id: ViewKey; label: string; icon: ViewKey }> = [
   { id: "today", label: "Vandaag", icon: "today" },
   { id: "week", label: "Week", icon: "week" },
@@ -411,6 +419,28 @@ const INITIAL_TASKS: MainTask[] = [
     ],
   },
 ];
+
+const INITIAL_TASK_ATTACHMENTS: Record<string, LocalAttachment[]> = {
+  truckparking: [
+    {
+      id: "task-attach-offerte",
+      name: "Offerte-laadpalen.pdf",
+      sizeLabel: "1.2 MB",
+      mimeType: "application/pdf",
+    },
+  ],
+};
+
+const INITIAL_SUBTASK_ATTACHMENTS: Record<string, LocalAttachment[]> = {
+  quote: [
+    {
+      id: "sub-attach-specificatie",
+      name: "Specificatie-installatie.docx",
+      sizeLabel: "264 KB",
+      mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    },
+  ],
+};
 
 const EMAIL_PROPOSALS: EmailProposal[] = [
   {
@@ -595,6 +625,14 @@ function parsePositiveMinutesInput(value: string, fieldName: "hoofdtaak" | "subt
   }
 
   return parsed;
+}
+
+function formatAttachmentSize(sizeBytes: number) {
+  if (sizeBytes < 1024) return `${sizeBytes} B`;
+  const kb = sizeBytes / 1024;
+  if (kb < 1024) return `${Math.max(1, Math.round(kb))} KB`;
+  const mb = kb / 1024;
+  return `${mb.toFixed(1)} MB`;
 }
 
 function parseMinutesFromLabel(label: string) {
@@ -832,12 +870,16 @@ export function TakenVisualPrototype({
   const [emailFilter, setEmailFilter] = useState<EmailCategory | "all">("all");
   const [unsubscribeSelection, setUnsubscribeSelection] = useState<Record<string, boolean>>({});
   const [selectedWhatsAppId, setSelectedWhatsAppId] = useState("erwin-wa");
+  const [taskAttachments, setTaskAttachments] = useState<Record<string, LocalAttachment[]>>(INITIAL_TASK_ATTACHMENTS);
+  const [subtaskAttachments, setSubtaskAttachments] = useState<Record<string, LocalAttachment[]>>(INITIAL_SUBTASK_ATTACHMENTS);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const minimumDeadlineDate = getTodayDateValue();
   const newMainFormRef = useRef<HTMLFormElement | null>(null);
   const editMainFormRef = useRef<HTMLFormElement | null>(null);
   const newSubtaskFormRef = useRef<HTMLFormElement | null>(null);
   const editSubtaskFormRef = useRef<HTMLFormElement | null>(null);
+  const taskAttachmentInputRef = useRef<HTMLInputElement | null>(null);
+  const subtaskAttachmentInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     const timer = window.setInterval(() => setTimerSeconds((value) => value + 1), 1000);
@@ -1079,6 +1121,67 @@ export function TakenVisualPrototype({
 
   function openTodoImportPreview() {
     window.open("/todo-import-preview", "_blank", "noopener,noreferrer");
+  }
+
+  function openTaskAttachmentPicker() {
+    if (!selectedTask) return;
+    taskAttachmentInputRef.current?.click();
+  }
+
+  function openSubtaskAttachmentPicker() {
+    if (!selectedSubtask) return;
+    subtaskAttachmentInputRef.current?.click();
+  }
+
+  function handleTaskAttachmentSelect(event: ChangeEvent<HTMLInputElement>) {
+    if (!selectedTask) return;
+    const fileList = event.target.files;
+    if (!fileList || fileList.length === 0) return;
+
+    const nextAttachments = Array.from(fileList).map((file) => ({
+      id: `${selectedTask.id}-${file.name}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      name: file.name,
+      sizeLabel: formatAttachmentSize(file.size),
+      mimeType: file.type || "onbekend",
+      objectUrl: URL.createObjectURL(file),
+    }));
+
+    setTaskAttachments((current) => ({
+      ...current,
+      [selectedTask.id]: [...(current[selectedTask.id] ?? []), ...nextAttachments],
+    }));
+    setFeedback(
+      `${nextAttachments.length} bijlage${nextAttachments.length === 1 ? "" : "n"} toegevoegd aan hoofdtaak “${selectedTask.title}”.`,
+    );
+    event.target.value = "";
+  }
+
+  function handleSubtaskAttachmentSelect(event: ChangeEvent<HTMLInputElement>) {
+    if (!selectedSubtask) return;
+    const fileList = event.target.files;
+    if (!fileList || fileList.length === 0) return;
+
+    const nextAttachments = Array.from(fileList).map((file) => ({
+      id: `${selectedSubtask.id}-${file.name}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      name: file.name,
+      sizeLabel: formatAttachmentSize(file.size),
+      mimeType: file.type || "onbekend",
+      objectUrl: URL.createObjectURL(file),
+    }));
+
+    setSubtaskAttachments((current) => ({
+      ...current,
+      [selectedSubtask.id]: [...(current[selectedSubtask.id] ?? []), ...nextAttachments],
+    }));
+    setFeedback(
+      `${nextAttachments.length} bijlage${nextAttachments.length === 1 ? "" : "n"} toegevoegd aan subtaak “${selectedSubtask.title}”.`,
+    );
+    event.target.value = "";
+  }
+
+  function openLocalAttachment(attachment: LocalAttachment) {
+    if (!attachment.objectUrl) return;
+    window.open(attachment.objectUrl, "_blank", "noopener,noreferrer");
   }
 
   async function updateMainTask(event: FormEvent<HTMLFormElement>) {
@@ -1688,6 +1791,18 @@ export function TakenVisualPrototype({
     const nextTask = remainingTasks[0] ?? null;
 
     setTasks(remainingTasks);
+    setTaskAttachments((current) => {
+      const next = { ...current };
+      delete next[selectedTask.id];
+      return next;
+    });
+    setSubtaskAttachments((current) => {
+      const next = { ...current };
+      for (const subtask of selectedTask.subtasks) {
+        delete next[subtask.id];
+      }
+      return next;
+    });
     setSelectedTaskId(nextTask?.id ?? "");
     setSelectedSubtaskId(nextTask?.subtasks[0]?.id ?? null);
     setEditorMode("none");
@@ -1720,6 +1835,12 @@ export function TakenVisualPrototype({
         };
       }),
     );
+
+    setSubtaskAttachments((current) => {
+      const next = { ...current };
+      delete next[selectedSubtask.id];
+      return next;
+    });
 
     setSelectedSubtaskId(nextSubtaskId);
     setEditorMode("none");
@@ -2024,7 +2145,7 @@ export function TakenVisualPrototype({
                     Omschrijving (optioneel)
                     <textarea
                       name="description"
-                      rows={15}
+                      rows={24}
                       className={styles.descriptionField}
                       placeholder="Korte of lange context, notities en broninformatie"
                     />
@@ -2069,6 +2190,11 @@ export function TakenVisualPrototype({
                           <span className={styles.taskTitleCell}>
                             <strong>{task.title}</strong>
                             <small>{task.hardDeadline ? `${status ?? task.note} · Harde deadline` : (status ?? task.note)}</small>
+                            {(taskAttachments[task.id]?.length ?? 0) > 0 && (
+                              <span className={styles.attachmentBadge} aria-label={`${taskAttachments[task.id]?.length ?? 0} bijlagen op hoofdtaak`}>
+                                📎 {taskAttachments[task.id]?.length ?? 0}
+                              </span>
+                            )}
                           </span>
                           <span className={styles.deadlineCell}>{task.deadline}</span>
                           <span className={styles.remainingCell}>{task.remaining}</span>
@@ -2133,27 +2259,52 @@ export function TakenVisualPrototype({
                             Omschrijving (optioneel)
                             <textarea
                               name="description"
-                              rows={15}
+                                rows={24}
                               className={styles.descriptionField}
                               defaultValue={task.description}
                             />
                           </label>
                           {formError && <p className={styles.formError} role="alert">{formError}</p>}
-                          <div className={styles.formActions}>
+                          <div className={styles.attachmentFormBar}>
+                            <div className={styles.attachmentFormFiles}>
                             <button
+                              className={styles.inlinePaperclipButton}
                               type="button"
-                              className={styles.ghostButton}
-                              onClick={() => {
-                                runWithEditorCloseGuard(() => {
-                                  setEditorMode("none");
-                                  setHasUnsavedChanges(false);
-                                });
-                              }}
+                              onClick={openTaskAttachmentPicker}
+                              aria-label="Document of foto toevoegen bij hoofdtaak"
+                              title="Document of foto toevoegen bij hoofdtaak"
                             >
-                              Annuleren
+                              📎
                             </button>
-                            <button type="button" className={styles.secondaryButton} onClick={deleteMainTask}>Verwijderen</button>
-                            <button type="submit" className={styles.primaryButton}>Hoofdtaak opslaan</button>
+                              {(taskAttachments[task.id] ?? []).map((attachment) => (
+                                <button
+                                  key={attachment.id}
+                                  type="button"
+                                  className={styles.attachmentFileButton}
+                                  onClick={() => openLocalAttachment(attachment)}
+                                  disabled={!attachment.objectUrl}
+                                  title={attachment.objectUrl ? `${attachment.name} openen` : `${attachment.name} is voorbeelddata`}
+                                >
+                                  {attachment.name}
+                                </button>
+                              ))}
+                            </div>
+                            <div className={styles.formActions}>
+                              <button
+                                type="button"
+                                className={styles.ghostButton}
+                                onClick={() => {
+                                  runWithEditorCloseGuard(() => {
+                                    setEditorMode("none");
+                                    setHasUnsavedChanges(false);
+                                  });
+                                }}
+                              >
+                                Annuleren
+                              </button>
+                              <button type="button" className={styles.secondaryButton} onClick={deleteMainTask}>Verwijderen</button>
+                              <button type="submit" className={styles.primaryButton}>Hoofdtaak opslaan</button>
+                            </div>
                           </div>
                         </form>
                       )}
@@ -2368,6 +2519,23 @@ export function TakenVisualPrototype({
                 </button>
               </div>
 
+              <input
+                ref={taskAttachmentInputRef}
+                type="file"
+                multiple
+                className={styles.visuallyHiddenInput}
+                onChange={handleTaskAttachmentSelect}
+                accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip"
+              />
+              <input
+                ref={subtaskAttachmentInputRef}
+                type="file"
+                multiple
+                className={styles.visuallyHiddenInput}
+                onChange={handleSubtaskAttachmentSelect}
+                accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip"
+              />
+
               {selectedTask.status === "completed" && (
                 <div className={styles.reopenPrompt}>
                   <p>Deze hoofdtaak is afgerond. Open de taak eerst opnieuw om een subtaak toe te voegen.</p>
@@ -2417,7 +2585,7 @@ export function TakenVisualPrototype({
                     Omschrijving (optioneel)
                     <textarea
                       name="description"
-                      rows={15}
+                      rows={24}
                       className={styles.descriptionField}
                       placeholder="Extra context of uitgebreid tekstblok"
                     />
@@ -2473,6 +2641,11 @@ export function TakenVisualPrototype({
                               <strong>{subtask.title}</strong>
                               <small>{subtask.hardDeadline ? `${subtask.deadline} · Harde deadline` : subtask.deadline}</small>
                             </span>
+                            {(subtaskAttachments[subtask.id]?.length ?? 0) > 0 && (
+                              <span className={styles.attachmentBadge} aria-label={`${subtaskAttachments[subtask.id]?.length ?? 0} bijlagen op subtaak`}>
+                                📎 {subtaskAttachments[subtask.id]?.length ?? 0}
+                              </span>
+                            )}
                             {stateLabel && <span className={subtask.state === "blocked" ? styles.blockedText : styles.subtaskState}>{stateLabel}</span>}
                             <span className={styles.subtaskTime}>{subtask.remaining}</span>
                           </button>
@@ -2489,7 +2662,8 @@ export function TakenVisualPrototype({
                         </div>
 
                         {isEditingThisSubtask && selectedSubtask && (
-                          <form
+                          <>
+                            <form
                             className={`${styles.subtaskForm} ${styles.inlineSubtaskEditor}`}
                             onSubmit={updateSubtask}
                             onChangeCapture={() => setHasUnsavedChanges(true)}
@@ -2547,30 +2721,56 @@ export function TakenVisualPrototype({
                               Omschrijving (optioneel)
                               <textarea
                                 name="description"
-                                rows={15}
+                                rows={24}
                                 className={styles.descriptionField}
                                 defaultValue={selectedSubtask.description ?? ""}
                               />
                             </label>
                             {formError && <p className={styles.formError} role="alert">{formError}</p>}
-                            <div className={styles.formActions}>
+                            <div className={styles.attachmentFormBar}>
+                              <div className={styles.attachmentFormFiles}>
                               <button
+                                className={styles.inlinePaperclipButton}
                                 type="button"
-                                className={styles.ghostButton}
-                                onClick={() => {
-                                  runWithEditorCloseGuard(() => {
-                                    setEditorMode("none");
-                                    setHasUnsavedChanges(false);
-                                    setFormError(null);
-                                  });
-                                }}
+                                onClick={openSubtaskAttachmentPicker}
+                                aria-label="Document of foto toevoegen bij subtaak"
+                                title="Document of foto toevoegen bij subtaak"
                               >
-                                Annuleren
+                                📎
                               </button>
-                              <button type="button" className={styles.secondaryButton} onClick={deleteSubtask}>Verwijderen</button>
-                              <button type="submit" className={styles.primaryButton}>Subtaak opslaan</button>
+                                {(subtaskAttachments[selectedSubtask.id] ?? []).map((attachment) => (
+                                  <button
+                                    key={attachment.id}
+                                    type="button"
+                                    className={styles.attachmentFileButton}
+                                    onClick={() => openLocalAttachment(attachment)}
+                                    disabled={!attachment.objectUrl}
+                                    title={attachment.objectUrl ? `${attachment.name} openen` : `${attachment.name} is voorbeelddata`}
+                                  >
+                                    {attachment.name}
+                                  </button>
+                                ))}
+                              </div>
+                              <div className={styles.formActions}>
+                                <button
+                                  type="button"
+                                  className={styles.ghostButton}
+                                  onClick={() => {
+                                    runWithEditorCloseGuard(() => {
+                                      setEditorMode("none");
+                                      setHasUnsavedChanges(false);
+                                      setFormError(null);
+                                    });
+                                  }}
+                                >
+                                  Annuleren
+                                </button>
+                                <button type="button" className={styles.secondaryButton} onClick={deleteSubtask}>Verwijderen</button>
+                                <button type="submit" className={styles.primaryButton}>Subtaak opslaan</button>
+                              </div>
                             </div>
-                          </form>
+                            </form>
+                          </>
                         )}
                       </div>
                     );

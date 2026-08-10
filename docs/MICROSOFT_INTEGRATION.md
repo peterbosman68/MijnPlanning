@@ -113,7 +113,7 @@ De bestaande To Do-taken één keer migreren naar MijnPlanning.
 
 1. Microsoft-account koppelen.
 2. To Do-lijsten ophalen.
-3. Gebruiker kiest lijsten.
+3. Alle To Do-lijsten selecteren.
 4. Voorvertoning tonen.
 5. Import bevestigen.
 6. Taken importeren.
@@ -142,6 +142,15 @@ Bewaar exact:
 - hoofdletters;
 - leestekens.
 
+Aanvullende mapping:
+
+- open en afgeronde To Do-taken worden meegenomen;
+- iedere To Do-taak wordt één hoofdtaak;
+- vervaldatum en tijdzone worden als hetzelfde tijdstip in UTC opgeslagen;
+- afgeronde taken krijgen status `COMPLETED`;
+- bestanden en links worden als bijlagen van de hoofdtaak opgeslagen;
+- bestaande MijnPlanning-taken blijven behouden.
+
 ### Geen automatische structuur
 
 - Geen automatische subtaken.
@@ -161,6 +170,8 @@ Na import:
 - MijnPlanning is leidend.
 
 Bewaar import-ID’s en hashes om duplicaten te voorkomen.
+
+Iedere uitvoering krijgt een importbatch en itemhistorie. Een reeds bekende bron-ID wordt overgeslagen en een gelijktijdige tweede import wordt geweigerd. De eerste echte uitvoering gebeurt pas na een expliciete bevestiging op de productiepreview.
 
 ---
 

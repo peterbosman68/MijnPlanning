@@ -1,7 +1,11 @@
 import "server-only";
 
-import type { Prisma, TaskStatus } from "@prisma/client";
+import { createHash } from "node:crypto";
 
+import { Prisma, type TaskStatus } from "@prisma/client";
+
+import { deleteUploadedBlobs, uploadPrivateAttachment } from "@/lib/attachments/blob-storage";
+import { createTaskAttachment } from "@/lib/attachments/service";
 import { prisma } from "@/lib/db/client";
 
 import { getValidAccessToken } from "./token-service";
@@ -22,6 +26,13 @@ class MicrosoftTodoRequestError extends Error {
   }
 }
 
+class MicrosoftTodoImportConflictError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "MicrosoftTodoImportConflictError";
+  }
+}
+
 type GraphTodoList = {
   id?: string;
   displayName?: string;
@@ -38,6 +49,35 @@ type GraphTodoTask = {
     dateTime?: string;
     timeZone?: string;
   };
+  hasAttachments?: boolean;
+  attachments?: GraphTodoFileAttachment[];
+  linkedResources?: GraphTodoLinkedResource[];
+};
+
+type PreparedAttachmentRecord = Readonly<{
+  sourceExternalId: string;
+  kind: "FILE" | "LINK";
+  displayName: string;
+  mimeType: string | null;
+  sizeBytes: number | null;
+  sourceUrl: string | null;
+  blobPath: string | null;
+}>;
+
+type GraphTodoFileAttachment = {
+  id?: string;
+  name?: string;
+  contentType?: string;
+  size?: number;
+  contentBytes?: string;
+};
+
+type GraphTodoLinkedResource = {
+  id?: string;
+  applicationName?: string;
+  displayName?: string;
+  externalId?: string;
+  webUrl?: string;
 };
 
 type GraphPagedResponse<TItem> = {
@@ -46,27 +86,46 @@ type GraphPagedResponse<TItem> = {
 };
 
 export type TodoImportCandidate = Readonly<{
+  externalListId: string;
+  externalTaskId: string;
+  listDisplayName: string;
   sourceExternalId: string;
+  sourceHash: string;
   title: string;
   descriptionOriginal: string;
   descriptionPlain: string;
   deadline: Date | null;
   status: TaskStatus;
+  attachments: TodoImportAttachmentCandidate[];
+}>;
+
+export type TodoImportAttachmentCandidate = Readonly<{
+  sourceExternalId: string;
+  kind: "FILE" | "LINK";
+  displayName: string;
+  mimeType: string | null;
+  sizeBytes: number | null;
+  sourceUrl: string | null;
+  contentBytesBase64: string | null;
+  applicationName: string | null;
+  externalId: string | null;
 }>;
 
 export type TodoImportPreview = Readonly<{
   listsCount: number;
   tasksCount: number;
   importableCount: number;
+  attachmentCount: number;
+  linkCount: number;
   sampleTitles: string[];
 }>;
 
 export type TodoImportResult = Readonly<{
+  batchId: string;
   listsCount: number;
   fetchedCount: number;
   importedCount: number;
   skippedCount: number;
-  deletedExistingTasksCount: number;
 }>;
 
 function normalizeDescription(value: string): string {
@@ -82,13 +141,152 @@ function mapStatus(status: string | undefined): TaskStatus {
   return status?.toLowerCase() === "completed" ? "COMPLETED" : "OPEN";
 }
 
-function mapDeadline(dueDateTime: GraphTodoTask["dueDateTime"]): Date | null {
-  const iso = dueDateTime?.dateTime;
-  if (!iso) return null;
+function hasExplicitOffset(value: string) {
+  return /(?:Z|[+-]\d{2}:\d{2})$/i.test(value);
+}
 
-  const parsed = new Date(iso);
-  if (!Number.isFinite(parsed.getTime())) return null;
-  return parsed;
+function amsterdamLocalDateTimeToUtc(value: string): Date {
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?$/.exec(value);
+  if (!match) throw new MicrosoftTodoRequestError("To Do-deadline heeft een ongeldig datumformaat.");
+
+  const expected = {
+    year: Number(match[1]),
+    month: Number(match[2]),
+    day: Number(match[3]),
+    hour: Number(match[4]),
+    minute: Number(match[5]),
+    second: Number(match[6] ?? 0),
+  };
+  const formatter = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/Amsterdam",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  });
+  let utcMillis = Date.UTC(expected.year, expected.month - 1, expected.day, expected.hour, expected.minute, expected.second);
+
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    const parts = formatter.formatToParts(new Date(utcMillis));
+    const part = (type: Intl.DateTimeFormatPartTypes) => Number(parts.find((item) => item.type === type)?.value);
+    const actualMillis = Date.UTC(part("year"), part("month") - 1, part("day"), part("hour"), part("minute"), part("second"));
+    const expectedMillis = Date.UTC(expected.year, expected.month - 1, expected.day, expected.hour, expected.minute, expected.second);
+    if (actualMillis === expectedMillis) return new Date(utcMillis);
+    utcMillis -= actualMillis - expectedMillis;
+  }
+
+  throw new MicrosoftTodoRequestError("To Do-deadline kon niet veilig naar Europe/Amsterdam worden omgerekend.");
+}
+
+export function mapTodoDeadline(dueDateTime: GraphTodoTask["dueDateTime"]): Date | null {
+  const dateTime = dueDateTime?.dateTime;
+  if (!dateTime) return null;
+
+  if (hasExplicitOffset(dateTime)) {
+    const parsed = new Date(dateTime);
+    if (!Number.isFinite(parsed.getTime())) throw new MicrosoftTodoRequestError("To Do-deadline is ongeldig.");
+    return parsed;
+  }
+
+  const timeZone = dueDateTime.timeZone?.trim();
+  if (!timeZone || ["UTC", "Etc/UTC"].includes(timeZone)) {
+    const parsed = new Date(`${dateTime}Z`);
+    if (!Number.isFinite(parsed.getTime())) throw new MicrosoftTodoRequestError("To Do-deadline is ongeldig.");
+    return parsed;
+  }
+
+  if (["Europe/Amsterdam", "W. Europe Standard Time"].includes(timeZone)) {
+    return amsterdamLocalDateTimeToUtc(dateTime);
+  }
+
+  throw new MicrosoftTodoRequestError(`Niet-ondersteunde To Do-tijdzone: ${timeZone}.`);
+}
+
+function normalizeDisplayName(value: string | undefined, fallback: string) {
+  return value?.trim() || fallback;
+}
+
+function safeHttpUrl(value: string | undefined): string | null {
+  if (!value) return null;
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === "https:" || parsed.protocol === "http:" ? parsed.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+function createAttachmentSourceExternalId(
+  listId: string,
+  taskId: string,
+  kind: "FILE" | "LINK",
+  value: string | undefined,
+  index: number,
+) {
+  const stableValue = value?.trim() || `item-${index}`;
+  return `todo:${listId}:${taskId}:${kind.toLowerCase()}:${stableValue}`;
+}
+
+function mapTodoAttachments(listId: string, taskId: string, task: GraphTodoTask): TodoImportAttachmentCandidate[] {
+  const fileAttachments = Array.isArray(task.attachments) ? task.attachments : [];
+  const linkedResources = Array.isArray(task.linkedResources) ? task.linkedResources : [];
+
+  const fileCandidates = fileAttachments.map((attachment, index) => ({
+    sourceExternalId: createAttachmentSourceExternalId(listId, taskId, "FILE", attachment.id ?? attachment.name, index),
+    kind: "FILE" as const,
+    displayName: normalizeDisplayName(attachment.name, `Bijlage ${index + 1}`),
+    mimeType: attachment.contentType?.trim() || null,
+    sizeBytes: typeof attachment.size === "number" && Number.isFinite(attachment.size) ? attachment.size : null,
+    sourceUrl: null,
+    contentBytesBase64: attachment.contentBytes ?? null,
+    applicationName: null,
+    externalId: attachment.id?.trim() || null,
+  }));
+
+  const linkCandidates = linkedResources.map((linkedResource, index) => ({
+    sourceExternalId: createAttachmentSourceExternalId(
+      listId,
+      taskId,
+      "LINK",
+      linkedResource.id ?? linkedResource.externalId ?? linkedResource.webUrl ?? linkedResource.displayName,
+      index,
+    ),
+    kind: "LINK" as const,
+    displayName: normalizeDisplayName(linkedResource.displayName, `Link ${index + 1}`),
+    mimeType: null,
+    sizeBytes: null,
+    sourceUrl: safeHttpUrl(linkedResource.webUrl),
+    contentBytesBase64: null,
+    applicationName: linkedResource.applicationName?.trim() || null,
+    externalId: linkedResource.externalId?.trim() || linkedResource.id?.trim() || null,
+  }));
+
+  return [...fileCandidates, ...linkCandidates];
+}
+
+function createSourceHash(input: {
+  title: string;
+  descriptionOriginal: string;
+  deadline: Date | null;
+  status: TaskStatus;
+  attachments: TodoImportAttachmentCandidate[];
+}) {
+  const attachments = input.attachments.map((attachment) => ({
+    sourceExternalId: attachment.sourceExternalId,
+    kind: attachment.kind,
+    displayName: attachment.displayName,
+    mimeType: attachment.mimeType,
+    sizeBytes: attachment.sizeBytes,
+    sourceUrl: attachment.sourceUrl,
+    contentHash: attachment.contentBytesBase64
+      ? createHash("sha256").update(attachment.contentBytesBase64).digest("hex")
+      : null,
+  }));
+
+  return createHash("sha256").update(JSON.stringify({ ...input, deadline: input.deadline?.toISOString() ?? null, attachments })).digest("hex");
 }
 
 async function graphFetch<T>(url: string, accessToken: string): Promise<T> {
@@ -102,13 +300,12 @@ async function graphFetch<T>(url: string, accessToken: string): Promise<T> {
   });
 
   if (!response.ok) {
-    const text = await response.text();
     if (response.status === 401 || response.status === 403) {
       throw new MicrosoftTodoConfigError(
         "To Do-toegang ontbreekt. Koppel Outlook opnieuw zodat Tasks.Read wordt toegekend.",
       );
     }
-    throw new MicrosoftTodoRequestError(`To Do-verzoek mislukt (${response.status}) op ${url}: ${text}`);
+    throw new MicrosoftTodoRequestError(`To Do-verzoek mislukt met status ${response.status}.`);
   }
 
   return (await response.json()) as T;
@@ -128,7 +325,38 @@ async function fetchPaged<T>(url: string, accessToken: string): Promise<T[]> {
     pageCount += 1;
   }
 
+  if (nextUrl) {
+    throw new MicrosoftTodoRequestError("To Do bevat meer gegevens dan veilig in één import kunnen worden verwerkt.");
+  }
+
   return result;
+}
+
+async function getPreviouslyImportedSourceIds(userId: string, candidates: TodoImportCandidate[]) {
+  const [existingTasks, existingItems] = await Promise.all([
+    prisma.task.findMany({
+      where: {
+        userId,
+        sourceExternalId: { in: candidates.map((candidate) => candidate.sourceExternalId) },
+      },
+      select: { sourceExternalId: true },
+    }),
+    prisma.todoImportItem.findMany({
+      where: {
+        importBatch: { userId },
+        OR: candidates.map((candidate) => ({
+          externalListId: candidate.externalListId,
+          externalTaskId: candidate.externalTaskId,
+        })),
+      },
+      select: { externalListId: true, externalTaskId: true },
+    }),
+  ]);
+
+  return new Set([
+    ...existingTasks.map((item) => item.sourceExternalId).filter((id): id is string => Boolean(id)),
+    ...existingItems.map((item) => `todo:${item.externalListId}:${item.externalTaskId}`),
+  ]);
 }
 
 async function getAccessToken(userId: string) {
@@ -148,23 +376,31 @@ async function fetchTodoListsAndTasks(userId: string): Promise<Readonly<{ lists:
   for (const list of lists) {
     if (!list.id) continue;
     const tasks = await fetchPaged<GraphTodoTask>(
-      `${GRAPH_BASE}/me/todo/lists/${encodeURIComponent(list.id)}/tasks`,
+      `${GRAPH_BASE}/me/todo/lists/${encodeURIComponent(list.id)}/tasks?$expand=attachments,linkedResources`,
       accessToken,
     );
 
     for (const task of tasks) {
       if (!task.id) continue;
-      const title = task.title?.trim() || "(Zonder titel)";
+      const title = task.title ?? "(Zonder titel)";
       const descriptionOriginal = task.body?.content ?? "";
       const sourceExternalId = `todo:${list.id}:${task.id}`;
+      const attachments = mapTodoAttachments(list.id, task.id, task);
+      const deadline = mapTodoDeadline(task.dueDateTime);
+      const status = mapStatus(task.status);
 
       candidates.push({
+        externalListId: list.id,
+        externalTaskId: task.id,
+        listDisplayName: list.displayName ?? "(Zonder lijstnaam)",
         sourceExternalId,
+        sourceHash: createSourceHash({ title, descriptionOriginal, deadline, status, attachments }),
         title,
         descriptionOriginal,
         descriptionPlain: normalizeDescription(descriptionOriginal),
-        deadline: mapDeadline(task.dueDateTime),
-        status: mapStatus(task.status),
+        deadline,
+        status,
+        attachments,
       });
     }
   }
@@ -174,71 +410,201 @@ async function fetchTodoListsAndTasks(userId: string): Promise<Readonly<{ lists:
 
 export async function previewTodoImport(userId: string): Promise<TodoImportPreview> {
   const { lists, candidates } = await fetchTodoListsAndTasks(userId);
+  const attachments = candidates.flatMap((candidate) => candidate.attachments);
+  const existingIds = await getPreviouslyImportedSourceIds(userId, candidates);
 
   return {
     listsCount: lists.length,
     tasksCount: candidates.length,
-    importableCount: candidates.length,
+    importableCount: candidates.filter((candidate) => !existingIds.has(candidate.sourceExternalId)).length,
+    attachmentCount: attachments.filter((attachment) => attachment.kind === "FILE").length,
+    linkCount: attachments.filter((attachment) => attachment.kind === "LINK").length,
     sampleTitles: candidates.slice(0, 10).map((item) => item.title),
   };
 }
 
-export async function executeTodoImport(userId: string, replaceExistingTasks: boolean): Promise<TodoImportResult> {
+export async function executeTodoImport(userId: string): Promise<TodoImportResult> {
   const { lists, candidates } = await fetchTodoListsAndTasks(userId);
+  const microsoftToken = await prisma.microsoftToken.findUnique({
+    where: { userId },
+    select: { microsoftAccountId: true },
+  });
+  if (!microsoftToken) throw new MicrosoftTodoConfigError("Microsoft-accountkoppeling ontbreekt.");
+
+  let batch: { id: string };
+  try {
+    batch = await prisma.todoImportBatch.create({
+      data: {
+        userId,
+        microsoftConnectionId: microsoftToken.microsoftAccountId,
+        sourceLists: lists.filter((list): list is GraphTodoList & { id: string } => Boolean(list.id)).map((list) => ({
+          id: list.id,
+          displayName: list.displayName ?? "(Zonder lijstnaam)",
+        })),
+        status: "RUNNING",
+        startedAt: new Date(),
+        sourceCount: candidates.length,
+      },
+      select: { id: true },
+    });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      throw new MicrosoftTodoImportConflictError("Er wordt al een To Do-import uitgevoerd.");
+    }
+    throw error;
+  }
 
   let importedCount = 0;
   let skippedCount = 0;
-  let deletedExistingTasksCount = 0;
 
-  await prisma.$transaction(async (tx) => {
-    if (replaceExistingTasks) {
-      const deleted = await tx.task.deleteMany({ where: { userId } });
-      deletedExistingTasksCount = deleted.count;
-    }
+  const existingIds = await getPreviouslyImportedSourceIds(userId, candidates);
 
-    const existing = await tx.task.findMany({
-      where: { userId, sourceExternalId: { in: candidates.map((candidate) => candidate.sourceExternalId) } },
-      select: { sourceExternalId: true },
-    });
+  const importCandidates = candidates.filter((candidate) => !existingIds.has(candidate.sourceExternalId));
+  skippedCount = candidates.length - importCandidates.length;
 
-    const existingIds = new Set(existing.map((item) => item.sourceExternalId).filter((id): id is string => Boolean(id)));
+  const uploadedBlobUrls: string[] = [];
+  const preparedAttachmentsByTask = new Map<string, PreparedAttachmentRecord[]>();
 
-    const createData: Prisma.TaskCreateManyInput[] = [];
+  try {
+    for (const candidate of importCandidates) {
+      const preparedForTask: PreparedAttachmentRecord[] = [];
 
-    for (const candidate of candidates) {
-      if (existingIds.has(candidate.sourceExternalId)) {
-        skippedCount += 1;
-        continue;
+      for (const attachment of candidate.attachments) {
+        if (attachment.kind === "LINK") {
+          if (!attachment.sourceUrl) {
+            throw new MicrosoftTodoRequestError(`To Do-link zonder veilige URL ontvangen voor taak "${candidate.title}".`);
+          }
+          preparedForTask.push({
+            sourceExternalId: attachment.sourceExternalId,
+            kind: attachment.kind,
+            displayName: attachment.displayName,
+            mimeType: attachment.mimeType,
+            sizeBytes: attachment.sizeBytes,
+            sourceUrl: attachment.sourceUrl,
+            blobPath: null,
+          });
+          continue;
+        }
+
+        if (!attachment.contentBytesBase64) {
+          throw new MicrosoftTodoRequestError(`To Do-bijlage zonder inhoud ontvangen voor taak \"${candidate.title}\".`);
+        }
+
+        const attachmentBytes = Buffer.from(attachment.contentBytesBase64, "base64");
+        if (attachmentBytes.byteLength === 0) {
+          throw new MicrosoftTodoRequestError(`Lege To Do-bijlage ontvangen voor taak \"${candidate.title}\".`);
+        }
+
+        const uploaded = await uploadPrivateAttachment({
+          userId,
+          sourceFolder: "todo-import",
+          fileName: attachment.displayName,
+          contentType: attachment.mimeType,
+          bytes: attachmentBytes,
+        });
+        uploadedBlobUrls.push(uploaded.blobUrl);
+
+        preparedForTask.push({
+          sourceExternalId: attachment.sourceExternalId,
+          kind: attachment.kind,
+          displayName: attachment.displayName,
+          mimeType: attachment.mimeType,
+          sizeBytes: attachment.sizeBytes ?? uploaded.sizeBytes,
+          sourceUrl: null,
+          blobPath: uploaded.blobPath,
+        });
       }
 
-      createData.push({
-        userId,
-        title: candidate.title,
-        descriptionOriginal: candidate.descriptionOriginal,
-        descriptionPlain: candidate.descriptionPlain,
-        status: candidate.status,
-        deadline: candidate.deadline,
-        estimatedMinutes: null,
-        remainingMinutes: null,
-        sourceType: "IMPORTED",
-        sourceExternalId: candidate.sourceExternalId,
-        completedAt: candidate.status === "COMPLETED" ? new Date() : null,
-      });
+      preparedAttachmentsByTask.set(candidate.sourceExternalId, preparedForTask);
     }
 
-    if (createData.length > 0) {
-      const created = await tx.task.createMany({ data: createData });
-      importedCount = created.count;
+    await prisma.$transaction(async (tx) => {
+      for (const candidate of importCandidates) {
+        const createdTask = await tx.task.create({
+          data: {
+            userId,
+            title: candidate.title,
+            descriptionOriginal: candidate.descriptionOriginal,
+            descriptionPlain: candidate.descriptionPlain,
+            status: candidate.status,
+            deadline: candidate.deadline,
+            estimatedMinutes: null,
+            remainingMinutes: null,
+            sourceType: "IMPORTED",
+            sourceExternalId: candidate.sourceExternalId,
+            completedAt: candidate.status === "COMPLETED" ? new Date() : null,
+          },
+          select: {
+            id: true,
+          },
+        });
+
+        importedCount += 1;
+
+        const preparedAttachments = preparedAttachmentsByTask.get(candidate.sourceExternalId) ?? [];
+        for (const attachment of preparedAttachments) {
+          await createTaskAttachment(tx, {
+            userId,
+            target: { taskId: createdTask.id },
+            source: "MICROSOFT_TODO",
+            blobPath: attachment.blobPath,
+            sourceUrl: attachment.sourceUrl,
+            originalFileName: attachment.displayName,
+            mimeType: attachment.mimeType,
+            sizeBytes: attachment.sizeBytes,
+            sourceExternalId: attachment.sourceExternalId,
+          });
+        }
+
+        await tx.todoImportItem.create({
+          data: {
+            importBatchId: batch.id,
+            externalListId: candidate.externalListId,
+            externalTaskId: candidate.externalTaskId,
+            targetTaskId: createdTask.id,
+            sourceHash: candidate.sourceHash,
+            importedAttachmentCount: preparedAttachments.length,
+            status: "IMPORTED",
+          },
+        });
+      }
+
+      await tx.todoImportBatch.update({
+        where: { id: batch.id },
+        data: {
+          status: "COMPLETED",
+          completedAt: new Date(),
+          importedCount,
+          skippedCount,
+        },
+      });
+    });
+  } catch (error) {
+    try {
+      await deleteUploadedBlobs(uploadedBlobUrls);
+    } catch {
+      // Best effort cleanup; het originele importfoutsignaal blijft leidend.
     }
-  });
+    await prisma.todoImportBatch.update({
+      where: { id: batch.id },
+      data: {
+        status: "FAILED",
+        completedAt: new Date(),
+        importedCount: 0,
+        skippedCount,
+        errorCount: 1,
+      },
+    }).catch(() => undefined);
+    throw error;
+  }
 
   return {
+    batchId: batch.id,
     listsCount: lists.length,
     fetchedCount: candidates.length,
     importedCount,
     skippedCount,
-    deletedExistingTasksCount,
   };
 }
 
-export { MicrosoftTodoConfigError, MicrosoftTodoRequestError };
+export { MicrosoftTodoConfigError, MicrosoftTodoImportConflictError, MicrosoftTodoRequestError };

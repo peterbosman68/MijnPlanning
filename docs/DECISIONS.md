@@ -258,11 +258,37 @@ Nieuwe besluiten worden onderaan toegevoegd met datum.
 - De actie `+ Subtaak` blijft zichtbaar in het detailpaneel zolang de hoofdtaak open, actief of wachtend is.
 - Een actieve timer loopt door terwijl de gebruiker een subtaak toevoegt.
 - Titel en deadline zijn verplicht voor de nieuwe subtaak.
+
+## 10 augustus 2026 — bijlagen en To Do-import
+
+### O22 — bijlagen voor taken en subtaken
+
+- Hoofdtaken en subtaken krijgen een gedeelde bijlagenbasis.
+- Een bijlage kan een echt bestand of een externe link zijn.
+- Echte bestanden worden privé opgeslagen; links worden als metadata bewaard.
+- De UI toont een paperclip zodra een taak of subtaak één of meer bijlagen heeft.
+
+### O23 — To Do-import kopieert bijlagen
+
+- Bij de eenmalige Microsoft To Do-import worden titels, vervaldatums, notities, links en documenten overgezet naar MijnPlanning.
+- De originele To Do-items blijven in To Do staan; MijnPlanning maakt een kopie.
+- Import van bijlagen gebeurt server-side en gebruikt waar mogelijk private blobopslag voor echte bestanden.
 - Wanneer de hoofdtaak een deadline heeft, mag de subtaakdeadline daar niet voorbij liggen.
 - Na expliciet opslaan wordt de planning opnieuw berekend.
 - De nieuwe subtaak wordt niet automatisch actief.
 - Bij een afgeronde hoofdtaak moet de gebruiker de taak eerst expliciet opnieuw openen voordat een subtaak kan worden toegevoegd.
 - Een gearchiveerde of geannuleerde hoofdtaak moet eerst expliciet worden hersteld.
+
+### O29 — eenmalige productie-import uit alle To Do-lijsten
+
+- Alle Microsoft To Do-lijsten worden meegenomen.
+- Open en afgeronde To Do-taken worden geïmporteerd.
+- Iedere To Do-taak wordt precies één hoofdtaak; de import maakt geen subtaken.
+- Titel en originele notitie worden exact bewaard.
+- Deadline, status, documenten en links worden naar de overeenkomstige hoofdtaakvelden en bijlagen gemapt.
+- De import is uitsluitend aanvullend en verwijdert of overschrijft geen bestaande MijnPlanning-taken.
+- Bron-ID, bronhash, batch en itemresultaat worden bewaard om dubbele import te voorkomen en de uitvoering controleerbaar te maken.
+- De eerste echte import vindt op productie plaats na een afzonderlijke expliciete bevestiging op de gecontroleerde preview.
 - Bij de eerste subtaak wordt een uitvoerbare hoofdtaak een verzameltaak; de hoofdtaakduur wordt niet naast de subtaken dubbel ingepland.
 
 ## 19 juli 2026 — besluit O23

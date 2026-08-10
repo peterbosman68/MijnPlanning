@@ -6,7 +6,7 @@ describe("technische projectbasis", () => {
     expect(process.versions.node.split(".")[0]).toBe("24");
   });
 
-  it("bevat uitsluitend het afgesproken authdatamodel", () => {
+  it("bevat het afgesproken kern-datamodel", () => {
     expect(Prisma.dmmf.datamodel.models.map((model) => model.name).sort()).toEqual([
       "AuthThrottle",
       "MicrosoftToken",
@@ -14,8 +14,11 @@ describe("technische projectbasis", () => {
       "Session",
       "Subtask",
       "Task",
+      "TaskAttachment",
       "TaskDependency",
       "TimeSession",
+      "TodoImportBatch",
+      "TodoImportItem",
       "User",
     ]);
   });

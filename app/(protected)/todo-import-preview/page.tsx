@@ -8,6 +8,7 @@ import {
 } from "@/lib/microsoft/todo-import";
 
 import styles from "./todo-import-preview.module.css";
+import { TodoImportAction } from "./todo-import-action";
 
 export const metadata: Metadata = {
   title: "To Do-importpreview | MijnPlanning",
@@ -71,6 +72,14 @@ export default async function TodoImportPreviewPage() {
               <span className={styles.summaryLabel}>Importeerbaar</span>
               <strong className={styles.summaryValue}>{preview.importableCount}</strong>
             </article>
+            <article className={styles.summaryCard}>
+              <span className={styles.summaryLabel}>Bestanden</span>
+              <strong className={styles.summaryValue}>{preview.attachmentCount}</strong>
+            </article>
+            <article className={styles.summaryCard}>
+              <span className={styles.summaryLabel}>Links</span>
+              <strong className={styles.summaryValue}>{preview.linkCount}</strong>
+            </article>
           </section>
 
           <section className={styles.contentGrid}>
@@ -103,13 +112,14 @@ export default async function TodoImportPreviewPage() {
                 </div>
               </div>
               <ol className={styles.stepList}>
-                <li>Kies straks of de huidige taken eerst verwijderd moeten worden.</li>
-                <li>Controleer daarna de preview voordat je importeert.</li>
+                <li>Controleer de preview voordat je importeert.</li>
                 <li>De import maakt van To Do-taken hoofdtaken in MijnPlanning.</li>
+                <li>Bestaande MijnPlanning-taken blijven behouden.</li>
               </ol>
               <p className={styles.note}>
                 To Do wordt hier alleen éénmalig gelezen. De originele taken blijven in To Do staan; er is geen blijvende synchronisatie.
               </p>
+              <TodoImportAction importableCount={preview.importableCount} />
             </article>
           </section>
         </section>

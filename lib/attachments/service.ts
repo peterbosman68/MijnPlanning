@@ -1,0 +1,69 @@
+import "server-only";
+
+import {
+  createAttachmentRecord,
+  deleteAttachmentRecord,
+  listAttachmentsForSubtask,
+  listAttachmentsForTask,
+  type DatabaseClient,
+  type TaskAttachmentSource,
+} from "./repository";
+
+export type AttachmentTarget = Readonly<{
+  taskId?: string;
+  subtaskId?: string;
+}>;
+
+export type AttachmentInput = Readonly<{
+  userId: string;
+  target: AttachmentTarget;
+  source: TaskAttachmentSource;
+  blobPath?: string | null;
+  sourceUrl?: string | null;
+  originalFileName?: string | null;
+  mimeType?: string | null;
+  sizeBytes?: number | null;
+  sourceExternalId?: string | null;
+}>;
+
+function sanitizeFileName(value: string) {
+  return value.trim().replace(/[\\/:*?"<>|]+/g, "-");
+}
+
+function ensureTarget(target: AttachmentTarget) {
+  const hasTask = Boolean(target.taskId);
+  const hasSubtask = Boolean(target.subtaskId);
+
+  if (hasTask === hasSubtask) {
+    throw new Error("Een bijlage moet precies aan een taak of een subtaak worden gekoppeld.");
+  }
+}
+
+export function listTaskAttachments(database: DatabaseClient, userId: string, taskId: string) {
+  return listAttachmentsForTask(database, userId, taskId);
+}
+
+export function listSubtaskAttachments(database: DatabaseClient, userId: string, subtaskId: string) {
+  return listAttachmentsForSubtask(database, userId, subtaskId);
+}
+
+export function createTaskAttachment(database: DatabaseClient, input: AttachmentInput) {
+  ensureTarget(input.target);
+
+  return createAttachmentRecord(database, {
+    userId: input.userId,
+    taskId: input.target.taskId ?? null,
+    subtaskId: input.target.subtaskId ?? null,
+    blobPath: input.blobPath ?? null,
+    sourceUrl: input.sourceUrl ?? null,
+    originalFileName: input.originalFileName ? sanitizeFileName(input.originalFileName) : null,
+    mimeType: input.mimeType ?? null,
+    sizeBytes: input.sizeBytes ?? null,
+    sourceExternalId: input.sourceExternalId ?? null,
+    source: input.source,
+  });
+}
+
+export function deleteTaskAttachment(database: DatabaseClient, userId: string, attachmentId: string) {
+  return deleteAttachmentRecord(database, userId, attachmentId);
+}
