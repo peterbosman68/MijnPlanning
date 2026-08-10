@@ -412,42 +412,6 @@ const INITIAL_TASKS: MainTask[] = [
   },
 ];
 
-const APPOINTMENTS: Appointment[] = [
-  {
-    id: "daily",
-    dateValue: "2026-08-05",
-    durationMinutes: 60,
-    day: "Vandaag · 5 augustus",
-    time: "09:00–10:00",
-    title: "Dagstart en planning",
-    location: "Teams",
-    attendees: "3 deelnemers",
-    note: "Weekplanning en blokkades afstemmen.",
-  },
-  {
-    id: "erwin",
-    dateValue: "2026-08-07",
-    durationMinutes: 240,
-    day: "Vrijdag · 7 augustus",
-    time: "08:30–12:30",
-    title: "Klantbezoeken regio Oost",
-    location: "Microsoft Teams",
-    attendees: "4 deelnemers",
-    note: "Blok met geplande klantbezoeken.",
-  },
-  {
-    id: "visit",
-    dateValue: "2026-08-07",
-    durationMinutes: 240,
-    day: "Vrijdag · 7 augustus",
-    time: "13:00–17:00",
-    title: "Werkoverleg en intakegesprekken",
-    location: "Op locatie",
-    attendees: "4 deelnemers",
-    note: "Middagblok met vervolgafspraken.",
-  },
-];
-
 const EMAIL_PROPOSALS: EmailProposal[] = [
   {
     id: "invoice",
@@ -668,6 +632,28 @@ function splitDeadlineValue(value?: string) {
   return { date: value, time: "" };
 }
 
+function getAppointmentStartTimestamp(appointment: Appointment) {
+  const startTime = appointment.time.split("–")[0]?.trim() ?? "00:00";
+  const parsed = new Date(`${appointment.dateValue}T${startTime}`).getTime();
+  if (Number.isNaN(parsed)) return Number.POSITIVE_INFINITY;
+  return parsed;
+}
+
+function getDeadlineTimestamp(value?: string) {
+  if (!value) return Number.POSITIVE_INFINITY;
+  const parsed = new Date(value).getTime();
+  if (Number.isNaN(parsed)) return Number.POSITIVE_INFINITY;
+  return parsed;
+}
+
+function sortByOldestDeadlineFirst<T extends { id: string; deadlineValue?: string }>(items: T[]) {
+  return [...items].sort((a, b) => {
+    const byDate = getDeadlineTimestamp(a.deadlineValue) - getDeadlineTimestamp(b.deadlineValue);
+    if (byDate !== 0) return byDate;
+    return a.id.localeCompare(b.id);
+  });
+}
+
 const DELETE_CONFIRMATION_MESSAGE = "Wil je zeker weten dat je knop wilt verwijderen?";
 
 function buildTaskNote(subtasks: Subtask[]) {
@@ -827,9 +813,13 @@ export function TakenVisualPrototype({
   const [tasks, setTasks] = useState<MainTask[]>(INITIAL_TASKS);
   const [selectedTaskId, setSelectedTaskId] = useState("truckparking");
   const [selectedSubtaskId, setSelectedSubtaskId] = useState<string | null>(null);
-  const [selectedAppointmentId, setSelectedAppointmentId] = useState("erwin");
+  const [selectedAppointmentId, setSelectedAppointmentId] = useState<string | null>(null);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [appointmentsLoading, setAppointmentsLoading] = useState(false);
+  const [appointmentsError, setAppointmentsError] = useState<string | null>(null);
   const [selectedEmailId, setSelectedEmailId] = useState("invoice");
   const [timerSeconds, setTimerSeconds] = useState(47 * 60 + 12);
+  const [nowTimestamp, setNowTimestamp] = useState(() => Date.now());
   const [editorMode, setEditorMode] = useState<EditorMode>("none");
   const [mainTaskError, setMainTaskError] = useState<string | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -854,11 +844,66 @@ export function TakenVisualPrototype({
     return () => window.clearInterval(timer);
   }, []);
 
+  useEffect(() => {
+    const refreshNow = window.setInterval(() => setNowTimestamp(Date.now()), 60_000);
+    return () => window.clearInterval(refreshNow);
+  }, []);
+
+  useEffect(() => {
+    if (activeView !== "appointments") return;
+
+    const controller = new AbortController();
+
+    async function loadAppointments() {
+      setAppointmentsLoading(true);
+      setAppointmentsError(null);
+      try {
+        const response = await fetch("/api/outlook/appointments?days=30", {
+          method: "GET",
+          cache: "no-store",
+          signal: controller.signal,
+        });
+
+        const payload = (await response.json()) as { appointments?: Appointment[]; error?: string };
+
+        if (!response.ok) {
+          setAppointments([]);
+          setSelectedAppointmentId(null);
+          setAppointmentsError(payload.error ?? "Outlook-afspraken konden niet worden geladen.");
+          return;
+        }
+
+        const nextAppointments = Array.isArray(payload.appointments) ? payload.appointments : [];
+        setAppointments(nextAppointments);
+        setSelectedAppointmentId((current) => current ?? nextAppointments[0]?.id ?? null);
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        setAppointments([]);
+        setSelectedAppointmentId(null);
+        setAppointmentsError(error instanceof Error ? error.message : "Outlook-afspraken konden niet worden geladen.");
+      } finally {
+        if (!controller.signal.aborted) {
+          setAppointmentsLoading(false);
+        }
+      }
+    }
+
+    loadAppointments();
+
+    return () => controller.abort();
+  }, [activeView]);
+
   const visibleTasks = useMemo(() => {
-    if (activeView === "waiting") return tasks.filter((task) => task.status === "waiting");
-    if (activeView === "completed") return tasks.filter((task) => isCompletedBucketTask(task));
-    if (activeView === "today") return tasks.filter((task) => task.id !== "quarter" && task.status !== "completed" && !isArchivedTask(task));
-    return tasks.filter((task) => task.status !== "completed" && !isArchivedTask(task));
+    const filtered =
+      activeView === "waiting"
+        ? tasks.filter((task) => task.status === "waiting")
+        : activeView === "completed"
+          ? tasks.filter((task) => isCompletedBucketTask(task))
+          : activeView === "today"
+            ? tasks.filter((task) => task.id !== "quarter" && task.status !== "completed" && !isArchivedTask(task))
+            : tasks.filter((task) => task.status !== "completed" && !isArchivedTask(task));
+
+    return sortByOldestDeadlineFirst(filtered);
   }, [activeView, tasks]);
 
   const selectedTask = useMemo(() => {
@@ -871,8 +916,12 @@ export function TakenVisualPrototype({
 
   const visibleSubtasks = useMemo(() => {
     if (!selectedTask) return [];
-    if (activeView === "completed") return selectedTask.subtasks;
-    return selectedTask.subtasks.filter((subtask) => !isArchivedSubtask(subtask));
+    const filtered =
+      activeView === "completed"
+        ? selectedTask.subtasks
+        : selectedTask.subtasks.filter((subtask) => !isArchivedSubtask(subtask));
+
+    return sortByOldestDeadlineFirst(filtered);
   }, [activeView, selectedTask]);
 
   const selectedSubtask = useMemo(() => {
@@ -880,8 +929,20 @@ export function TakenVisualPrototype({
     if (!selectedSubtaskId) return visibleSubtasks[0];
     return visibleSubtasks.find((subtask) => subtask.id === selectedSubtaskId) ?? visibleSubtasks[0];
   }, [selectedSubtaskId, visibleSubtasks]);
-  const selectedAppointment =
-    APPOINTMENTS.find((appointment) => appointment.id === selectedAppointmentId) ?? APPOINTMENTS[0];
+  const sortedAppointments = useMemo(
+    () => [...appointments].sort((a, b) => getAppointmentStartTimestamp(a) - getAppointmentStartTimestamp(b)),
+    [appointments],
+  );
+
+  const upcomingAppointments = useMemo(() => {
+    return sortedAppointments.filter((appointment) => getAppointmentStartTimestamp(appointment) >= nowTimestamp);
+  }, [nowTimestamp, sortedAppointments]);
+
+  const selectedAppointment = useMemo(() => {
+    const pool = upcomingAppointments;
+    if (pool.length === 0) return null;
+    return pool.find((appointment) => appointment.id === selectedAppointmentId) ?? pool[0];
+  }, [selectedAppointmentId, upcomingAppointments]);
 
   const emailsWithCurrentCategory = useMemo(
     () =>
@@ -2096,23 +2157,31 @@ export function TakenVisualPrototype({
 
           {currentKind === "appointments" && (
             <div className={styles.listBody}>
-              {APPOINTMENTS.map((appointment, index) => {
-                const showDay = index === 0 || APPOINTMENTS[index - 1].day !== appointment.day;
-                return (
-                  <div key={appointment.id}>
-                    {showDay && <p className={styles.dateDivider}>{appointment.day}</p>}
-                    <button
-                      type="button"
-                      className={selectedAppointment.id === appointment.id ? styles.selectedAppointmentRow : styles.appointmentRow}
-                      onClick={() => { setSelectedAppointmentId(appointment.id); setMobilePane("detail"); }}
-                    >
-                      <span className={styles.timeBar} aria-hidden="true" />
-                      <time>{appointment.time}</time>
-                      <strong>{appointment.title}</strong>
-                    </button>
-                  </div>
-                );
-              })}
+              {appointmentsLoading && <p className={styles.emptyState}>Outlook-afspraken laden...</p>}
+
+              {!appointmentsLoading && appointmentsError && <p className={styles.formError}>{appointmentsError}</p>}
+
+              {!appointmentsLoading && !appointmentsError && upcomingAppointments.length === 0 ? (
+                <p className={styles.emptyState}>Geen komende afspraken vanaf nu.</p>
+              ) : (
+                !appointmentsLoading && !appointmentsError && upcomingAppointments.map((appointment, index) => {
+                  const showDay = index === 0 || upcomingAppointments[index - 1].day !== appointment.day;
+                  return (
+                    <div key={appointment.id}>
+                      {showDay && <p className={styles.dateDivider}>{appointment.day}</p>}
+                      <button
+                        type="button"
+                        className={selectedAppointment?.id === appointment.id ? styles.selectedAppointmentRow : styles.appointmentRow}
+                        onClick={() => { setSelectedAppointmentId(appointment.id); setMobilePane("detail"); }}
+                      >
+                        <span className={styles.timeBar} aria-hidden="true" />
+                        <time>{appointment.time}</time>
+                        <strong>{appointment.title}</strong>
+                      </button>
+                    </div>
+                  );
+                })
+              )}
             </div>
           )}
 
@@ -2515,7 +2584,7 @@ export function TakenVisualPrototype({
             </div>
           )}
 
-          {currentKind === "appointments" && (
+          {currentKind === "appointments" && selectedAppointment && (
             <div className={styles.detailContent}>
               <header className={styles.detailHeader}>
                 <p className={styles.eyebrow}>Outlook-afspraak</p>
@@ -2531,7 +2600,19 @@ export function TakenVisualPrototype({
                 <p>{selectedAppointment.note}</p>
               </div>
               <p className={styles.readOnlyNote}>
-                <NavIcon name="appointments" /> Alleen-lezen via Outlook · tijdelijke voorbeelddata
+                <NavIcon name="appointments" /> Alleen-lezen via Outlook
+              </p>
+            </div>
+          )}
+
+          {currentKind === "appointments" && !selectedAppointment && (
+            <div className={styles.detailContent}>
+              <header className={styles.detailHeader}>
+                <p className={styles.eyebrow}>Outlook-afspraken</p>
+                <h2>Geen komende afspraken</h2>
+              </header>
+              <p className={styles.readOnlyNote}>
+                <NavIcon name="appointments" /> Zodra er afspraken vanaf nu zijn, verschijnen ze hier automatisch op datumvolgorde.
               </p>
             </div>
           )}

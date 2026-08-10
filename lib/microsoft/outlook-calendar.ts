@@ -46,6 +46,23 @@ function overlapMinutes(
   return Math.round((endMs - startMs) / (1000 * 60));
 }
 
+export type OutlookUpcomingEvent = {
+  id: string;
+  startIso: string;
+  endIso: string;
+  subject: string;
+  location: string;
+  attendeesCount: number;
+  bodyPreview: string;
+};
+
+function calendarViewPath() {
+  const calendarId = process.env.MICROSOFT_GRAPH_CALENDAR_ID;
+  return calendarId
+    ? `/me/calendars/${encodeURIComponent(calendarId)}/calendarView`
+    : "/me/calendarView";
+}
+
 export async function getOutlookBookedMinutesForDate(dateValue: string, userId: string) {
   let accessToken: string;
   try {
@@ -58,10 +75,7 @@ export async function getOutlookBookedMinutesForDate(dateValue: string, userId: 
   const endDateTime = toIsoUtc(nextDateValue(dateValue));
   const encodedStart = encodeURIComponent(startDateTime);
   const encodedEnd = encodeURIComponent(endDateTime);
-  const calendarId = process.env.MICROSOFT_GRAPH_CALENDAR_ID;
-  const calendarPath = calendarId
-    ? `/me/calendars/${encodeURIComponent(calendarId)}/calendarView`
-    : "/me/calendarView";
+  const calendarPath = calendarViewPath();
 
   const endpoint =
     `https://graph.microsoft.com/v1.0${calendarPath}` +
@@ -106,6 +120,76 @@ export async function getOutlookBookedMinutesForDate(dateValue: string, userId: 
 
     return sum + overlapMinutes(eventStart, eventEnd, windowStartMs, windowEndMs);
   }, 0);
+}
+
+export async function getOutlookUpcomingEvents(userId: string, daysAhead = 30): Promise<OutlookUpcomingEvent[]> {
+  let accessToken: string;
+  try {
+    accessToken = await getValidAccessToken(userId);
+  } catch {
+    throw new OutlookCalendarConfigError("Outlook-agenda is niet gekoppeld of geconfigureerd.");
+  }
+
+  const now = new Date();
+  const end = new Date(now.getTime() + Math.max(1, daysAhead) * 24 * 60 * 60 * 1000);
+  const encodedStart = encodeURIComponent(now.toISOString());
+  const encodedEnd = encodeURIComponent(end.toISOString());
+  const endpoint =
+    `https://graph.microsoft.com/v1.0${calendarViewPath()}` +
+    `?startDateTime=${encodedStart}&endDateTime=${encodedEnd}` +
+    "&$orderby=start/dateTime" +
+    "&$select=id,subject,start,end,isCancelled,showAs,location,attendees,bodyPreview";
+
+  const response = await fetch(endpoint, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      Accept: "application/json",
+      Prefer: 'outlook.timezone="UTC"',
+    },
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    throw new OutlookCalendarRequestError("Outlook-afspraken konden niet worden uitgelezen.");
+  }
+
+  const payload = (await response.json()) as {
+    value?: Array<{
+      id?: string;
+      subject?: string;
+      bodyPreview?: string;
+      isCancelled?: boolean;
+      showAs?: string;
+      location?: { displayName?: string };
+      attendees?: Array<unknown>;
+      start?: { dateTime?: string };
+      end?: { dateTime?: string };
+    }>;
+  };
+
+  const nowMs = now.getTime();
+  const events = Array.isArray(payload.value) ? payload.value : [];
+
+  return events
+    .filter((event) => {
+      if (!event.id) return false;
+      if (!event.start?.dateTime || !event.end?.dateTime) return false;
+      if (event.isCancelled) return false;
+      if (event.showAs && ["free", "workingElsewhere"].includes(event.showAs.toLowerCase())) return false;
+      const endMs = new Date(event.end.dateTime).getTime();
+      return Number.isFinite(endMs) && endMs >= nowMs;
+    })
+    .map((event) => ({
+      id: event.id as string,
+      startIso: event.start?.dateTime as string,
+      endIso: event.end?.dateTime as string,
+      subject: event.subject?.trim() || "(Zonder titel)",
+      location: event.location?.displayName?.trim() || "Geen locatie",
+      attendeesCount: Array.isArray(event.attendees) ? event.attendees.length : 0,
+      bodyPreview: event.bodyPreview?.trim() || "",
+    }))
+    .sort((a, b) => new Date(a.startIso).getTime() - new Date(b.startIso).getTime());
 }
 
 export { OutlookCalendarConfigError, OutlookCalendarRequestError };
