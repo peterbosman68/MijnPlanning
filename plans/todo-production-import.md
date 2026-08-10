@@ -259,7 +259,7 @@ Nog vereist:
 - [x] Private Vercel Blob-store aangemaakt en aan Development, Preview en Production gekoppeld.
 - [x] Alle kwaliteitscontroles groen: lint, typecheck, tests en productiebuild.
 - [x] Migratie gecontroleerd toegepast; Prisma bevestigt dat alle zes migraties actueel zijn.
-- [ ] Commit en push uitgevoerd.
+- [x] Commit en push naar `main` uitgevoerd.
 - [ ] Vercel-deployment gecontroleerd.
 - [ ] Productiepreview door Peter gecontroleerd.
 - [ ] Eenmalige productie-import afzonderlijk bevestigd en uitgevoerd.
