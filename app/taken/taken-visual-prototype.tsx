@@ -1077,6 +1077,10 @@ export function TakenVisualPrototype({
     });
   }
 
+  function openTodoImportPreview() {
+    window.open("/api/todo/import/preview", "_blank", "noopener,noreferrer");
+  }
+
   async function updateMainTask(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selectedTask) return;
@@ -1971,6 +1975,17 @@ export function TakenVisualPrototype({
                   aria-expanded={editorMode === "new-main"}
                 >
                   + Hoofdtaak
+                </button>
+              </div>
+            )}
+            {currentKind === "appointments" && (
+              <div className={styles.listActions}>
+                <button
+                  type="button"
+                  className={styles.secondaryButton}
+                  onClick={openTodoImportPreview}
+                >
+                  To Do importpreview
                 </button>
               </div>
             )}
