@@ -12,7 +12,13 @@ type ImportResult = Readonly<{
   skippedCount: number;
 }>;
 
-export function TodoImportAction({ importableCount }: { importableCount: number }) {
+export function TodoImportAction({
+  importableCount,
+  manualFileTaskCount,
+}: {
+  importableCount: number;
+  manualFileTaskCount: number;
+}) {
   const [confirmed, setConfirmed] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -66,7 +72,8 @@ export function TodoImportAction({ importableCount }: { importableCount: number 
         />
         <span>
           Ik bevestig dat alle To Do-lijsten, inclusief open en afgeronde taken, éénmalig als hoofdtaken worden gekopieerd.
-          Bestaande MijnPlanning-taken blijven behouden.
+          Bestaande MijnPlanning-taken blijven behouden. Documentbijlagen van {manualFileTaskCount} taken worden niet
+          gekopieerd en voeg ik later handmatig toe.
         </span>
       </label>
       <button

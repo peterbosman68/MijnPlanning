@@ -154,6 +154,7 @@ Na expliciete goedkeuring wordt deze afgebakende implementatie uitgevoerd. De da
 - [x] Server-side boardread en bijlagenread gekoppeld.
 - [x] Lokale schijnopslag vervangen door Server Actions.
 - [x] Officiële Graph list/get-flow voor bestandsbijlagen fail-closed gemaakt.
+- [x] Na vastgestelde `401 accessDenied` voor persoonlijke To Do-documenten aangepast: documenten worden niet opgevraagd, zes betrokken taken worden in de preview voor handmatige overdracht gemarkeerd en links blijven importeerbaar (goedgekeurd 11 augustus 2026).
 - [x] Gerichte tests en alle kwaliteitsgates groen (lint, typecheck, 46 tests, build en 16 Playwright-tests).
 - [x] Commit, push en Vercel-productiecontrole afgerond; deployment `ff52688` is Ready en de healthroute meldt `ok`.
 - [ ] Ingelogde desktop-/mobiele Taken-controle en productiepreview opnieuw uitgevoerd met Peters bestaande sessie.

@@ -288,6 +288,18 @@ Nieuwe besluiten worden onderaan toegevoegd met datum.
 - Deadline, status, documenten en links worden naar de overeenkomstige hoofdtaakvelden en bijlagen gemapt.
 - De import is uitsluitend aanvullend en verwijdert of overschrijft geen bestaande MijnPlanning-taken.
 - Bron-ID, bronhash, batch en itemresultaat worden bewaard om dubbele import te voorkomen en de uitvoering controleerbaar te maken.
+
+## 11 augustus 2026 — documentbijlagen handmatig na To Do-import
+
+### O30 — To Do-import zonder documentbestanden
+
+- Microsoft Graph geeft voor Peters persoonlijke Microsoft-account `401 accessDenied` op de documentbijlagen-endpoint, ondanks een geldig token met `Tasks.Read`.
+- Alle To Do-taken, inclusief de zes taken die documenten melden, worden normaal als hoofdtaken geïmporteerd.
+- Titels, originele notities, deadlines, statussen en veilige gekoppelde links blijven onderdeel van de import.
+- Documentbestanden worden niet door de automatische import opgevraagd of gekopieerd.
+- De preview toont expliciet welke taken na de import handmatige documentoverdracht nodig hebben.
+- De originele Microsoft To Do-taken en documenten blijven ongewijzigd.
+- Peter heeft deze aangepaste importaanpak op 11 augustus 2026 expliciet opgedragen.
 - De eerste echte import vindt op productie plaats na een afzonderlijke expliciete bevestiging op de gecontroleerde preview.
 - Bij de eerste subtaak wordt een uitvoerbare hoofdtaak een verzameltaak; de hoofdtaakduur wordt niet naast de subtaken dubbel ingepland.
 

@@ -4,7 +4,6 @@ import { createHash } from "node:crypto";
 
 import { Prisma, type TaskStatus } from "@prisma/client";
 
-import { deleteUploadedBlobs, uploadPrivateAttachment } from "@/lib/attachments/blob-storage";
 import { createTaskAttachment } from "@/lib/attachments/service";
 import { prisma } from "@/lib/db/client";
 
@@ -49,27 +48,19 @@ type GraphTodoTask = {
     dateTime?: string;
     timeZone?: string;
   };
-  attachments?: GraphTodoFileAttachment[];
+  hasAttachments?: boolean;
   linkedResources?: GraphTodoLinkedResource[];
 };
 
 type PreparedAttachmentRecord = Readonly<{
   sourceExternalId: string;
-  kind: "FILE" | "LINK";
+  kind: "LINK";
   displayName: string;
   mimeType: string | null;
   sizeBytes: number | null;
   sourceUrl: string | null;
   blobPath: string | null;
 }>;
-
-type GraphTodoFileAttachment = {
-  id?: string;
-  name?: string;
-  contentType?: string;
-  size?: number;
-  contentBytes?: string;
-};
 
 type GraphTodoLinkedResource = {
   id?: string;
@@ -95,19 +86,17 @@ export type TodoImportCandidate = Readonly<{
   descriptionPlain: string;
   deadline: Date | null;
   status: TaskStatus;
+  requiresManualFileTransfer: boolean;
   attachments: TodoImportAttachmentCandidate[];
 }>;
 
 export type TodoImportAttachmentCandidate = Readonly<{
   sourceExternalId: string;
-  kind: "FILE" | "LINK";
+  kind: "LINK";
   displayName: string;
   mimeType: string | null;
   sizeBytes: number | null;
   sourceUrl: string | null;
-  contentBytesBase64: string | null;
-  applicationName: string | null;
-  externalId: string | null;
 }>;
 
 export type TodoImportPreview = Readonly<{
@@ -116,6 +105,8 @@ export type TodoImportPreview = Readonly<{
   importableCount: number;
   attachmentCount: number;
   linkCount: number;
+  manualFileTaskCount: number;
+  manualFileTaskTitles: string[];
   sampleTitles: string[];
 }>;
 
@@ -230,20 +221,7 @@ function createAttachmentSourceExternalId(
 }
 
 function mapTodoAttachments(listId: string, taskId: string, task: GraphTodoTask): TodoImportAttachmentCandidate[] {
-  const fileAttachments = Array.isArray(task.attachments) ? task.attachments : [];
   const linkedResources = Array.isArray(task.linkedResources) ? task.linkedResources : [];
-
-  const fileCandidates = fileAttachments.map((attachment, index) => ({
-    sourceExternalId: createAttachmentSourceExternalId(listId, taskId, "FILE", attachment.id ?? attachment.name, index),
-    kind: "FILE" as const,
-    displayName: normalizeDisplayName(attachment.name, `Bijlage ${index + 1}`),
-    mimeType: attachment.contentType?.trim() || null,
-    sizeBytes: typeof attachment.size === "number" && Number.isFinite(attachment.size) ? attachment.size : null,
-    sourceUrl: null,
-    contentBytesBase64: attachment.contentBytes ?? null,
-    applicationName: null,
-    externalId: attachment.id?.trim() || null,
-  }));
 
   const linkCandidates = linkedResources.map((linkedResource, index) => ({
     sourceExternalId: createAttachmentSourceExternalId(
@@ -258,44 +236,9 @@ function mapTodoAttachments(listId: string, taskId: string, task: GraphTodoTask)
     mimeType: null,
     sizeBytes: null,
     sourceUrl: safeHttpUrl(linkedResource.webUrl),
-    contentBytesBase64: null,
-    applicationName: linkedResource.applicationName?.trim() || null,
-    externalId: linkedResource.externalId?.trim() || linkedResource.id?.trim() || null,
   }));
 
-  return [...fileCandidates, ...linkCandidates];
-}
-
-async function fetchTodoTaskAttachments(
-  listId: string,
-  task: GraphTodoTask & { id: string },
-  accessToken: string,
-): Promise<GraphTodoFileAttachment[]> {
-  const taskUrl = `${GRAPH_BASE}/me/todo/lists/${encodeURIComponent(listId)}/tasks/${encodeURIComponent(task.id)}`;
-  const attachmentMetadata = await fetchPaged<GraphTodoFileAttachment>(`${taskUrl}/attachments`, accessToken);
-
-  if (attachmentMetadata.length === 0) {
-    return [];
-  }
-
-  const attachments: GraphTodoFileAttachment[] = [];
-  for (const metadata of attachmentMetadata) {
-    if (!metadata.id) {
-      throw new MicrosoftTodoRequestError(`To Do gaf een bestand zonder ID terug voor taak "${task.title ?? task.id}".`);
-    }
-
-    const attachment = await graphFetch<GraphTodoFileAttachment>(
-      `${taskUrl}/attachments/${encodeURIComponent(metadata.id)}`,
-      accessToken,
-    );
-    if (!attachment.contentBytes) {
-      throw new MicrosoftTodoRequestError(`To Do gaf geen bestandsinhoud terug voor taak "${task.title ?? task.id}".`);
-    }
-
-    attachments.push({ ...metadata, ...attachment, id: metadata.id });
-  }
-
-  return attachments;
+  return linkCandidates;
 }
 
 function createSourceHash(input: {
@@ -303,6 +246,7 @@ function createSourceHash(input: {
   descriptionOriginal: string;
   deadline: Date | null;
   status: TaskStatus;
+  requiresManualFileTransfer: boolean;
   attachments: TodoImportAttachmentCandidate[];
 }) {
   const attachments = input.attachments.map((attachment) => ({
@@ -312,9 +256,6 @@ function createSourceHash(input: {
     mimeType: attachment.mimeType,
     sizeBytes: attachment.sizeBytes,
     sourceUrl: attachment.sourceUrl,
-    contentHash: attachment.contentBytesBase64
-      ? createHash("sha256").update(attachment.contentBytesBase64).digest("hex")
-      : null,
   }));
 
   return createHash("sha256").update(JSON.stringify({ ...input, deadline: input.deadline?.toISOString() ?? null, attachments })).digest("hex");
@@ -413,25 +354,26 @@ async function fetchTodoListsAndTasks(userId: string): Promise<Readonly<{ lists:
 
     for (const task of tasks) {
       if (!task.id) continue;
-      const fileAttachments = await fetchTodoTaskAttachments(list.id, task as GraphTodoTask & { id: string }, accessToken);
       const title = task.title ?? "(Zonder titel)";
       const descriptionOriginal = task.body?.content ?? "";
       const sourceExternalId = `todo:${list.id}:${task.id}`;
-      const attachments = mapTodoAttachments(list.id, task.id, { ...task, attachments: fileAttachments });
+      const attachments = mapTodoAttachments(list.id, task.id, task);
       const deadline = mapTodoDeadline(task.dueDateTime);
       const status = mapStatus(task.status);
+      const requiresManualFileTransfer = task.hasAttachments === true;
 
       candidates.push({
         externalListId: list.id,
         externalTaskId: task.id,
         listDisplayName: list.displayName ?? "(Zonder lijstnaam)",
         sourceExternalId,
-        sourceHash: createSourceHash({ title, descriptionOriginal, deadline, status, attachments }),
+        sourceHash: createSourceHash({ title, descriptionOriginal, deadline, status, requiresManualFileTransfer, attachments }),
         title,
         descriptionOriginal,
         descriptionPlain: normalizeDescription(descriptionOriginal),
         deadline,
         status,
+        requiresManualFileTransfer,
         attachments,
       });
     }
@@ -449,8 +391,10 @@ export async function previewTodoImport(userId: string): Promise<TodoImportPrevi
     listsCount: lists.length,
     tasksCount: candidates.length,
     importableCount: candidates.filter((candidate) => !existingIds.has(candidate.sourceExternalId)).length,
-    attachmentCount: attachments.filter((attachment) => attachment.kind === "FILE").length,
+    attachmentCount: 0,
     linkCount: attachments.filter((attachment) => attachment.kind === "LINK").length,
+    manualFileTaskCount: candidates.filter((candidate) => candidate.requiresManualFileTransfer).length,
+    manualFileTaskTitles: candidates.filter((candidate) => candidate.requiresManualFileTransfer).map((candidate) => candidate.title),
     sampleTitles: candidates.slice(0, 10).map((item) => item.title),
   };
 }
@@ -494,7 +438,6 @@ export async function executeTodoImport(userId: string): Promise<TodoImportResul
   const importCandidates = candidates.filter((candidate) => !existingIds.has(candidate.sourceExternalId));
   skippedCount = candidates.length - importCandidates.length;
 
-  const uploadedBlobUrls: string[] = [];
   const preparedAttachmentsByTask = new Map<string, PreparedAttachmentRecord[]>();
 
   try {
@@ -502,48 +445,17 @@ export async function executeTodoImport(userId: string): Promise<TodoImportResul
       const preparedForTask: PreparedAttachmentRecord[] = [];
 
       for (const attachment of candidate.attachments) {
-        if (attachment.kind === "LINK") {
-          if (!attachment.sourceUrl) {
-            throw new MicrosoftTodoRequestError(`To Do-link zonder veilige URL ontvangen voor taak "${candidate.title}".`);
-          }
-          preparedForTask.push({
-            sourceExternalId: attachment.sourceExternalId,
-            kind: attachment.kind,
-            displayName: attachment.displayName,
-            mimeType: attachment.mimeType,
-            sizeBytes: attachment.sizeBytes,
-            sourceUrl: attachment.sourceUrl,
-            blobPath: null,
-          });
-          continue;
+        if (!attachment.sourceUrl) {
+          throw new MicrosoftTodoRequestError(`To Do-link zonder veilige URL ontvangen voor taak "${candidate.title}".`);
         }
-
-        if (!attachment.contentBytesBase64) {
-          throw new MicrosoftTodoRequestError(`To Do-bijlage zonder inhoud ontvangen voor taak \"${candidate.title}\".`);
-        }
-
-        const attachmentBytes = Buffer.from(attachment.contentBytesBase64, "base64");
-        if (attachmentBytes.byteLength === 0) {
-          throw new MicrosoftTodoRequestError(`Lege To Do-bijlage ontvangen voor taak \"${candidate.title}\".`);
-        }
-
-        const uploaded = await uploadPrivateAttachment({
-          userId,
-          sourceFolder: "todo-import",
-          fileName: attachment.displayName,
-          contentType: attachment.mimeType,
-          bytes: attachmentBytes,
-        });
-        uploadedBlobUrls.push(uploaded.blobUrl);
-
         preparedForTask.push({
           sourceExternalId: attachment.sourceExternalId,
           kind: attachment.kind,
           displayName: attachment.displayName,
           mimeType: attachment.mimeType,
-          sizeBytes: attachment.sizeBytes ?? uploaded.sizeBytes,
-          sourceUrl: null,
-          blobPath: uploaded.blobPath,
+          sizeBytes: attachment.sizeBytes,
+          sourceUrl: attachment.sourceUrl,
+          blobPath: null,
         });
       }
 
@@ -612,11 +524,6 @@ export async function executeTodoImport(userId: string): Promise<TodoImportResul
       });
     });
   } catch (error) {
-    try {
-      await deleteUploadedBlobs(uploadedBlobUrls);
-    } catch {
-      // Best effort cleanup; het originele importfoutsignaal blijft leidend.
-    }
     await prisma.todoImportBatch.update({
       where: { id: batch.id },
       data: {

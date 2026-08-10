@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   findImportItems: vi.fn(),
   transaction: vi.fn(),
   getValidAccessToken: vi.fn(),
+  createTaskAttachment: vi.fn(),
 }));
 
 vi.mock("@/lib/db/client", () => ({
@@ -37,7 +38,7 @@ vi.mock("@/lib/attachments/blob-storage", () => ({
 }));
 
 vi.mock("@/lib/attachments/service", () => ({
-  createTaskAttachment: vi.fn(),
+  createTaskAttachment: mocks.createTaskAttachment,
 }));
 
 vi.mock("@/lib/microsoft/token-service", () => ({
@@ -72,19 +73,24 @@ describe("eenmalige Microsoft To Do-import", () => {
           {
             id: "new",
             title: "  Nieuwe taak  ",
+            hasAttachments: true,
             status: "completed",
             body: { content: "Exacte\r\n\r\n* notitie  " },
             dueDateTime: { dateTime: "2026-08-10T17:00:00.0000000", timeZone: "W. Europe Standard Time" },
+            linkedResources: [{
+              id: "link-1",
+              displayName: "Bronbestand",
+              webUrl: "https://example.com/document",
+            }],
           },
         ],
       },
-      { value: [] },
-      { value: [] },
     ];
-    vi.stubGlobal("fetch", vi.fn().mockImplementation(async () => ({
+    const fetchMock = vi.fn().mockImplementation(async () => ({
       ok: true,
       json: async () => graphResponses.shift(),
-    })));
+    }));
+    vi.stubGlobal("fetch", fetchMock);
     mocks.findMany.mockResolvedValue([{ sourceExternalId: "todo:list-1:existing" }]);
 
     const result = await executeTodoImport("user-1");
@@ -107,6 +113,20 @@ describe("eenmalige Microsoft To Do-import", () => {
         sourceExternalId: "todo:list-1:new",
       }),
     }));
+    expect(mocks.createTaskAttachment).toHaveBeenCalledWith(
+      expect.any(Object),
+      expect.objectContaining({
+        userId: "user-1",
+        target: { taskId: "created-task" },
+        source: "MICROSOFT_TODO",
+        sourceUrl: "https://example.com/document",
+        blobPath: null,
+      }),
+    );
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      expect.stringContaining("/attachments"),
+      expect.any(Object),
+    );
     expect(result).toEqual({
       batchId: "batch-1",
       listsCount: 1,
@@ -147,33 +167,17 @@ describe("eenmalige Microsoft To Do-import", () => {
       .toThrow("Niet-ondersteunde To Do-tijdzone");
   });
 
-  it("lijst To Do-bijlagen apart en haalt ieder bestand afzonderlijk op", async () => {
+  it("importeert taken met documenten zonder de geweigerde attachments-endpoint aan te roepen", async () => {
     const fetchMock = vi.fn(async (input: string | URL | Request) => {
       const url = String(input);
       const payload = url.endsWith("/me/todo/lists")
         ? { value: [{ id: "list-1", displayName: "Taken" }] }
-        : url.includes("/tasks/task-1/attachments/attachment-1")
-          ? {
-              id: "attachment-1",
-              name: "bewijs.pdf",
-              contentType: "application/pdf",
-              size: 4,
-              contentBytes: "dGVzdA==",
-            }
-          : url.includes("/tasks/task-1/attachments")
-            ? {
-                value: [{
-                  id: "attachment-1",
-                  name: "bewijs.pdf",
-                  contentType: "application/pdf",
-                  size: 4,
-                }],
-              }
-            : url.includes("/tasks")
+        : url.includes("/tasks")
               ? {
                   value: [{
                     id: "task-1",
                     title: "Taak met bestand",
+                    hasAttachments: true,
                     body: { content: "" },
                   }],
                 }
@@ -186,13 +190,11 @@ describe("eenmalige Microsoft To Do-import", () => {
 
     const preview = await previewTodoImport("user-1");
 
-    expect(preview.attachmentCount).toBe(1);
-    expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringContaining("/tasks/task-1/attachments"),
-      expect.any(Object),
-    );
-    expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringContaining("/tasks/task-1/attachments/attachment-1"),
+    expect(preview.attachmentCount).toBe(0);
+    expect(preview.manualFileTaskCount).toBe(1);
+    expect(preview.manualFileTaskTitles).toEqual(["Taak met bestand"]);
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      expect.stringContaining("/attachments"),
       expect.any(Object),
     );
     expect(fetchMock).not.toHaveBeenCalledWith(

@@ -73,8 +73,8 @@ export default async function TodoImportPreviewPage() {
               <strong className={styles.summaryValue}>{preview.importableCount}</strong>
             </article>
             <article className={styles.summaryCard}>
-              <span className={styles.summaryLabel}>Bestanden</span>
-              <strong className={styles.summaryValue}>{preview.attachmentCount}</strong>
+              <span className={styles.summaryLabel}>Documenttaken handmatig</span>
+              <strong className={styles.summaryValue}>{preview.manualFileTaskCount}</strong>
             </article>
             <article className={styles.summaryCard}>
               <span className={styles.summaryLabel}>Links</span>
@@ -114,12 +114,21 @@ export default async function TodoImportPreviewPage() {
               <ol className={styles.stepList}>
                 <li>Controleer de preview voordat je importeert.</li>
                 <li>De import maakt van To Do-taken hoofdtaken in MijnPlanning.</li>
+                <li>Documentbijlagen worden niet geïmporteerd en moeten later handmatig worden toegevoegd.</li>
                 <li>Bestaande MijnPlanning-taken blijven behouden.</li>
               </ol>
+              {preview.manualFileTaskTitles.length > 0 && (
+                <p className={styles.note}>
+                  Handmatige documenten: {preview.manualFileTaskTitles.join(", ")}.
+                </p>
+              )}
               <p className={styles.note}>
                 To Do wordt hier alleen éénmalig gelezen. De originele taken blijven in To Do staan; er is geen blijvende synchronisatie.
               </p>
-              <TodoImportAction importableCount={preview.importableCount} />
+              <TodoImportAction
+                importableCount={preview.importableCount}
+                manualFileTaskCount={preview.manualFileTaskCount}
+              />
             </article>
           </section>
         </section>
