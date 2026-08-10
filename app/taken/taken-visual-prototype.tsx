@@ -633,7 +633,7 @@ function splitDeadlineValue(value?: string) {
 }
 
 function getAppointmentStartTimestamp(appointment: Appointment) {
-  const startTime = appointment.time.split("–")[0]?.trim() ?? "00:00";
+  const startTime = appointment.time.split(/[-–]/)[0]?.trim() ?? "00:00";
   const parsed = new Date(`${appointment.dateValue}T${startTime}`).getTime();
   if (Number.isNaN(parsed)) return Number.POSITIVE_INFINITY;
   return parsed;
@@ -1898,6 +1898,11 @@ export function TakenVisualPrototype({
                   </button>
                 </div>
               ))}
+              <div className={styles.navDivider}>
+                <button type="button" className={styles.navButton} onClick={openTodoImportPreview}>
+                  <span>To Do importpreview</span>
+                </button>
+              </div>
             </nav>
           </div>
 
@@ -1975,17 +1980,6 @@ export function TakenVisualPrototype({
                   aria-expanded={editorMode === "new-main"}
                 >
                   + Hoofdtaak
-                </button>
-              </div>
-            )}
-            {currentKind === "appointments" && (
-              <div className={styles.listActions}>
-                <button
-                  type="button"
-                  className={styles.secondaryButton}
-                  onClick={openTodoImportPreview}
-                >
-                  To Do import
                 </button>
               </div>
             )}

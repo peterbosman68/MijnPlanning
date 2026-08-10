@@ -45,7 +45,7 @@ export default async function TodoImportPreviewPage() {
               <p className={styles.kicker}>Tijdelijke importpreview</p>
               <h1 className={styles.title}>Microsoft To Do</h1>
               <p className={styles.lead}>
-                Dit overzicht toont wat er uit To Do beschikbaar is voor een eenmalige import naar MijnPlanning.
+                Dit overzicht toont wat er uit To Do beschikbaar is voor een eenmalige kopie naar MijnPlanning.
               </p>
             </div>
             <div className={styles.heroActions}>
@@ -108,7 +108,7 @@ export default async function TodoImportPreviewPage() {
                 <li>De import maakt van To Do-taken hoofdtaken in MijnPlanning.</li>
               </ol>
               <p className={styles.note}>
-                To Do wordt hier alleen éénmalig gelezen. Er is geen blijvende synchronisatie.
+                To Do wordt hier alleen éénmalig gelezen. De originele taken blijven in To Do staan; er is geen blijvende synchronisatie.
               </p>
             </article>
           </section>
@@ -140,7 +140,7 @@ export default async function TodoImportPreviewPage() {
           <p className={styles.errorLabel}>Preview-fout</p>
           <p className={styles.errorMessage}>{errorMessage}</p>
           <p className={styles.note}>
-            Na opnieuw koppelen kun je deze pagina opnieuw openen om de import te controleren.
+            Na opnieuw koppelen kun je deze pagina opnieuw openen om de kopie te controleren.
           </p>
         </section>
       </section>
