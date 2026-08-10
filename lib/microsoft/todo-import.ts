@@ -108,7 +108,7 @@ async function graphFetch<T>(url: string, accessToken: string): Promise<T> {
         "To Do-toegang ontbreekt. Koppel Outlook opnieuw zodat Tasks.Read wordt toegekend.",
       );
     }
-    throw new MicrosoftTodoRequestError(`To Do-verzoek mislukt (${response.status}): ${text}`);
+    throw new MicrosoftTodoRequestError(`To Do-verzoek mislukt (${response.status}) op ${url}: ${text}`);
   }
 
   return (await response.json()) as T;
@@ -141,14 +141,14 @@ async function getAccessToken(userId: string) {
 
 async function fetchTodoListsAndTasks(userId: string): Promise<Readonly<{ lists: GraphTodoList[]; candidates: TodoImportCandidate[] }>> {
   const accessToken = await getAccessToken(userId);
-  const lists = await fetchPaged<GraphTodoList>(`${GRAPH_BASE}/me/todo/lists?$top=100`, accessToken);
+  const lists = await fetchPaged<GraphTodoList>(`${GRAPH_BASE}/me/todo/lists`, accessToken);
 
   const candidates: TodoImportCandidate[] = [];
 
   for (const list of lists) {
     if (!list.id) continue;
     const tasks = await fetchPaged<GraphTodoTask>(
-      `${GRAPH_BASE}/me/todo/lists/${encodeURIComponent(list.id)}/tasks?$top=200&$select=id,title,body,status,dueDateTime`,
+      `${GRAPH_BASE}/me/todo/lists/${encodeURIComponent(list.id)}/tasks`,
       accessToken,
     );
 
