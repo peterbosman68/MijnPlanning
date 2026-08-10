@@ -407,7 +407,7 @@ async function fetchTodoListsAndTasks(userId: string): Promise<Readonly<{ lists:
   for (const list of lists) {
     if (!list.id) continue;
     const tasks = await fetchPaged<GraphTodoTask>(
-      `${GRAPH_BASE}/me/todo/lists/${encodeURIComponent(list.id)}/tasks?$select=id,title,status,body,dueDateTime&$expand=linkedResources`,
+      `${GRAPH_BASE}/me/todo/lists/${encodeURIComponent(list.id)}/tasks?$expand=linkedResources`,
       accessToken,
     );
 

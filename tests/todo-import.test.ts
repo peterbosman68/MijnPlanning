@@ -199,5 +199,9 @@ describe("eenmalige Microsoft To Do-import", () => {
       expect.stringContaining("hasAttachments"),
       expect.any(Object),
     );
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      expect.stringContaining("$select"),
+      expect.any(Object),
+    );
   });
 });
