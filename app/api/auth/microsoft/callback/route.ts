@@ -6,6 +6,7 @@ import { saveMicrosoftTokens } from "@/lib/microsoft/token-service";
 
 const STATE_COOKIE = "ms_oauth_state";
 const TOKEN_URL = "https://login.microsoftonline.com/common/oauth2/v2.0/token";
+const SCOPES = ["openid", "profile", "offline_access", "Calendars.Read", "Tasks.Read"].join(" ");
 
 export async function GET(request: Request) {
   const user = await requireUser();
@@ -47,7 +48,7 @@ export async function GET(request: Request) {
     code,
     grant_type: "authorization_code",
     redirect_uri: `${baseUrl}/api/auth/microsoft/callback`,
-    scope: ["openid", "profile", "offline_access", "Calendars.Read"].join(" "),
+    scope: SCOPES,
   });
 
   const tokenResponse = await fetch(TOKEN_URL, {

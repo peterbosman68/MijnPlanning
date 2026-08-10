@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 
 import { requireUser } from "@/lib/auth/require-user";
 
-const SCOPES = ["openid", "profile", "offline_access", "Calendars.Read"].join(" ");
+const SCOPES = ["openid", "profile", "offline_access", "Calendars.Read", "Tasks.Read"].join(" ");
 const STATE_COOKIE = "ms_oauth_state";
 
 export async function GET() {
