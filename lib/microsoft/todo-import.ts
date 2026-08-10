@@ -267,6 +267,46 @@ function mapTodoAttachments(listId: string, taskId: string, task: GraphTodoTask)
   return [...fileCandidates, ...linkCandidates];
 }
 
+async function fetchTodoTaskAttachments(
+  listId: string,
+  task: GraphTodoTask & { id: string },
+  accessToken: string,
+): Promise<GraphTodoFileAttachment[]> {
+  if (typeof task.hasAttachments !== "boolean") {
+    throw new MicrosoftTodoRequestError(`To Do gaf geen bijlagenstatus terug voor taak "${task.title ?? task.id}".`);
+  }
+
+  if (!task.hasAttachments) {
+    return [];
+  }
+
+  const taskUrl = `${GRAPH_BASE}/me/todo/lists/${encodeURIComponent(listId)}/tasks/${encodeURIComponent(task.id)}`;
+  const attachmentMetadata = await fetchPaged<GraphTodoFileAttachment>(`${taskUrl}/attachments`, accessToken);
+
+  if (attachmentMetadata.length === 0) {
+    throw new MicrosoftTodoRequestError(`To Do meldt bijlagen maar gaf geen bestanden terug voor taak "${task.title ?? task.id}".`);
+  }
+
+  const attachments: GraphTodoFileAttachment[] = [];
+  for (const metadata of attachmentMetadata) {
+    if (!metadata.id) {
+      throw new MicrosoftTodoRequestError(`To Do gaf een bestand zonder ID terug voor taak "${task.title ?? task.id}".`);
+    }
+
+    const attachment = await graphFetch<GraphTodoFileAttachment>(
+      `${taskUrl}/attachments/${encodeURIComponent(metadata.id)}`,
+      accessToken,
+    );
+    if (!attachment.contentBytes) {
+      throw new MicrosoftTodoRequestError(`To Do gaf geen bestandsinhoud terug voor taak "${task.title ?? task.id}".`);
+    }
+
+    attachments.push({ ...metadata, ...attachment, id: metadata.id });
+  }
+
+  return attachments;
+}
+
 function createSourceHash(input: {
   title: string;
   descriptionOriginal: string;
@@ -376,16 +416,17 @@ async function fetchTodoListsAndTasks(userId: string): Promise<Readonly<{ lists:
   for (const list of lists) {
     if (!list.id) continue;
     const tasks = await fetchPaged<GraphTodoTask>(
-      `${GRAPH_BASE}/me/todo/lists/${encodeURIComponent(list.id)}/tasks?$expand=attachments,linkedResources`,
+      `${GRAPH_BASE}/me/todo/lists/${encodeURIComponent(list.id)}/tasks?$select=id,title,status,body,dueDateTime,hasAttachments&$expand=linkedResources`,
       accessToken,
     );
 
     for (const task of tasks) {
       if (!task.id) continue;
+      const fileAttachments = await fetchTodoTaskAttachments(list.id, task as GraphTodoTask & { id: string }, accessToken);
       const title = task.title ?? "(Zonder titel)";
       const descriptionOriginal = task.body?.content ?? "";
       const sourceExternalId = `todo:${list.id}:${task.id}`;
-      const attachments = mapTodoAttachments(list.id, task.id, task);
+      const attachments = mapTodoAttachments(list.id, task.id, { ...task, attachments: fileAttachments });
       const deadline = mapTodoDeadline(task.dueDateTime);
       const status = mapStatus(task.status);
 

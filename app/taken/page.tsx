@@ -6,6 +6,18 @@ export const metadata: Metadata = {
   title: "Taken | MijnPlanning",
 };
 
-export default function TakenPage() {
-  return <AuthenticatedPlanningShell initialView="tasks" />;
+export default async function TakenPage({
+  searchParams,
+}: Readonly<{
+  searchParams: Promise<{ taskId?: string; subtaskId?: string }>;
+}>) {
+  const { taskId, subtaskId } = await searchParams;
+
+  return (
+    <AuthenticatedPlanningShell
+      initialView="tasks"
+      selectedTaskId={taskId}
+      selectedSubtaskId={subtaskId}
+    />
+  );
 }

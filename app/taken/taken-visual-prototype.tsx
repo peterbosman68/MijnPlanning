@@ -2,12 +2,22 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { ChangeEvent, CSSProperties, FormEvent, PointerEvent as ReactPointerEvent, ReactNode } from "react";
+import type { AttachmentBoardData } from "@/lib/attachments/service";
+import type { getTaskBoardData } from "@/lib/tasks/service";
 
 import {
   subtaskPlannedMinutesOnDate,
   taskOwnPlannedMinutesOnDate,
   totalPlannedWorkMinutesForDate,
 } from "@/lib/tasks/planned-load";
+
+import {
+  archiveSubtaskAction,
+  archiveTaskAction,
+  initialTaskActionState,
+  saveSubtaskAction,
+  saveTaskAction,
+} from "./actions";
 
 import styles from "./taken-visual-prototype.module.css";
 
@@ -212,6 +222,13 @@ type Subtask = {
   remaining: string;
   description?: string;
   state?: "active" | "blocked" | "waiting" | "done" | "planned" | "archived";
+  databaseStatus?: string;
+  estimatedMinutes?: number;
+  remainingMinutes?: number;
+  minimumBlockMinutes?: number;
+  splittable?: boolean;
+  priority?: number | null;
+  context?: string;
 };
 
 type MainTask = {
@@ -227,6 +244,9 @@ type MainTask = {
   riskText?: string;
   description: string;
   subtasks: Subtask[];
+  databaseStatus?: string;
+  estimatedMinutes?: number | null;
+  remainingMinutes?: number | null;
 };
 
 type Appointment = {
@@ -272,7 +292,11 @@ type LocalAttachment = {
   sizeLabel: string;
   mimeType: string;
   objectUrl?: string;
+  sourceUrl?: string;
+  storedFile?: boolean;
 };
+
+type TaskBoardData = Awaited<ReturnType<typeof getTaskBoardData>>;
 
 const NAV_ITEMS: Array<{ id: ViewKey; label: string; icon: ViewKey }> = [
   { id: "today", label: "Vandaag", icon: "today" },
@@ -285,60 +309,90 @@ const NAV_ITEMS: Array<{ id: ViewKey; label: string; icon: ViewKey }> = [
   { id: "completed", label: "Taken Afgerond", icon: "completed" },
 ];
 
-const INITIAL_TASKS: MainTask[] = [
-  {
-    id: "quarter",
-    title: "Administratie tweede kwartaal afronden",
-    note: "2 subtaken",
-    deadline: "wo 29 jul · 17:00",
-    deadlineValue: "2026-07-29T17:00",
-    remaining: "1u 15m",
-    status: "normal",
-    risk: null,
-    description:
-      "Openstaande boekingen nalopen en de kwartaalmap gereedmaken voor de boekhouder.",
-    subtasks: [
-      {
-        id: "receipts",
-        title: "Ontbrekende bonnen koppelen",
-        deadline: "27 jul · 17:00",
-        deadlineValue: "2026-07-27T17:00",
-        remaining: "35m",
-      },
-      {
-        id: "check",
-        title: "Kwartaaloverzicht controleren",
-        deadline: "29 jul · 15:00",
-        deadlineValue: "2026-07-29T15:00",
-        remaining: "40m",
-      },
-    ],
-  },
-  {
-    id: "archive",
-    title: "Verzekeringsmap 2025 archiveren",
-    note: "Afgerond op 16 juli",
-    deadline: "16 jul · 17:00",
-    remaining: "—",
-    status: "completed",
-    risk: null,
-    description: "De gecontroleerde documenten zijn gebundeld en veilig gearchiveerd.",
-    subtasks: [
-      {
-        id: "archive-files",
-        title: "Documenten controleren en archiveren",
-        deadline: "16 jul · 17:00",
-        deadlineValue: "2026-07-16T17:00",
-        remaining: "—",
-        state: "done",
-      },
-    ],
-  },
-];
+function toDeadlineValue(date: string, time: string) {
+  return date ? `${date}T${time || DEFAULT_END_OF_WORKDAY}` : undefined;
+}
 
-const INITIAL_TASK_ATTACHMENTS: Record<string, LocalAttachment[]> = {};
+function toVisualTaskStatus(status: string): TaskStatus {
+  if (status === "ACTIVE") return "active";
+  if (status === "WAITING" || status === "WAITING_EXTERNAL") return "waiting";
+  if (status === "COMPLETED") return "completed";
+  if (status === "ARCHIVED" || status === "CANCELLED") return "archived";
+  return "normal";
+}
 
-const INITIAL_SUBTASK_ATTACHMENTS: Record<string, LocalAttachment[]> = {};
+function toVisualSubtaskState(status: string, blocked: boolean): Subtask["state"] {
+  if (blocked) return "blocked";
+  if (status === "ACTIVE") return "active";
+  if (status === "WAITING" || status === "WAITING_EXTERNAL") return "waiting";
+  if (status === "COMPLETED") return "done";
+  if (status === "ARCHIVED" || status === "CANCELLED") return "archived";
+  return "planned";
+}
+
+function mapTaskBoard(board: TaskBoardData): MainTask[] {
+  return board.tasks.map((task) => ({
+    id: task.id,
+    title: task.title,
+    note: `${task.openSubtaskCount} subtaken${task.blockedSubtaskCount > 0 ? ` · ${task.blockedSubtaskCount} geblokkeerd` : ""}`,
+    deadline: task.deadline ?? "Geen deadline",
+    deadlineValue: toDeadlineValue(task.deadlineDate, task.deadlineTime),
+    remaining: task.remainingLabel,
+    status: toVisualTaskStatus(task.status),
+    risk: null,
+    description: task.descriptionOriginal || "Nog geen omschrijving toegevoegd.",
+    databaseStatus: task.status,
+    estimatedMinutes: task.estimatedMinutes,
+    remainingMinutes: task.remainingMinutes,
+    subtasks: task.subtasks.map((subtask) => ({
+      id: subtask.id,
+      title: subtask.title,
+      deadline: subtask.deadline ?? "Geen deadline",
+      deadlineValue: toDeadlineValue(subtask.deadlineDate, subtask.deadlineTime),
+      remaining: subtask.remainingLabel,
+      description: subtask.descriptionOriginal || undefined,
+      state: toVisualSubtaskState(subtask.status, subtask.blocked),
+      databaseStatus: subtask.status,
+      estimatedMinutes: subtask.estimatedMinutes,
+      remainingMinutes: subtask.remainingMinutes,
+      minimumBlockMinutes: subtask.minimumBlockMinutes,
+      splittable: subtask.splittable,
+      priority: subtask.priority,
+      context: subtask.context ?? "",
+    })),
+  }));
+}
+
+function formatAttachmentSizeLabel(sizeBytes: number | null) {
+  if (sizeBytes === null) return "Onbekende grootte";
+  if (sizeBytes < 1024) return `${sizeBytes} B`;
+  if (sizeBytes < 1024 * 1024) return `${Math.ceil(sizeBytes / 1024)} KB`;
+  return `${(sizeBytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function mapAttachmentBoard(attachments: AttachmentBoardData) {
+  const taskAttachments: Record<string, LocalAttachment[]> = {};
+  const subtaskAttachments: Record<string, LocalAttachment[]> = {};
+
+  for (const attachment of attachments) {
+    const mapped = {
+      id: attachment.id,
+      name: attachment.name,
+      sizeLabel: formatAttachmentSizeLabel(attachment.sizeBytes),
+      mimeType: attachment.mimeType,
+      sourceUrl: attachment.sourceUrl ?? undefined,
+      storedFile: attachment.hasStoredFile,
+    };
+    if (attachment.taskId) {
+      taskAttachments[attachment.taskId] = [...(taskAttachments[attachment.taskId] ?? []), mapped];
+    }
+    if (attachment.subtaskId) {
+      subtaskAttachments[attachment.subtaskId] = [...(subtaskAttachments[attachment.subtaskId] ?? []), mapped];
+    }
+  }
+
+  return { taskAttachments, subtaskAttachments };
+}
 
 const EMAIL_PROPOSALS: EmailProposal[] = [
   {
@@ -478,40 +532,8 @@ function formatTimer(totalSeconds: number) {
   return [hours, minutes, seconds].map((value) => value.toString().padStart(2, "0")).join(":");
 }
 
-function formatDeadline(value: string) {
-  const date = new Date(value);
-  return new Intl.DateTimeFormat("nl-NL", {
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
-}
-
-function formatDeadlineDateOnly(value: string) {
-  const date = new Date(`${value}T00:00`);
-  return new Intl.DateTimeFormat("nl-NL", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  }).format(date);
-}
-
 const DEFAULT_END_OF_WORKDAY = "17:00";
 const DAILY_TOTAL_MINUTES_LIMIT = 480;
-
-function formatMinutesLabel(totalMinutes: number) {
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-
-  if (hours > 0 && minutes > 0) {
-    return `${hours}u ${minutes}m`;
-  }
-  if (hours > 0) {
-    return `${hours}u`;
-  }
-  return `${minutes}m`;
-}
 
 function parsePositiveMinutesInput(value: string, fieldName: "hoofdtaak" | "subtaak"): number | null {
   const trimmed = value.trim();
@@ -523,14 +545,6 @@ function parsePositiveMinutesInput(value: string, fieldName: "hoofdtaak" | "subt
   }
 
   return parsed;
-}
-
-function formatAttachmentSize(sizeBytes: number) {
-  if (sizeBytes < 1024) return `${sizeBytes} B`;
-  const kb = sizeBytes / 1024;
-  if (kb < 1024) return `${Math.max(1, Math.round(kb))} KB`;
-  const mb = kb / 1024;
-  return `${mb.toFixed(1)} MB`;
 }
 
 function parseMinutesFromLabel(label: string) {
@@ -588,14 +602,6 @@ function sortByOldestDeadlineFirst<T extends { id: string; deadlineValue?: strin
     if (byDate !== 0) return byDate;
     return a.id.localeCompare(b.id);
   });
-}
-
-const DELETE_CONFIRMATION_MESSAGE = "Wil je zeker weten dat je knop wilt verwijderen?";
-
-function buildTaskNote(subtasks: Subtask[]) {
-  const blockedCount = subtasks.filter((item) => item.state === "blocked").length;
-  const blockedSuffix = blockedCount > 0 ? ` · ${blockedCount} geblokkeerd` : "";
-  return `${subtasks.length} subtaken${blockedSuffix}`;
 }
 
 function taskStatusLabel(status: TaskStatus) {
@@ -732,6 +738,8 @@ const EMAIL_CATEGORY_FILTERS: Array<{ id: EmailCategory | "all"; label: string }
 
 type TakenVisualPrototypeProps = Readonly<{
   initialView: PlanningViewKey;
+  initialTaskBoard: TaskBoardData;
+  initialAttachmentBoard: AttachmentBoardData;
   userEmail: string;
   logoutAction: () => Promise<void>;
   revokeAllSessionsAction: () => Promise<void>;
@@ -739,16 +747,20 @@ type TakenVisualPrototypeProps = Readonly<{
 
 export function TakenVisualPrototype({
   initialView,
+  initialTaskBoard,
+  initialAttachmentBoard,
   userEmail,
   logoutAction,
   revokeAllSessionsAction,
 }: TakenVisualPrototypeProps) {
+  const initialTasks = mapTaskBoard(initialTaskBoard);
+  const initialAttachments = mapAttachmentBoard(initialAttachmentBoard);
   const { widths: paneWidths, startDrag, nudgeDivider, resetLayout } = usePaneLayout();
   const [activeView, setActiveView] = useState<ViewKey>(initialView);
   const [mobilePane, setMobilePane] = useState<MobilePane>("navigation");
-  const [tasks, setTasks] = useState<MainTask[]>(INITIAL_TASKS);
-  const [selectedTaskId, setSelectedTaskId] = useState("quarter");
-  const [selectedSubtaskId, setSelectedSubtaskId] = useState<string | null>(null);
+  const [tasks] = useState<MainTask[]>(initialTasks);
+  const [selectedTaskId, setSelectedTaskId] = useState(initialTaskBoard.selectedTask?.id ?? initialTasks[0]?.id ?? "");
+  const [selectedSubtaskId, setSelectedSubtaskId] = useState<string | null>(initialTaskBoard.selectedSubtask?.id ?? null);
   const [selectedAppointmentId, setSelectedAppointmentId] = useState<string | null>(null);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [appointmentsLoading, setAppointmentsLoading] = useState(false);
@@ -768,8 +780,8 @@ export function TakenVisualPrototype({
   const [emailFilter, setEmailFilter] = useState<EmailCategory | "all">("all");
   const [unsubscribeSelection, setUnsubscribeSelection] = useState<Record<string, boolean>>({});
   const [selectedWhatsAppId, setSelectedWhatsAppId] = useState("erwin-wa");
-  const [taskAttachments, setTaskAttachments] = useState<Record<string, LocalAttachment[]>>(INITIAL_TASK_ATTACHMENTS);
-  const [subtaskAttachments, setSubtaskAttachments] = useState<Record<string, LocalAttachment[]>>(INITIAL_SUBTASK_ATTACHMENTS);
+  const [taskAttachments] = useState<Record<string, LocalAttachment[]>>(initialAttachments.taskAttachments);
+  const [subtaskAttachments] = useState<Record<string, LocalAttachment[]>>(initialAttachments.subtaskAttachments);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const minimumDeadlineDate = getTodayDateValue();
   const newMainFormRef = useRef<HTMLFormElement | null>(null);
@@ -840,7 +852,7 @@ export function TakenVisualPrototype({
         : activeView === "completed"
           ? tasks.filter((task) => isCompletedBucketTask(task))
           : activeView === "today"
-            ? tasks.filter((task) => task.id !== "quarter" && task.status !== "completed" && !isArchivedTask(task))
+            ? tasks.filter((task) => task.status !== "completed" && !isArchivedTask(task))
             : tasks.filter((task) => task.status !== "completed" && !isArchivedTask(task));
 
     return sortByOldestDeadlineFirst(filtered);
@@ -954,8 +966,14 @@ export function TakenVisualPrototype({
   function selectView(view: ViewKey) {
     runWithEditorCloseGuard(() => {
       setActiveView(view);
-      if (view === "completed") setSelectedTaskId("archive");
-      else if (view !== "appointments" && view !== "email" && view !== "whatsapp") setSelectedTaskId("quarter");
+      const nextTask = view === "completed"
+        ? tasks.find((task) => isCompletedBucketTask(task))
+        : view === "waiting"
+          ? tasks.find((task) => task.status === "waiting")
+          : tasks.find((task) => task.status !== "completed" && !isArchivedTask(task));
+      if (view !== "appointments" && view !== "email" && view !== "whatsapp") {
+        setSelectedTaskId(nextTask?.id ?? "");
+      }
       setMobilePane("list");
       setEditorMode("none");
       setHasUnsavedChanges(false);
@@ -1034,22 +1052,7 @@ export function TakenVisualPrototype({
     if (!selectedTask) return;
     const fileList = event.target.files;
     if (!fileList || fileList.length === 0) return;
-
-    const nextAttachments = Array.from(fileList).map((file) => ({
-      id: `${selectedTask.id}-${file.name}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      name: file.name,
-      sizeLabel: formatAttachmentSize(file.size),
-      mimeType: file.type || "onbekend",
-      objectUrl: URL.createObjectURL(file),
-    }));
-
-    setTaskAttachments((current) => ({
-      ...current,
-      [selectedTask.id]: [...(current[selectedTask.id] ?? []), ...nextAttachments],
-    }));
-    setFeedback(
-      `${nextAttachments.length} bijlage${nextAttachments.length === 1 ? "" : "n"} toegevoegd aan hoofdtaak “${selectedTask.title}”.`,
-    );
+    setFeedback("Handmatige upload is nog niet beschikbaar. Er is niets opgeslagen.");
     event.target.value = "";
   }
 
@@ -1058,38 +1061,32 @@ export function TakenVisualPrototype({
     const fileList = event.target.files;
     if (!fileList || fileList.length === 0) return;
 
-    const nextAttachments = Array.from(fileList).map((file) => ({
-      id: `${selectedSubtask.id}-${file.name}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      name: file.name,
-      sizeLabel: formatAttachmentSize(file.size),
-      mimeType: file.type || "onbekend",
-      objectUrl: URL.createObjectURL(file),
-    }));
-
-    setSubtaskAttachments((current) => ({
-      ...current,
-      [selectedSubtask.id]: [...(current[selectedSubtask.id] ?? []), ...nextAttachments],
-    }));
-    setFeedback(
-      `${nextAttachments.length} bijlage${nextAttachments.length === 1 ? "" : "n"} toegevoegd aan subtaak “${selectedSubtask.title}”.`,
-    );
+    setFeedback("Handmatige upload is nog niet beschikbaar. Er is niets opgeslagen.");
     event.target.value = "";
   }
 
   function openLocalAttachment(attachment: LocalAttachment) {
-    if (!attachment.objectUrl) return;
-    window.open(attachment.objectUrl, "_blank", "noopener,noreferrer");
+    const url = attachment.sourceUrl ?? attachment.objectUrl;
+    if (!url) {
+      setFeedback("Dit bestand is privé opgeslagen. Een geautoriseerde downloadactie volgt in de bijlagenfase.");
+      return;
+    }
+    window.open(url, "_blank", "noopener,noreferrer");
   }
 
   async function updateMainTask(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selectedTask) return;
     const formData = new FormData(event.currentTarget);
+    formData.set("taskId", selectedTask.id);
+    formData.set("descriptionOriginal", String(formData.get("description") ?? ""));
+    formData.set("estimatedMinutes", String(formData.get("plannedMinutes") ?? ""));
+    formData.set("remainingMinutes", String(formData.get("plannedMinutes") ?? ""));
+    formData.set("status", selectedTask.databaseStatus ?? "OPEN");
     const title = String(formData.get("title") ?? "").trim();
     const deadlineDate = String(formData.get("deadlineDate") ?? "").trim();
     const deadlineTime = String(formData.get("deadlineTime") ?? "").trim();
     const hardDeadline = formData.get("hardDeadline") === "on";
-    const description = String(formData.get("description") ?? "").trim();
     const plannedMinutesRaw = String(formData.get("plannedMinutes") ?? "").trim();
 
     if (!title) {
@@ -1123,7 +1120,6 @@ export function TakenVisualPrototype({
     const requestedMainTaskMinutes = plannedMinutes ?? existingMainTaskMinutes;
     let effectivePlannedMinutes: number | null = requestedMainTaskMinutes > 0 ? requestedMainTaskMinutes : plannedMinutes;
     let carryOverTask: { minutes: number; date: string } | null = null;
-    let movedCompletelyToNextDay = false;
 
     if (deadlineDate && requestedMainTaskMinutes > 0) {
       const currentTaskMinutes = taskOwnPlannedMinutesOnDate(selectedTask, deadlineDate);
@@ -1150,7 +1146,6 @@ export function TakenVisualPrototype({
 
       if (split.todayMinutes <= 0) {
         effectiveDeadlineDate = split.carryOverDate;
-        movedCompletelyToNextDay = true;
       } else {
         effectivePlannedMinutes = split.todayMinutes;
         if (split.carryOverMinutes > 0) {
@@ -1159,64 +1154,26 @@ export function TakenVisualPrototype({
       }
     }
 
-    let deadlineValue: string | undefined;
-    let deadlineLabel = "Geen deadline";
-
     if (effectiveDeadlineDate) {
       const parsed = new Date(`${effectiveDeadlineDate}T${effectiveTime}`);
       if (Number.isNaN(parsed.getTime())) {
         setFormError("Kies een geldige deadline.");
         return;
       }
-      deadlineValue = `${effectiveDeadlineDate}T${effectiveTime}`;
-      deadlineLabel = deadlineTime
-        ? formatDeadline(`${effectiveDeadlineDate}T${deadlineTime}`)
-        : formatDeadlineDateOnly(effectiveDeadlineDate);
     }
 
-    setTasks((current) => {
-      const next = current.map((task) =>
-        task.id === selectedTask.id
-          ? {
-              ...task,
-              title,
-              deadline: deadlineLabel,
-              deadlineValue,
-              hardDeadline,
-              remaining: effectivePlannedMinutes !== null ? formatMinutesLabel(effectivePlannedMinutes) : task.remaining,
-              description: description || "Nog geen omschrijving toegevoegd.",
-            }
-          : task,
-      );
-
-      if (!carryOverTask) return next;
-
-      const overflowDeadlineValue = `${carryOverTask.date}T${effectiveTime}`;
-      const overflowTask: MainTask = {
-        id: `local-task-overflow-${Date.now()}`,
-        title: `${title} (vervolg)`,
-        note: "0 subtaken",
-        deadline: deadlineTime ? formatDeadline(overflowDeadlineValue) : formatDeadlineDateOnly(carryOverTask.date),
-        deadlineValue: overflowDeadlineValue,
-        remaining: formatMinutesLabel(carryOverTask.minutes),
-        status: "normal",
-        risk: null,
-        description: description || "Nog geen omschrijving toegevoegd.",
-        subtasks: [],
-      };
-
-      return [overflowTask, ...next];
-    });
-    setFormError(null);
-    setHasUnsavedChanges(false);
     if (carryOverTask) {
-      setFeedback("Hoofdtaak bijgewerkt. Het overschot is als vervolgtaak op de volgende dag gezet.");
-    } else if (movedCompletelyToNextDay) {
-      setFeedback("Hoofdtaak bijgewerkt. Er was geen ruimte meer op deze dag, dus de taak is volledig naar de volgende dag verplaatst.");
-    } else {
-      setFeedback("Hoofdtaak bijgewerkt.");
+      setFormError("Gedeeltelijk doorschuiven kan nog niet veilig worden opgeslagen. Kies een andere dag of pas de geplande tijd aan.");
+      return;
     }
-    setEditorMode("none");
+    formData.set("deadlineDate", effectiveDeadlineDate);
+    formData.set("estimatedMinutes", effectivePlannedMinutes === null ? "" : String(effectivePlannedMinutes));
+    formData.set("remainingMinutes", effectivePlannedMinutes === null ? "" : String(effectivePlannedMinutes));
+    const actionState = await saveTaskAction(initialTaskActionState, formData);
+    if (actionState.error) {
+      setFormError(actionState.error);
+      return;
+    }
   }
 
   async function updateSubtask(event: FormEvent<HTMLFormElement>) {
@@ -1224,11 +1181,20 @@ export function TakenVisualPrototype({
     if (!selectedTask || !selectedSubtask) return;
 
     const formData = new FormData(event.currentTarget);
+    formData.set("taskId", selectedTask.id);
+    formData.set("subtaskId", selectedSubtask.id);
+    formData.set("descriptionOriginal", String(formData.get("description") ?? ""));
+    formData.set("estimatedMinutes", String(formData.get("plannedMinutes") ?? ""));
+    formData.set("remainingMinutes", String(formData.get("plannedMinutes") ?? ""));
+    formData.set("minimumBlockMinutes", String(selectedSubtask.minimumBlockMinutes ?? 15));
+    formData.set("splittable", selectedSubtask.splittable ? "on" : "");
+    formData.set("priority", selectedSubtask.priority === null || selectedSubtask.priority === undefined ? "" : String(selectedSubtask.priority));
+    formData.set("context", selectedSubtask.context ?? "");
+    formData.set("status", selectedSubtask.databaseStatus ?? "OPEN");
     const title = String(formData.get("title") ?? "").trim();
     const deadlineDate = String(formData.get("deadlineDate") ?? "").trim();
     const deadlineTime = String(formData.get("deadlineTime") ?? "").trim();
     const hardDeadline = formData.get("hardDeadline") === "on";
-    const description = String(formData.get("description") ?? "").trim();
     const plannedMinutesRaw = String(formData.get("plannedMinutes") ?? "").trim();
 
     if (!title || !deadlineDate) {
@@ -1262,7 +1228,6 @@ export function TakenVisualPrototype({
     let effectiveDeadlineDate = deadlineDate;
     let effectivePlannedMinutes = plannedMinutes;
     let carryOverSubtask: { minutes: number; date: string } | null = null;
-    let movedCompletelyToNextDay = false;
 
     const currentSubtaskMinutes = subtaskPlannedMinutesOnDate(selectedSubtask, deadlineDate);
     const otherPlannedWorkMinutes = Math.max(0, totalPlannedWorkMinutesForDate(tasks, deadlineDate) - currentSubtaskMinutes);
@@ -1288,7 +1253,6 @@ export function TakenVisualPrototype({
 
     if (split.todayMinutes <= 0) {
       effectiveDeadlineDate = split.carryOverDate;
-      movedCompletelyToNextDay = true;
     } else {
       effectivePlannedMinutes = split.todayMinutes;
       if (split.carryOverMinutes > 0) {
@@ -1323,73 +1287,32 @@ export function TakenVisualPrototype({
       }
     }
 
-    const deadlineValue = `${effectiveDeadlineDate}T${effectiveTime}`;
-    const deadlineLabel = deadlineTime
-      ? formatDeadline(`${effectiveDeadlineDate}T${deadlineTime}`)
-      : formatDeadlineDateOnly(effectiveDeadlineDate);
-
-    const carryOverId = carryOverSubtask ? `local-${Date.now()}-overflow` : null;
-    setTasks((current) =>
-      current.map((task) => {
-        if (task.id !== selectedTask.id) return task;
-
-        const updatedSubtasks = task.subtasks.map((subtask) =>
-          subtask.id === selectedSubtask.id
-            ? {
-                ...subtask,
-                title,
-                deadline: deadlineLabel,
-                deadlineValue,
-                hardDeadline,
-                remaining: formatMinutesLabel(effectivePlannedMinutes),
-                description: description || undefined,
-              }
-            : subtask,
-        );
-
-        if (carryOverSubtask && carryOverId) {
-          const carryDeadlineValue = `${carryOverSubtask.date}T${effectiveTime}`;
-          updatedSubtasks.push({
-            id: carryOverId,
-            title: `${title} (vervolg)`,
-            deadlineValue: carryDeadlineValue,
-            deadline: deadlineTime
-              ? formatDeadline(carryDeadlineValue)
-              : formatDeadlineDateOnly(carryOverSubtask.date),
-            remaining: formatMinutesLabel(carryOverSubtask.minutes),
-            description: description || undefined,
-            state: "planned",
-          });
-        }
-
-        return {
-          ...task,
-          subtasks: updatedSubtasks,
-          note: buildTaskNote(updatedSubtasks),
-        };
-      }),
-    );
-    setFormError(null);
-    setHasUnsavedChanges(false);
     if (carryOverSubtask) {
-      setFeedback("Subtaak bijgewerkt. Het overschot is als vervolgsubtaak op de volgende dag gezet.");
-    } else if (movedCompletelyToNextDay) {
-      setFeedback("Subtaak bijgewerkt. Er was geen ruimte meer op deze dag, dus de subtaak is volledig naar de volgende dag verplaatst.");
-    } else {
-      setFeedback("Subtaak bijgewerkt.");
+      setFormError("Gedeeltelijk doorschuiven kan nog niet veilig worden opgeslagen. Kies een andere dag of pas de geplande tijd aan.");
+      return;
     }
-    setEditorMode("none");
+    formData.set("deadlineDate", effectiveDeadlineDate);
+    formData.set("estimatedMinutes", String(effectivePlannedMinutes));
+    formData.set("remainingMinutes", String(effectivePlannedMinutes));
+    const actionState = await saveSubtaskAction(initialTaskActionState, formData);
+    if (actionState.error) {
+      setFormError(actionState.error);
+      return;
+    }
   }
 
   async function addMainTask(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget;
     const formData = new FormData(form);
+    formData.set("descriptionOriginal", String(formData.get("description") ?? ""));
+    formData.set("estimatedMinutes", String(formData.get("plannedMinutes") ?? ""));
+    formData.set("remainingMinutes", String(formData.get("plannedMinutes") ?? ""));
+    formData.set("status", "OPEN");
     const title = String(formData.get("title") ?? "").trim();
     const deadlineDate = String(formData.get("deadlineDate") ?? "").trim();
     const deadlineTime = String(formData.get("deadlineTime") ?? "").trim();
     const hardDeadline = formData.get("hardDeadline") === "on";
-    const description = String(formData.get("description") ?? "").trim();
     const plannedMinutesRaw = String(formData.get("plannedMinutes") ?? "").trim();
 
     if (!title) {
@@ -1422,7 +1345,6 @@ export function TakenVisualPrototype({
     let effectiveDeadlineDate = deadlineDate;
     let effectivePlannedMinutes = plannedMinutes;
     let carryOverTask: { minutes: number; date: string } | null = null;
-    let movedCompletelyToNextDay = false;
 
     if (deadlineDate && plannedMinutes !== null) {
       const otherPlannedWorkMinutes = totalPlannedWorkMinutesForDate(tasks, deadlineDate);
@@ -1448,7 +1370,6 @@ export function TakenVisualPrototype({
 
       if (split.todayMinutes <= 0) {
         effectiveDeadlineDate = split.carryOverDate;
-        movedCompletelyToNextDay = true;
       } else {
         effectivePlannedMinutes = split.todayMinutes;
         if (split.carryOverMinutes > 0) {
@@ -1456,9 +1377,6 @@ export function TakenVisualPrototype({
         }
       }
     }
-
-    let deadlineValue: string | undefined;
-    let deadlineLabel = "Geen deadline";
 
     if (effectiveDeadlineDate) {
       const parsed = new Date(
@@ -1468,57 +1386,19 @@ export function TakenVisualPrototype({
         setMainTaskError("Kies een geldige deadline.");
         return;
       }
-      deadlineValue = `${effectiveDeadlineDate}T${effectiveTime}`;
-      deadlineLabel = deadlineTime
-        ? formatDeadline(`${effectiveDeadlineDate}T${deadlineTime}`)
-        : formatDeadlineDateOnly(effectiveDeadlineDate);
     }
 
-    const newTask: MainTask = {
-      id: `local-task-${Date.now()}`,
-      title,
-      note: "0 subtaken",
-      deadline: deadlineLabel,
-      deadlineValue,
-      hardDeadline,
-      remaining: effectivePlannedMinutes !== null ? formatMinutesLabel(effectivePlannedMinutes) : "Nog te schatten",
-      status: "normal",
-      risk: null,
-      description: description || "Nog geen omschrijving toegevoegd.",
-      subtasks: [],
-    };
-
-    const overflowTask: MainTask | null = carryOverTask
-      ? {
-          id: `local-task-overflow-${Date.now()}`,
-          title: `${title} (vervolg)`,
-          note: "0 subtaken",
-          deadlineValue: `${carryOverTask.date}T${effectiveTime}`,
-          deadline: deadlineTime
-            ? formatDeadline(`${carryOverTask.date}T${effectiveTime}`)
-            : formatDeadlineDateOnly(carryOverTask.date),
-          remaining: formatMinutesLabel(carryOverTask.minutes),
-          status: "normal",
-          risk: null,
-          description: description || "Nog geen omschrijving toegevoegd.",
-          subtasks: [],
-        }
-      : null;
-
-    setTasks((current) => {
-      return overflowTask ? [newTask, overflowTask, ...current] : [newTask, ...current];
-    });
-    setSelectedTaskId(newTask.id);
-    setEditorMode("none");
-    setHasUnsavedChanges(false);
-    setMainTaskError(null);
-    form.reset();
-    if (overflowTask) {
-      setFeedback("Hoofdtaak opgeslagen. Het overschot is als vervolgtaak op de volgende dag gezet.");
-    } else if (movedCompletelyToNextDay) {
-      setFeedback("Hoofdtaak opgeslagen. Er was geen ruimte meer op deze dag, dus de taak is volledig naar de volgende dag verplaatst.");
-    } else {
-      setFeedback("Hoofdtaak lokaal toegevoegd. Planning opnieuw berekend op basis van voorbeelddata.");
+    if (carryOverTask) {
+      setMainTaskError("Gedeeltelijk doorschuiven kan nog niet veilig worden opgeslagen. Kies een andere dag of pas de geplande tijd aan.");
+      return;
+    }
+    formData.set("deadlineDate", effectiveDeadlineDate);
+    formData.set("estimatedMinutes", effectivePlannedMinutes === null ? "" : String(effectivePlannedMinutes));
+    formData.set("remainingMinutes", effectivePlannedMinutes === null ? "" : String(effectivePlannedMinutes));
+    const actionState = await saveTaskAction(initialTaskActionState, formData);
+    if (actionState.error) {
+      setMainTaskError(actionState.error);
+      return;
     }
   }
 
@@ -1527,11 +1407,16 @@ export function TakenVisualPrototype({
     if (!selectedTask) return;
     const form = event.currentTarget;
     const formData = new FormData(form);
+    formData.set("taskId", selectedTask.id);
+    formData.set("descriptionOriginal", String(formData.get("description") ?? ""));
+    formData.set("estimatedMinutes", String(formData.get("plannedMinutes") ?? ""));
+    formData.set("remainingMinutes", String(formData.get("plannedMinutes") ?? ""));
+    formData.set("minimumBlockMinutes", "15");
+    formData.set("status", "OPEN");
     const title = String(formData.get("title") ?? "").trim();
     const deadlineDate = String(formData.get("deadlineDate") ?? "").trim();
     const deadlineTime = String(formData.get("deadlineTime") ?? "").trim();
     const hardDeadline = formData.get("hardDeadline") === "on";
-    const description = String(formData.get("description") ?? "").trim();
     const plannedMinutesRaw = String(formData.get("plannedMinutes") ?? "").trim();
 
     if (!title || !deadlineDate) {
@@ -1565,7 +1450,6 @@ export function TakenVisualPrototype({
     let effectiveDeadlineDate = deadlineDate;
     let effectivePlannedMinutes = plannedMinutes;
     let carryOverSubtask: { minutes: number; date: string } | null = null;
-    let movedCompletelyToNextDay = false;
 
     const otherPlannedWorkMinutes = totalPlannedWorkMinutesForDate(tasks, deadlineDate);
     let split: Awaited<ReturnType<typeof resolveDailyLimitWithCarryOver>>;
@@ -1590,7 +1474,6 @@ export function TakenVisualPrototype({
 
     if (split.todayMinutes <= 0) {
       effectiveDeadlineDate = split.carryOverDate;
-      movedCompletelyToNextDay = true;
     } else {
       effectivePlannedMinutes = split.todayMinutes;
       if (split.carryOverMinutes > 0) {
@@ -1627,222 +1510,83 @@ export function TakenVisualPrototype({
       }
     }
 
-    const newSubtask: Subtask = {
-      id: `local-${Date.now()}`,
-      title,
-      deadlineValue: `${effectiveDeadlineDate}T${effectiveSubtaskTime}`,
-      deadline: deadlineTime
-        ? formatDeadline(`${effectiveDeadlineDate}T${deadlineTime}`)
-        : formatDeadlineDateOnly(effectiveDeadlineDate),
-      hardDeadline,
-      remaining: formatMinutesLabel(effectivePlannedMinutes),
-      description: description || undefined,
-      state: "planned",
-    };
-
-    const overflowSubtask: Subtask | null = carryOverSubtask
-      ? {
-          id: `local-${Date.now()}-overflow`,
-          title: `${title} (vervolg)`,
-          deadlineValue: `${carryOverSubtask.date}T${effectiveSubtaskTime}`,
-          deadline: deadlineTime
-            ? formatDeadline(`${carryOverSubtask.date}T${effectiveSubtaskTime}`)
-            : formatDeadlineDateOnly(carryOverSubtask.date),
-          remaining: formatMinutesLabel(carryOverSubtask.minutes),
-          description: description || undefined,
-          state: "planned",
-        }
-      : null;
-
-    setTasks((current) => {
-      return current.map((task) =>
-        task.id === selectedTask.id
-          ? {
-              ...task,
-              subtasks: overflowSubtask ? [...task.subtasks, newSubtask, overflowSubtask] : [...task.subtasks, newSubtask],
-              note: buildTaskNote(overflowSubtask ? [...task.subtasks, newSubtask, overflowSubtask] : [...task.subtasks, newSubtask]),
-            }
-          : task,
-      );
-    });
-    form.reset();
-    setFormError(null);
-    setSelectedSubtaskId(newSubtask.id);
-    setEditorMode("none");
-    setHasUnsavedChanges(false);
-    if (overflowSubtask) {
-      setFeedback("Subtaak opgeslagen. Het overschot is als vervolgsubtaak op de volgende dag gezet.");
-    } else if (movedCompletelyToNextDay) {
-      setFeedback("Subtaak opgeslagen. Er was geen ruimte meer op deze dag, dus de subtaak is volledig naar de volgende dag verplaatst.");
-    } else {
-      setFeedback("Subtaak lokaal toegevoegd. Planning opnieuw berekend; de actieve timer liep door en de nieuwe subtaak is niet gestart.");
+    if (carryOverSubtask) {
+      setFormError("Gedeeltelijk doorschuiven kan nog niet veilig worden opgeslagen. Kies een andere dag of pas de geplande tijd aan.");
+      return;
+    }
+    formData.set("deadlineDate", effectiveDeadlineDate);
+    formData.set("estimatedMinutes", String(effectivePlannedMinutes));
+    formData.set("remainingMinutes", String(effectivePlannedMinutes));
+    const actionState = await saveSubtaskAction(initialTaskActionState, formData);
+    if (actionState.error) {
+      setFormError(actionState.error);
+      return;
     }
   }
 
   function deleteMainTask() {
-    if (!selectedTask) return;
-    const confirmed = window.confirm(DELETE_CONFIRMATION_MESSAGE);
-    if (!confirmed) return;
-
-    const remainingTasks = tasks.filter((task) => task.id !== selectedTask.id);
-    const nextTask = remainingTasks[0] ?? null;
-
-    setTasks(remainingTasks);
-    setTaskAttachments((current) => {
-      const next = { ...current };
-      delete next[selectedTask.id];
-      return next;
-    });
-    setSubtaskAttachments((current) => {
-      const next = { ...current };
-      for (const subtask of selectedTask.subtasks) {
-        delete next[subtask.id];
-      }
-      return next;
-    });
-    setSelectedTaskId(nextTask?.id ?? "");
-    setSelectedSubtaskId(nextTask?.subtasks[0]?.id ?? null);
-    setEditorMode("none");
-    setHasUnsavedChanges(false);
-    setMainTaskError(null);
-    setFormError(null);
-    setFeedback("Hoofdtaak verwijderd.");
+    setFeedback("Definitief verwijderen is niet beschikbaar. Archiveer de hoofdtaak om deze uit de open lijst te halen.");
   }
 
   function deleteSubtask() {
-    if (!selectedTask || !selectedSubtask) return;
-    const confirmed = window.confirm(DELETE_CONFIRMATION_MESSAGE);
-    if (!confirmed) return;
-
-    let nextSubtaskId: string | null = null;
-
-    setTasks((current) =>
-      current.map((task) => {
-        if (task.id !== selectedTask.id) {
-          return task;
-        }
-
-        const updatedSubtasks = task.subtasks.filter((subtask) => subtask.id !== selectedSubtask.id);
-        nextSubtaskId = updatedSubtasks[0]?.id ?? null;
-
-        return {
-          ...task,
-          subtasks: updatedSubtasks,
-          note: buildTaskNote(updatedSubtasks),
-        };
-      }),
-    );
-
-    setSubtaskAttachments((current) => {
-      const next = { ...current };
-      delete next[selectedSubtask.id];
-      return next;
-    });
-
-    setSelectedSubtaskId(nextSubtaskId);
-    setEditorMode("none");
-    setHasUnsavedChanges(false);
-    setFormError(null);
-    setFeedback("Subtaak verwijderd.");
+    setFeedback("Definitief verwijderen is niet beschikbaar. Archiveer de subtaak om deze uit de open lijst te halen.");
   }
 
-  function archiveMainTask(taskId: string) {
-    runWithEditorCloseGuard(() => {
-      const currentTask = tasks.find((task) => task.id === taskId);
-      if (!currentTask) return;
-
-      setTasks((current) =>
-        current.map((task) => (task.id === taskId ? { ...task, status: "archived" } : task)),
-      );
-      const archivedTask = { ...currentTask, status: "archived" as const };
-      setActiveView("completed");
-      setMobilePane("list");
-      setSelectedTaskId(archivedTask.id);
-      setSelectedSubtaskId(archivedTask.subtasks[0]?.id ?? null);
-      setEditorMode("none");
-      setHasUnsavedChanges(false);
-      setMainTaskError(null);
-      setFormError(null);
-      setFeedback(`Hoofdtaak “${currentTask.title}” gearchiveerd.`);
-    });
+  async function archiveMainTask(taskId: string) {
+    const formData = new FormData();
+    formData.set("taskId", taskId);
+    const actionState = await archiveTaskAction(initialTaskActionState, formData);
+    if (actionState.error) setMainTaskError(actionState.error);
   }
 
-  function restoreMainTask(taskId: string) {
-    runWithEditorCloseGuard(() => {
-      const currentTask = tasks.find((task) => task.id === taskId);
-      if (!currentTask) return;
-
-      setTasks((current) =>
-        current.map((task) => (task.id === taskId ? { ...task, status: "normal" } : task)),
-      );
-      setActiveView("tasks");
-      setMobilePane("detail");
-      setSelectedTaskId(taskId);
-      setSelectedSubtaskId(currentTask.subtasks[0]?.id ?? null);
-      setEditorMode("none");
-      setHasUnsavedChanges(false);
-      setMainTaskError(null);
-      setFormError(null);
-      setFeedback(`Hoofdtaak “${currentTask.title}” is teruggezet uit Afgerond.`);
-    });
+  async function restoreMainTask(taskId: string) {
+    const task = tasks.find((item) => item.id === taskId);
+    if (!task) return;
+    const deadline = splitDeadlineValue(task.deadlineValue);
+    const formData = new FormData();
+    formData.set("taskId", task.id);
+    formData.set("title", task.title);
+    formData.set("descriptionOriginal", task.description === "Nog geen omschrijving toegevoegd." ? "" : task.description);
+    formData.set("deadlineDate", deadline.date);
+    formData.set("deadlineTime", deadline.time);
+    formData.set("estimatedMinutes", task.estimatedMinutes === null || task.estimatedMinutes === undefined ? "" : String(task.estimatedMinutes));
+    formData.set("remainingMinutes", task.remainingMinutes === null || task.remainingMinutes === undefined ? "" : String(task.remainingMinutes));
+    formData.set("status", "OPEN");
+    const actionState = await saveTaskAction(initialTaskActionState, formData);
+    if (actionState.error) setMainTaskError(actionState.error);
   }
 
-  function archiveSubtask(subtaskId: string) {
-    runWithEditorCloseGuard(() => {
-      if (!selectedTask) return;
-      const currentSubtask = selectedTask.subtasks.find((subtask) => subtask.id === subtaskId);
-      if (!currentSubtask) return;
-
-      const nextSubtask = selectedTask.subtasks.find((subtask) => subtask.id !== subtaskId && !isArchivedSubtask(subtask)) ?? null;
-
-      setTasks((current) =>
-        current.map((task) => {
-          if (task.id !== selectedTask.id) return task;
-          return {
-            ...task,
-            subtasks: task.subtasks.map((subtask) =>
-              subtask.id === subtaskId ? { ...subtask, state: "archived" } : subtask,
-            ),
-          };
-        }),
-      );
-      setSelectedSubtaskId(nextSubtask?.id ?? null);
-      setEditorMode("none");
-      setHasUnsavedChanges(false);
-      setFormError(null);
-      setFeedback(`Subtaak “${currentSubtask.title}” gearchiveerd.`);
-    });
+  async function archiveSubtask(subtaskId: string) {
+    const formData = new FormData();
+    formData.set("subtaskId", subtaskId);
+    const actionState = await archiveSubtaskAction(initialTaskActionState, formData);
+    if (actionState.error) setFormError(actionState.error);
   }
 
-  function restoreSubtask(subtaskId: string) {
-    runWithEditorCloseGuard(() => {
-      if (!selectedTask) return;
-
-      if (isCompletedBucketTask(selectedTask)) {
-        setFeedback("Dearchiveer eerst de hoofdtaak. Daarna kun je subtaken terugzetten.");
-        return;
-      }
-
-      const currentSubtask = selectedTask.subtasks.find((subtask) => subtask.id === subtaskId);
-      if (!currentSubtask) return;
-
-      setTasks((current) =>
-        current.map((task) => {
-          if (task.id !== selectedTask.id) return task;
-          return {
-            ...task,
-            subtasks: task.subtasks.map((subtask) =>
-              subtask.id === subtaskId ? { ...subtask, state: "planned" } : subtask,
-            ),
-          };
-        }),
-      );
-      setSelectedSubtaskId(subtaskId);
-      setEditorMode("none");
-      setHasUnsavedChanges(false);
-      setFormError(null);
-      setFeedback(`Subtaak “${currentSubtask.title}” is teruggezet.`);
-    });
+  async function restoreSubtask(subtaskId: string) {
+    if (!selectedTask || isCompletedBucketTask(selectedTask)) {
+      setFeedback("Dearchiveer eerst de hoofdtaak. Daarna kun je subtaken terugzetten.");
+      return;
+    }
+    const subtask = selectedTask.subtasks.find((item) => item.id === subtaskId);
+    if (!subtask) return;
+    const deadline = splitDeadlineValue(subtask.deadlineValue);
+    const formData = new FormData();
+    formData.set("taskId", selectedTask.id);
+    formData.set("subtaskId", subtask.id);
+    formData.set("title", subtask.title);
+    formData.set("descriptionOriginal", subtask.description ?? "");
+    formData.set("deadlineDate", deadline.date);
+    formData.set("deadlineTime", deadline.time);
+    formData.set("estimatedMinutes", String(subtask.estimatedMinutes ?? 1));
+    formData.set("remainingMinutes", String(subtask.remainingMinutes ?? 0));
+    formData.set("minimumBlockMinutes", String(subtask.minimumBlockMinutes ?? 15));
+    formData.set("splittable", subtask.splittable ? "on" : "");
+    formData.set("priority", subtask.priority === null || subtask.priority === undefined ? "" : String(subtask.priority));
+    formData.set("context", subtask.context ?? "");
+    formData.set("status", "OPEN");
+    const actionState = await saveSubtaskAction(initialTaskActionState, formData);
+    if (actionState.error) setFormError(actionState.error);
   }
 
   function selectEmail(emailId: string) {
@@ -2179,8 +1923,7 @@ export function TakenVisualPrototype({
                                   type="button"
                                   className={styles.attachmentFileButton}
                                   onClick={() => openLocalAttachment(attachment)}
-                                  disabled={!attachment.objectUrl}
-                                  title={attachment.objectUrl ? `${attachment.name} openen` : `${attachment.name} is voorbeelddata`}
+                                  title={attachment.sourceUrl || attachment.objectUrl ? `${attachment.name} openen` : `${attachment.name} is privé opgeslagen`}
                                 >
                                   {attachment.name}
                                 </button>
@@ -2380,7 +2123,7 @@ export function TakenVisualPrototype({
                 <div className={styles.timerStrip}>
                   <span>
                     <small>Actieve subtaak</small>
-                    <strong>Offerte laadpalen beoordelen</strong>
+                    <strong>{selectedSubtask?.title ?? selectedTask.title}</strong>
                   </span>
                   <time aria-label={`Actieve tijd ${formatTimer(timerSeconds)}`}>{formatTimer(timerSeconds)}</time>
                 </div>
@@ -2641,8 +2384,7 @@ export function TakenVisualPrototype({
                                     type="button"
                                     className={styles.attachmentFileButton}
                                     onClick={() => openLocalAttachment(attachment)}
-                                    disabled={!attachment.objectUrl}
-                                    title={attachment.objectUrl ? `${attachment.name} openen` : `${attachment.name} is voorbeelddata`}
+                                    title={attachment.sourceUrl || attachment.objectUrl ? `${attachment.name} openen` : `${attachment.name} is privé opgeslagen`}
                                   >
                                     {attachment.name}
                                   </button>
@@ -2682,9 +2424,8 @@ export function TakenVisualPrototype({
                     <div><dt>Persoonlijk advies</dt><dd>4u 10m</dd></div>
                     <div><dt>Gekozen resterend</dt><dd>{selectedTask.remaining}</dd></div>
                     <div><dt>Afhankelijkheden</dt><dd>1 actief</dd></div>
-                    <div><dt>Bijlagen</dt><dd>2 bestanden</dd></div>
+                    <div><dt>Bijlagen</dt><dd>{taskAttachments[selectedTask.id]?.length ?? 0}</dd></div>
                   </dl>
-                  <p className={styles.dataNote}>Dit blok gebruikt uitsluitend tijdelijke voorbeelddata.</p>
                 </section>
               )}
             </div>

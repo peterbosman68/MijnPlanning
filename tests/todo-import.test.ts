@@ -44,7 +44,7 @@ vi.mock("@/lib/microsoft/token-service", () => ({
   getValidAccessToken: mocks.getValidAccessToken,
 }));
 
-import { executeTodoImport, mapTodoDeadline } from "@/lib/microsoft/todo-import";
+import { executeTodoImport, mapTodoDeadline, previewTodoImport } from "@/lib/microsoft/todo-import";
 
 describe("eenmalige Microsoft To Do-import", () => {
   beforeEach(() => {
@@ -68,10 +68,11 @@ describe("eenmalige Microsoft To Do-import", () => {
       { value: [{ id: "list-1", displayName: "Taken" }] },
       {
         value: [
-          { id: "existing", title: "Bestaat al", body: { content: "Oud" } },
+          { id: "existing", title: "Bestaat al", hasAttachments: false, body: { content: "Oud" } },
           {
             id: "new",
             title: "  Nieuwe taak  ",
+            hasAttachments: false,
             status: "completed",
             body: { content: "Exacte\r\n\r\n* notitie  " },
             dueDateTime: { dateTime: "2026-08-10T17:00:00.0000000", timeZone: "W. Europe Standard Time" },
@@ -143,5 +144,56 @@ describe("eenmalige Microsoft To Do-import", () => {
   it("weigert een onbekende tijdzone in plaats van de deadline stil te verschuiven", () => {
     expect(() => mapTodoDeadline({ dateTime: "2026-08-10T17:00:00", timeZone: "Unknown Zone" }))
       .toThrow("Niet-ondersteunde To Do-tijdzone");
+  });
+
+  it("lijst To Do-bijlagen apart en haalt ieder bestand afzonderlijk op", async () => {
+    const fetchMock = vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      const payload = url.endsWith("/me/todo/lists")
+        ? { value: [{ id: "list-1", displayName: "Taken" }] }
+        : url.includes("/tasks/task-1/attachments/attachment-1")
+          ? {
+              id: "attachment-1",
+              name: "bewijs.pdf",
+              contentType: "application/pdf",
+              size: 4,
+              contentBytes: "dGVzdA==",
+            }
+          : url.includes("/tasks/task-1/attachments")
+            ? {
+                value: [{
+                  id: "attachment-1",
+                  name: "bewijs.pdf",
+                  contentType: "application/pdf",
+                  size: 4,
+                }],
+              }
+            : url.includes("/tasks")
+              ? {
+                  value: [{
+                    id: "task-1",
+                    title: "Taak met bestand",
+                    hasAttachments: true,
+                    body: { content: "" },
+                  }],
+                }
+              : { value: [] };
+
+      return { ok: true, json: async () => payload } as Response;
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    mocks.findMany.mockResolvedValue([]);
+
+    const preview = await previewTodoImport("user-1");
+
+    expect(preview.attachmentCount).toBe(1);
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/tasks/task-1/attachments"),
+      expect.any(Object),
+    );
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/tasks/task-1/attachments/attachment-1"),
+      expect.any(Object),
+    );
   });
 });

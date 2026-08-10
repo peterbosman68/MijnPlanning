@@ -1,8 +1,11 @@
 import "server-only";
 
+import { prisma } from "@/lib/db/client";
+
 import {
   createAttachmentRecord,
   deleteAttachmentRecord,
+  listAttachmentsForUser,
   listAttachmentsForSubtask,
   listAttachmentsForTask,
   type DatabaseClient,
@@ -38,6 +41,24 @@ function ensureTarget(target: AttachmentTarget) {
     throw new Error("Een bijlage moet precies aan een taak of een subtaak worden gekoppeld.");
   }
 }
+
+export async function getAttachmentBoardData(userId: string) {
+  const attachments = await listAttachmentsForUser(prisma, userId);
+
+  return attachments.map((attachment) => ({
+    id: attachment.id,
+    taskId: attachment.taskId,
+    subtaskId: attachment.subtaskId,
+    name: attachment.originalFileName ?? "Bijlage",
+    mimeType: attachment.mimeType ?? "application/octet-stream",
+    sizeBytes: attachment.sizeBytes,
+    sourceUrl: attachment.sourceUrl,
+    hasStoredFile: Boolean(attachment.blobPath),
+    source: attachment.source,
+  }));
+}
+
+export type AttachmentBoardData = Awaited<ReturnType<typeof getAttachmentBoardData>>;
 
 export function listTaskAttachments(database: DatabaseClient, userId: string, taskId: string) {
   return listAttachmentsForTask(database, userId, taskId);

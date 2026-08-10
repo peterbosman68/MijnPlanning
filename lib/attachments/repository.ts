@@ -13,6 +13,24 @@ export type TaskAttachmentSource =
 
 export type TaskAttachmentRecord = PrismaTaskAttachment;
 
+export function listAttachmentsForUser(database: DatabaseClient, userId: string) {
+  return database.taskAttachment.findMany({
+    where: { userId },
+    orderBy: [{ createdAt: "asc" }],
+    select: {
+      id: true,
+      taskId: true,
+      subtaskId: true,
+      blobPath: true,
+      sourceUrl: true,
+      originalFileName: true,
+      mimeType: true,
+      sizeBytes: true,
+      source: true,
+    },
+  });
+}
+
 export function listAttachmentsForTask(database: DatabaseClient, userId: string, taskId: string) {
   return database.taskAttachment.findMany({
     where: { userId, taskId },
