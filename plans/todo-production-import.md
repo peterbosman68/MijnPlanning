@@ -260,6 +260,6 @@ Nog vereist:
 - [x] Alle kwaliteitscontroles groen: lint, typecheck, tests en productiebuild.
 - [x] Migratie gecontroleerd toegepast; Prisma bevestigt dat alle zes migraties actueel zijn.
 - [x] Commit en push naar `main` uitgevoerd.
-- [ ] Vercel-deployment gecontroleerd.
-- [ ] Productiepreview door Peter gecontroleerd.
+- [x] Vercel-productiedeployment en healthcheck gecontroleerd.
+- [x] Productiepreview door Peter gecontroleerd: 4 lijsten, 93 gevonden, 93 importeerbaar, 0 bestanden en 15 links.
 - [ ] Eenmalige productie-import afzonderlijk bevestigd en uitgevoerd.
