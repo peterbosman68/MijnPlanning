@@ -307,6 +307,14 @@ Nieuwe besluiten worden onderaan toegevoegd met datum.
 - Alleen de expliciet geselecteerde bron-ID's worden geïmporteerd; de server controleert die selectie opnieuw tegen een actuele Graph-respons.
 - Uitgeschakelde kandidaten worden niet in MijnPlanning aangemaakt en To Do blijft ongewijzigd.
 - Peter heeft deze gerichte afwijking van O29 op 11 augustus 2026 expliciet goedgekeurd.
+
+### O32 — alleen de standaardlijst Taken importeren
+
+- Alleen Microsofts standaard To Do-lijst met `wellknownListName = defaultList` wordt geïmporteerd.
+- Zowel open als afgeronde items uit deze lijst blijven importeerbaar.
+- Een afgerond To Do-item wordt als afgeronde hoofdtaak in MijnPlanning opgeslagen.
+- Boodschappenlijsten en `Flagged Emails` worden server-side volledig uitgesloten, ongeacht status of clientselectie.
+- Peter heeft deze afbakening op 11 augustus 2026 expliciet bevestigd.
 - De originele Microsoft To Do-taken en documenten blijven ongewijzigd.
 - Peter heeft deze aangepaste importaanpak op 11 augustus 2026 expliciet opgedragen.
 - De eerste echte import vindt op productie plaats na een afzonderlijke expliciete bevestiging op de gecontroleerde preview.

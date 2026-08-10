@@ -38,6 +38,10 @@ export function TodoImportAction({
       )
     : items;
   const selectedCount = selectedIds.size;
+  const selectedOpenCount = items.filter(
+    (item) => selectedIds.has(item.sourceExternalId) && item.status !== "COMPLETED",
+  ).length;
+  const selectedCompletedCount = selectedCount - selectedOpenCount;
   const selectedManualFileTitles = items.filter(
     (item) => selectedIds.has(item.sourceExternalId) && item.requiresManualFileTransfer,
   ).map((item) => item.title);
@@ -116,6 +120,10 @@ export function TodoImportAction({
           </div>
           <span className={styles.panelMeta}>{selectedCount} van {items.length} geselecteerd</span>
         </div>
+
+        <p className={styles.selectionSummary} aria-live="polite">
+          {selectedOpenCount} open · {selectedCompletedCount} afgerond
+        </p>
 
         <label className={styles.searchLabel}>
           <span>Zoek op taak of lijst</span>

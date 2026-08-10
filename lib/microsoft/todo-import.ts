@@ -35,6 +35,7 @@ class MicrosoftTodoImportConflictError extends Error {
 type GraphTodoList = {
   id?: string;
   displayName?: string;
+  wellknownListName?: string;
 };
 
 type GraphTodoTask = {
@@ -349,7 +350,12 @@ async function getAccessToken(userId: string) {
 
 async function fetchTodoListsAndTasks(userId: string): Promise<Readonly<{ lists: GraphTodoList[]; candidates: TodoImportCandidate[] }>> {
   const accessToken = await getAccessToken(userId);
-  const lists = await fetchPaged<GraphTodoList>(`${GRAPH_BASE}/me/todo/lists`, accessToken);
+  const allLists = await fetchPaged<GraphTodoList>(`${GRAPH_BASE}/me/todo/lists`, accessToken);
+  const lists = allLists.filter((list) => list.wellknownListName === "defaultList");
+
+  if (lists.length !== 1) {
+    throw new MicrosoftTodoRequestError("De standaardlijst Taken kon niet eenduidig worden gevonden.");
+  }
 
   const candidates: TodoImportCandidate[] = [];
 

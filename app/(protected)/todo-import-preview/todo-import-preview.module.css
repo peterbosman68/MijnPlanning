@@ -207,6 +207,13 @@
   font-weight: 700;
 }
 
+.selectionSummary {
+  margin: -4px 0 14px;
+  color: #294d7a;
+  font-size: 14px;
+  font-weight: 700;
+}
+
 .searchLabel input {
   width: 100%;
   min-height: 42px;

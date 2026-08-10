@@ -66,7 +66,13 @@ describe("eenmalige Microsoft To Do-import", () => {
 
   it("behoudt bestaande taken en importeert alleen geselecteerde onbekende To Do-items", async () => {
     const graphResponses = [
-      { value: [{ id: "list-1", displayName: "Taken" }] },
+      {
+        value: [
+          { id: "list-1", displayName: "Taken", wellknownListName: "defaultList" },
+          { id: "groceries", displayName: "Boodschappen", wellknownListName: "none" },
+          { id: "flagged", displayName: "Flagged Emails", wellknownListName: "flaggedEmails" },
+        ],
+      },
       {
         value: [
           { id: "existing", title: "Bestaat al", body: { content: "Oud" } },
@@ -128,6 +134,14 @@ describe("eenmalige Microsoft To Do-import", () => {
       expect.stringContaining("/attachments"),
       expect.any(Object),
     );
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      expect.stringContaining("/groceries/tasks"),
+      expect.any(Object),
+    );
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      expect.stringContaining("/flagged/tasks"),
+      expect.any(Object),
+    );
     expect(result).toEqual({
       batchId: "batch-1",
       listsCount: 1,
@@ -170,7 +184,7 @@ describe("eenmalige Microsoft To Do-import", () => {
 
   it("weigert een verouderde selectie voordat een importbatch wordt gemaakt", async () => {
     const graphResponses = [
-      { value: [{ id: "list-1", displayName: "Taken" }] },
+      { value: [{ id: "list-1", displayName: "Taken", wellknownListName: "defaultList" }] },
       { value: [{ id: "current", title: "Actuele taak", body: { content: "" } }] },
     ];
     vi.stubGlobal("fetch", vi.fn().mockImplementation(async () => ({
@@ -188,7 +202,7 @@ describe("eenmalige Microsoft To Do-import", () => {
     const fetchMock = vi.fn(async (input: string | URL | Request) => {
       const url = String(input);
       const payload = url.endsWith("/me/todo/lists")
-        ? { value: [{ id: "list-1", displayName: "Taken" }] }
+        ? { value: [{ id: "list-1", displayName: "Taken", wellknownListName: "defaultList" }] }
         : url.includes("/tasks")
               ? {
                   value: [{

@@ -17,6 +17,8 @@ Na oplevering kan Peter alle kandidaten doorzoeken, taken uitsluiten en uitsluit
 ## 3. Functionele interpretatie
 
 - Alle nog niet geïmporteerde Graph-taken worden zichtbaar in de preview.
+- Alleen Microsofts standaardlijst Taken (`wellknownListName = defaultList`) levert importkandidaten; Boodschappen en Flagged Emails worden server-side uitgesloten.
+- Open taken blijven open en afgeronde taken worden als afgeronde hoofdtaken geïmporteerd.
 - Alle kandidaten zijn standaard geselecteerd.
 - Peter kan zoeken, alles selecteren, alles uitsluiten en individuele taken aan- of uitvinken.
 - Alleen geselecteerde bron-ID's worden naar de uitvoerroute gestuurd.
@@ -104,6 +106,8 @@ Geen. Peter heeft op 11 augustus 2026 expliciet gekozen voor een standaard volle
 - [x] Domein- en API-selectie geïmplementeerd en gericht getest.
 - [x] Previewselectie responsief geïmplementeerd met zoeken en bulkselectie.
 - [x] Documentatie bijgewerkt met O31.
+- [x] Import server-side beperkt tot de standaardlijst Taken; statusmapping open/afgerond geborgd met regressietests en O32.
+- [x] Preview toont live het geselecteerde aantal open en afgeronde taken voor de laatste 30/18-controle.
 - [x] Gerichte tests, lint, typecheck, volledige tests, build en bestaande desktop/mobiele Playwright-suite groen.
 - [ ] Productiepreview gecontroleerd; productie-import blijft apart bevestigd.
 
