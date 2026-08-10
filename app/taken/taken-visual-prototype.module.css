@@ -71,7 +71,7 @@
 
 .navPane,
 .detailPane {
-  overflow-y: auto;
+  overflow: hidden;
 }
 
 .listPane {
