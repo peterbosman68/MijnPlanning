@@ -138,38 +138,55 @@ export async function getOutlookUpcomingEvents(userId: string, daysAhead = 30): 
     `https://graph.microsoft.com/v1.0${calendarViewPath()}` +
     `?startDateTime=${encodedStart}&endDateTime=${encodedEnd}` +
     "&$orderby=start/dateTime" +
-    "&$select=id,subject,start,end,isCancelled,showAs,location,attendees,bodyPreview";
+    "&$select=id,subject,start,end,isCancelled,showAs,location,attendees,bodyPreview" +
+    "&$top=200";
 
-  const response = await fetch(endpoint, {
-    method: "GET",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      Accept: "application/json",
-      Prefer: 'outlook.timezone="UTC"',
-    },
-    cache: "no-store",
-  });
-
-  if (!response.ok) {
-    throw new OutlookCalendarRequestError("Outlook-afspraken konden niet worden uitgelezen.");
-  }
-
-  const payload = (await response.json()) as {
-    value?: Array<{
-      id?: string;
-      subject?: string;
-      bodyPreview?: string;
-      isCancelled?: boolean;
-      showAs?: string;
-      location?: { displayName?: string };
-      attendees?: Array<unknown>;
-      start?: { dateTime?: string };
-      end?: { dateTime?: string };
-    }>;
+  type GraphCalendarEvent = {
+    id?: string;
+    subject?: string;
+    bodyPreview?: string;
+    isCancelled?: boolean;
+    showAs?: string;
+    location?: { displayName?: string };
+    attendees?: Array<unknown>;
+    start?: { dateTime?: string };
+    end?: { dateTime?: string };
   };
 
+  const allEvents: GraphCalendarEvent[] = [];
+  let nextUrl: string | undefined = endpoint;
+  let pageCount = 0;
+
+  while (nextUrl && pageCount < 10 && allEvents.length < 1000) {
+    const response = await fetch(nextUrl, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        Accept: "application/json",
+        Prefer: 'outlook.timezone="UTC"',
+      },
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      throw new OutlookCalendarRequestError("Outlook-afspraken konden niet worden uitgelezen.");
+    }
+
+    const payload = (await response.json()) as {
+      value?: GraphCalendarEvent[];
+      "@odata.nextLink"?: string;
+    };
+
+    if (Array.isArray(payload.value)) {
+      allEvents.push(...payload.value);
+    }
+
+    nextUrl = payload["@odata.nextLink"];
+    pageCount += 1;
+  }
+
   const nowMs = now.getTime();
-  const events = Array.isArray(payload.value) ? payload.value : [];
+  const events = allEvents;
 
   return events
     .filter((event) => {
