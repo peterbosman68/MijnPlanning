@@ -49,7 +49,6 @@ type GraphTodoTask = {
     dateTime?: string;
     timeZone?: string;
   };
-  hasAttachments?: boolean;
   attachments?: GraphTodoFileAttachment[];
   linkedResources?: GraphTodoLinkedResource[];
 };
@@ -272,19 +271,11 @@ async function fetchTodoTaskAttachments(
   task: GraphTodoTask & { id: string },
   accessToken: string,
 ): Promise<GraphTodoFileAttachment[]> {
-  if (typeof task.hasAttachments !== "boolean") {
-    throw new MicrosoftTodoRequestError(`To Do gaf geen bijlagenstatus terug voor taak "${task.title ?? task.id}".`);
-  }
-
-  if (!task.hasAttachments) {
-    return [];
-  }
-
   const taskUrl = `${GRAPH_BASE}/me/todo/lists/${encodeURIComponent(listId)}/tasks/${encodeURIComponent(task.id)}`;
   const attachmentMetadata = await fetchPaged<GraphTodoFileAttachment>(`${taskUrl}/attachments`, accessToken);
 
   if (attachmentMetadata.length === 0) {
-    throw new MicrosoftTodoRequestError(`To Do meldt bijlagen maar gaf geen bestanden terug voor taak "${task.title ?? task.id}".`);
+    return [];
   }
 
   const attachments: GraphTodoFileAttachment[] = [];
@@ -416,7 +407,7 @@ async function fetchTodoListsAndTasks(userId: string): Promise<Readonly<{ lists:
   for (const list of lists) {
     if (!list.id) continue;
     const tasks = await fetchPaged<GraphTodoTask>(
-      `${GRAPH_BASE}/me/todo/lists/${encodeURIComponent(list.id)}/tasks?$select=id,title,status,body,dueDateTime,hasAttachments&$expand=linkedResources`,
+      `${GRAPH_BASE}/me/todo/lists/${encodeURIComponent(list.id)}/tasks?$select=id,title,status,body,dueDateTime&$expand=linkedResources`,
       accessToken,
     );
 

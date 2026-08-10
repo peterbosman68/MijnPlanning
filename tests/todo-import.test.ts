@@ -68,17 +68,18 @@ describe("eenmalige Microsoft To Do-import", () => {
       { value: [{ id: "list-1", displayName: "Taken" }] },
       {
         value: [
-          { id: "existing", title: "Bestaat al", hasAttachments: false, body: { content: "Oud" } },
+          { id: "existing", title: "Bestaat al", body: { content: "Oud" } },
           {
             id: "new",
             title: "  Nieuwe taak  ",
-            hasAttachments: false,
             status: "completed",
             body: { content: "Exacte\r\n\r\n* notitie  " },
             dueDateTime: { dateTime: "2026-08-10T17:00:00.0000000", timeZone: "W. Europe Standard Time" },
           },
         ],
       },
+      { value: [] },
+      { value: [] },
     ];
     vi.stubGlobal("fetch", vi.fn().mockImplementation(async () => ({
       ok: true,
@@ -173,7 +174,6 @@ describe("eenmalige Microsoft To Do-import", () => {
                   value: [{
                     id: "task-1",
                     title: "Taak met bestand",
-                    hasAttachments: true,
                     body: { content: "" },
                   }],
                 }
@@ -193,6 +193,10 @@ describe("eenmalige Microsoft To Do-import", () => {
     );
     expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining("/tasks/task-1/attachments/attachment-1"),
+      expect.any(Object),
+    );
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      expect.stringContaining("hasAttachments"),
       expect.any(Object),
     );
   });
