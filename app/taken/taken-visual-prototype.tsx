@@ -287,58 +287,6 @@ const NAV_ITEMS: Array<{ id: ViewKey; label: string; icon: ViewKey }> = [
 
 const INITIAL_TASKS: MainTask[] = [
   {
-    id: "truckparking",
-    title: "Truckparking Duiven voorbereiden",
-    note: "4 subtaken · 1 geblokkeerd",
-    deadline: "vr 24 jul · 17:00",
-    deadlineValue: "2026-07-24T17:00",
-    remaining: "3u 40m",
-    status: "active",
-    risk: "attention",
-    riskText:
-      "Kleine marge: de gekozen duur ligt 30 minuten onder jouw persoonlijke advies. De deadline blijft haalbaar als het actieve werk vandaag doorgaat.",
-    description:
-      "Voorbereiding van het locatiebezoek, de laadpaalofferte en de benodigde vergunningsstukken voor Truckparking Duiven.",
-    subtasks: [
-      {
-        id: "location",
-        title: "Locatiegegevens controleren",
-        deadline: "20 jul · 12:00",
-        deadlineValue: "2026-07-20T12:00",
-        remaining: "—",
-        description: "Maten, ontsluiting en netaansluiting zijn gecontroleerd.",
-        state: "done",
-      },
-      {
-        id: "quote",
-        title: "Offerte laadpalen beoordelen",
-        deadline: "22 jul · 17:00",
-        deadlineValue: "2026-07-22T17:00",
-        remaining: "45m",
-        description: "Prijs, capaciteit en onderhoudsvoorwaarden vergelijken.",
-        state: "active",
-      },
-      {
-        id: "permit",
-        title: "Vergunningsstukken verzamelen",
-        deadline: "23 jul · 12:00",
-        deadlineValue: "2026-07-23T12:00",
-        remaining: "1u 10m",
-        description: "Ontbrekende documenten aanvragen en checklist afronden.",
-        state: "blocked",
-      },
-      {
-        id: "owner",
-        title: "Terugkoppeling eigenaar verwerken",
-        deadline: "24 jul · 11:00",
-        deadlineValue: "2026-07-24T11:00",
-        remaining: "30m",
-        description: "Besproken aanpassingen verwerken in plan en actiepunten.",
-        state: "waiting",
-      },
-    ],
-  },
-  {
     id: "quarter",
     title: "Administratie tweede kwartaal afronden",
     note: "2 subtaken",
@@ -367,38 +315,6 @@ const INITIAL_TASKS: MainTask[] = [
     ],
   },
   {
-    id: "roof",
-    title: "Besluit dakonderhoud vastleggen",
-    note: "Wachten op offerte",
-    deadline: "ma 27 jul · 10:00",
-    deadlineValue: "2026-07-27T10:00",
-    remaining: "50m",
-    status: "waiting",
-    risk: "danger",
-    riskText:
-      "Deadlinegevaar: de offerte is nog niet ontvangen. Zonder antwoord vóór dinsdag ontbreekt 1 werkdag om het besluit af te ronden.",
-    description:
-      "Offertes vergelijken en het definitieve onderhoudsbesluit met onderbouwing vastleggen.",
-    subtasks: [
-      {
-        id: "vendor",
-        title: "Herinnering aan leverancier sturen",
-        deadline: "20 jul · 09:00",
-        deadlineValue: "2026-07-20T09:00",
-        remaining: "10m",
-        state: "waiting",
-      },
-      {
-        id: "compare",
-        title: "Offertes vergelijken",
-        deadline: "24 jul · 14:00",
-        deadlineValue: "2026-07-24T14:00",
-        remaining: "40m",
-        state: "blocked",
-      },
-    ],
-  },
-  {
     id: "archive",
     title: "Verzekeringsmap 2025 archiveren",
     note: "Afgerond op 16 juli",
@@ -420,27 +336,9 @@ const INITIAL_TASKS: MainTask[] = [
   },
 ];
 
-const INITIAL_TASK_ATTACHMENTS: Record<string, LocalAttachment[]> = {
-  truckparking: [
-    {
-      id: "task-attach-offerte",
-      name: "Offerte-laadpalen.pdf",
-      sizeLabel: "1.2 MB",
-      mimeType: "application/pdf",
-    },
-  ],
-};
+const INITIAL_TASK_ATTACHMENTS: Record<string, LocalAttachment[]> = {};
 
-const INITIAL_SUBTASK_ATTACHMENTS: Record<string, LocalAttachment[]> = {
-  quote: [
-    {
-      id: "sub-attach-specificatie",
-      name: "Specificatie-installatie.docx",
-      sizeLabel: "264 KB",
-      mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    },
-  ],
-};
+const INITIAL_SUBTASK_ATTACHMENTS: Record<string, LocalAttachment[]> = {};
 
 const EMAIL_PROPOSALS: EmailProposal[] = [
   {
@@ -849,7 +747,7 @@ export function TakenVisualPrototype({
   const [activeView, setActiveView] = useState<ViewKey>(initialView);
   const [mobilePane, setMobilePane] = useState<MobilePane>("navigation");
   const [tasks, setTasks] = useState<MainTask[]>(INITIAL_TASKS);
-  const [selectedTaskId, setSelectedTaskId] = useState("truckparking");
+  const [selectedTaskId, setSelectedTaskId] = useState("quarter");
   const [selectedSubtaskId, setSelectedSubtaskId] = useState<string | null>(null);
   const [selectedAppointmentId, setSelectedAppointmentId] = useState<string | null>(null);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -1056,9 +954,8 @@ export function TakenVisualPrototype({
   function selectView(view: ViewKey) {
     runWithEditorCloseGuard(() => {
       setActiveView(view);
-      if (view === "waiting") setSelectedTaskId("roof");
-      else if (view === "completed") setSelectedTaskId("archive");
-      else if (view !== "appointments" && view !== "email" && view !== "whatsapp") setSelectedTaskId("truckparking");
+      if (view === "completed") setSelectedTaskId("archive");
+      else if (view !== "appointments" && view !== "email" && view !== "whatsapp") setSelectedTaskId("quarter");
       setMobilePane("list");
       setEditorMode("none");
       setHasUnsavedChanges(false);
