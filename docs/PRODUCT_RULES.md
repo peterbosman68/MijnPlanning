@@ -110,6 +110,7 @@ Handmatig bedienbaar:
 - Een open subtaak met deadline verschijnt in `Vandaag` op haar deadlinedatum en in `Deze week` wanneer die deadlinedatum binnen de huidige maandag-tot-en-met-zondagweek valt.
 - Zodra een taak subtaken heeft, bepaalt alleen de datum van open subtaken of de hoofdtaak in een datumselectie verschijnt; de hoofdtaak wordt niet daarnaast op haar eigen deadline als extra werk getoond.
 - Heeft een hoofdtaak geen eigen deadline, dan mag het takenoverzicht de vroegste deadline van een open subtaak tonen met het label `Eerstvolgende subtaak`.
+- Naast deze afgeleide datum toont de hoofdtaakrij alleen de som van open subtaaktijd op die datum; de totale resterende hoofdtaaktijd blijft in het detail beschikbaar.
 - Deze afgeleide weergavedatum wijzigt `Task.deadline` niet en geldt niet als hoofdtaakdeadline voor deadlinevalidatie.
 - Subtaken van één taak hoeven niet achter elkaar te worden gepland.
 - Deadline en speling zijn belangrijke prioriteitsfactoren.

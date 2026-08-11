@@ -96,18 +96,18 @@ export function subtaskPlannedMinutesOnDate(subtask: PlannedSubtaskLike, dateVal
   return parseMinutesFromLabelToTotal(subtask.remaining);
 }
 
+export function taskPlannedMinutesOnDate(task: PlannedTaskLike, dateValue: string) {
+  if (isClosedTaskStatus(task.status)) return 0;
+  if (task.subtasks.length === 0) return taskOwnPlannedMinutesOnDate(task, dateValue);
+
+  return task.subtasks.reduce(
+    (sum, subtask) => sum + subtaskPlannedMinutesOnDate(subtask, dateValue),
+    0,
+  );
+}
+
 export function totalPlannedWorkMinutesForDate(tasks: PlannedTaskLike[], dateValue: string) {
-  return tasks.reduce((sum, task) => {
-    if (isClosedTaskStatus(task.status)) return sum;
-
-    const openSubtasks = task.subtasks.filter((subtask) => !isClosedSubtaskState(subtask.state));
-
-    if (openSubtasks.length > 0) {
-      return sum + openSubtasks.reduce((subSum, subtask) => subSum + subtaskPlannedMinutesOnDate(subtask, dateValue), 0);
-    }
-
-    return sum + taskOwnPlannedMinutesOnDate(task, dateValue);
-  }, 0);
+  return tasks.reduce((sum, task) => sum + taskPlannedMinutesOnDate(task, dateValue), 0);
 }
 
 export function totalBookedMinutesForDate(appointments: AppointmentLike[], dateValue: string) {

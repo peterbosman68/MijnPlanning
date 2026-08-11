@@ -465,4 +465,5 @@ Nieuwe besluiten worden onderaan toegevoegd met datum.
 - Een open subtaak met deadline verschijnt op basis van die deadline in `Vandaag` en `Deze week`.
 - Bij een hoofdtaak met subtaken bepalen de open subtaken de datumselectie; de hoofdtaak wordt niet op haar eigen deadline nogmaals als zelfstandig werk ingepland.
 - Wanneer een hoofdtaak geen eigen deadline heeft, toont de hoofdtaakrij de vroegste deadline van een open subtaak met het expliciete label `Eerstvolgende subtaak`.
+- De tijd naast die afgeleide datum is uitsluitend de som van resterende open subtaaktijd op die datum; de totale resterende hoofdtaaktijd blijft afzonderlijk in het detail zichtbaar.
 - Deze datum is een afgeleide projectiewaarde. `Task.deadline` blijft ongewijzigd en blijft als enige hoofdtaakdeadline leidend voor formulieren en deadlinehiërarchie.

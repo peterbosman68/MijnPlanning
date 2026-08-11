@@ -8,6 +8,7 @@ import {
   taskHasPlannedWorkInDateRange,
   taskHasPlannedWorkOnDate,
   taskOwnPlannedMinutesOnDate,
+  taskPlannedMinutesOnDate,
   totalDailyLoadMinutesForDate,
   totalPlannedWorkMinutesForDate,
   weekDateRangeContaining,
@@ -148,6 +149,20 @@ describe("planned load per dag", () => {
       { deadlineValue: "2026-08-11T17:00", remaining: "30m", state: "done" },
       { remaining: "30m", state: "planned" },
     ])).toBe("2026-08-12T09:00");
+  });
+
+  it("toont per datum alleen de GiveWally-tijd die op die datum gepland staat", () => {
+    const giveWallyTask: PlannedTaskLike = {
+      remaining: "5u 30m",
+      status: "normal",
+      subtasks: [
+        { deadlineValue: "2026-08-11T17:00", remaining: "1u 30m", state: "planned" },
+        { deadlineValue: "2026-08-19T17:00", remaining: "4u", state: "planned" },
+      ],
+    };
+
+    expect(taskPlannedMinutesOnDate(giveWallyTask, "2026-08-11")).toBe(90);
+    expect(taskPlannedMinutesOnDate(giveWallyTask, "2026-08-19")).toBe(240);
   });
 
   it("plant een hoofdtaak met alleen gesloten subtaken niet opnieuw als zelfstandig werk", () => {

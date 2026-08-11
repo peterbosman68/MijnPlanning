@@ -16,6 +16,7 @@ import {
   taskHasPlannedWorkInDateRange,
   taskHasPlannedWorkOnDate,
   taskOwnPlannedMinutesOnDate,
+  taskPlannedMinutesOnDate,
   totalPlannedWorkMinutesForDate,
   weekDateRangeContaining,
 } from "@/lib/tasks/planned-load";
@@ -594,6 +595,24 @@ function parseMinutesFromLabel(label: string) {
 
   if (total > 0) return String(total);
   return "";
+}
+
+function formatMinutesLabel(minutes: number) {
+  if (minutes <= 0) return "0m";
+  const hours = Math.floor(minutes / 60);
+  const remainder = minutes % 60;
+  if (hours === 0) return `${remainder}m`;
+  if (remainder === 0) return `${hours}u`;
+  return `${hours}u ${remainder}m`;
+}
+
+function taskRowRemainingLabel(task: MainTask) {
+  if (task.planningDeadlineSource !== "subtask" || !task.planningDeadlineValue) {
+    return task.remaining;
+  }
+
+  const dateValue = splitDeadlineValue(task.planningDeadlineValue).date;
+  return formatMinutesLabel(taskPlannedMinutesOnDate(task, dateValue));
 }
 
 function getTodayDateValue() {
@@ -2170,6 +2189,7 @@ export function TakenVisualPrototype({
                 visibleTasks.map((task) => {
                   const status = taskStatusLabel(task.status);
                   const taskDeadline = splitDeadlineValue(task.deadlineValue);
+                  const rowRemaining = taskRowRemainingLabel(task);
                   const showRestoreTaskAction = activeView === "completed";
                   return (
                     <div key={task.id}>
@@ -2192,7 +2212,7 @@ export function TakenVisualPrototype({
                             <span>{task.planningDeadline}</span>
                             {task.planningDeadlineSource === "subtask" && <small>Eerstvolgende subtaak</small>}
                           </span>
-                          <span className={styles.remainingCell}>{task.remaining}</span>
+                          <span className={styles.remainingCell}>{rowRemaining}</span>
                           <span className={styles.riskCell}>
                             {task.risk && (
                               <span

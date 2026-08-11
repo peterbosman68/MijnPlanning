@@ -289,7 +289,7 @@ De planningsmotor gebruikt:
 
 Deadline-loze subtaken blijven uitvoerbaar werk en tellen mee in de resterende hoofdtaakduur. Ze hebben geen speling of deadlinewaarschuwing en worden niet aan een specifieke kalenderdag toegerekend.
 
-De pure taakdomeinlogica selecteert datumgebonden werk voor `Vandaag` en `Deze week`. Bij een taak met subtaken worden uitsluitend open subtaken op hun eigen deadline geselecteerd; de hoofdtaak is alleen de visuele groepering en levert geen tweede planningitem. De boardprojectie mag voor een hoofdtaak zonder eigen deadline de vroegste open subtaakdeadline als `Eerstvolgende subtaak` tonen. Deze afgeleide waarde blijft gescheiden van `Task.deadline`, zodat formulieren en deadlinehiërarchie uitsluitend de opgeslagen hoofdtaakdeadline gebruiken.
+De pure taakdomeinlogica selecteert datumgebonden werk voor `Vandaag` en `Deze week`. Bij een taak met subtaken worden uitsluitend open subtaken op hun eigen deadline geselecteerd; de hoofdtaak is alleen de visuele groepering en levert geen tweede planningitem. De boardprojectie mag voor een hoofdtaak zonder eigen deadline de vroegste open subtaakdeadline als `Eerstvolgende subtaak` tonen. De tijd naast die datum is de som van open subtaakminuten op exact die datum, niet de totale resterende hoofdtaaktijd. Deze afgeleide waarden blijven gescheiden van `Task.deadline`, zodat formulieren en deadlinehiërarchie uitsluitend de opgeslagen hoofdtaakdeadline gebruiken.
 
 ---
 
