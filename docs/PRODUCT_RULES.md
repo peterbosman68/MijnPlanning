@@ -120,6 +120,11 @@ Een hoofdtaak in `Taken Mogelijk`:
 - Heeft een hoofdtaak geen eigen deadline, dan mag het takenoverzicht de vroegste deadline van een open subtaak tonen met het label `Eerstvolgende subtaak`.
 - Naast deze afgeleide datum toont de hoofdtaakrij alleen de som van open subtaaktijd op die datum; de totale resterende hoofdtaaktijd blijft in het detail beschikbaar.
 - Deze afgeleide weergavedatum wijzigt `Task.deadline` niet en geldt niet als hoofdtaakdeadline voor deadlinevalidatie.
+- In `Taken` verschijnt een actieve hoofdtaak eenmaal per unieke datum van niet-afgeronde, niet-gearchiveerde subtaken; `Week` past dezelfde regel toe binnen de huidige kalenderweek.
+- Meerdere relevante subtaken op dezelfde datum leveren één hoofdtaakregel met hun gezamenlijke resterende tijd.
+- Deadline-loze open subtaken blijven in `Taken` zichtbaar via één neutrale regel `Geen deadline`, ook naast gedateerde regels van dezelfde hoofdtaak.
+- Iedere datumregel verwijst naar dezelfde hoofdtaak. Een klik toont in het detail alle bijbehorende niet-gearchiveerde subtaken, onafhankelijk van de geselecteerde datumweergave.
+- Na een geslaagde keuze `Mogelijk` verdwijnen alle datumregels van de hoofdtaak direct uit `Vandaag`, `Week` en `Taken`; de volledige hoofdtaak verschijnt één keer in `Taken Mogelijk`.
 - Subtaken van één taak hoeven niet achter elkaar te worden gepland.
 - Deadline en speling zijn belangrijke prioriteitsfactoren.
 - Afhankelijkheden gaan vóór gewone prioriteit.

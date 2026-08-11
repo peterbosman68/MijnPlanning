@@ -10,13 +10,12 @@ import type { getTaskBoardData } from "@/lib/tasks/service";
 
 import {
   earliestOpenSubtaskDeadlineValue,
-  subtaskHasPlannedWorkInDateRange,
-  subtaskHasPlannedWorkOnDate,
+  openSubtaskDateValues,
   subtaskPlannedMinutesOnDate,
-  taskHasPlannedWorkInDateRange,
-  taskHasPlannedWorkOnDate,
   taskOwnPlannedMinutesOnDate,
   taskPlannedMinutesOnDate,
+  taskHasUndatedOpenSubtask,
+  taskUndatedSubtaskMinutes,
   totalPlannedWorkMinutesForDate,
   weekDateRangeContaining,
 } from "@/lib/tasks/planned-load";
@@ -270,6 +269,15 @@ type MainTask = {
   databaseStatus?: string;
   estimatedMinutes?: number | null;
   remainingMinutes?: number | null;
+};
+
+type TaskOccurrence = {
+  key: string;
+  task: MainTask;
+  dateValue: string | null;
+  deadlineLabel: string;
+  deadlineSource: "task" | "subtask" | null;
+  remainingLabel: string;
 };
 
 type Appointment = {
@@ -607,15 +615,6 @@ function formatMinutesLabel(minutes: number) {
   return `${hours}u ${remainder}m`;
 }
 
-function taskRowRemainingLabel(task: MainTask) {
-  if (task.planningDeadlineSource !== "subtask" || !task.planningDeadlineValue) {
-    return task.remaining;
-  }
-
-  const dateValue = splitDeadlineValue(task.planningDeadlineValue).date;
-  return formatMinutesLabel(taskPlannedMinutesOnDate(task, dateValue));
-}
-
 function getTodayDateValue() {
   const now = new Date();
   const year = now.getFullYear();
@@ -659,12 +658,61 @@ function sortByOldestDeadlineFirst<T extends { id: string; deadlineValue?: strin
   });
 }
 
-function sortTasksByPlanningDate(tasks: MainTask[]) {
-  return [...tasks].sort((left, right) => {
-    const byDate = getDeadlineTimestamp(left.planningDeadlineValue) - getDeadlineTimestamp(right.planningDeadlineValue);
+function sortTaskOccurrences(occurrences: TaskOccurrence[]) {
+  return [...occurrences].sort((left, right) => {
+    const byDate = getDeadlineTimestamp(left.dateValue ?? undefined) - getDeadlineTimestamp(right.dateValue ?? undefined);
     if (byDate !== 0) return byDate;
-    return left.id.localeCompare(right.id);
+    const byTitle = left.task.title.localeCompare(right.task.title, "nl");
+    if (byTitle !== 0) return byTitle;
+    return left.key.localeCompare(right.key);
   });
+}
+
+function singleTaskOccurrence(task: MainTask): TaskOccurrence {
+  return {
+    key: `${task.id}:task`,
+    task,
+    dateValue: task.planningDeadlineValue ? splitDeadlineValue(task.planningDeadlineValue).date : null,
+    deadlineLabel: task.planningDeadline,
+    deadlineSource: task.planningDeadlineSource,
+    remainingLabel: task.remaining,
+  };
+}
+
+function activeTaskOccurrences(task: MainTask): TaskOccurrence[] {
+  if (task.subtasks.length === 0) return [singleTaskOccurrence(task)];
+
+  const occurrences: TaskOccurrence[] = openSubtaskDateValues(task.subtasks).map((dateValue) => {
+    const datedSubtasks = task.subtasks
+      .filter((subtask) =>
+        subtask.state !== "done"
+        && subtask.state !== "archived"
+        && splitDeadlineValue(subtask.deadlineValue).date === dateValue,
+      )
+      .sort((left, right) => getDeadlineTimestamp(left.deadlineValue) - getDeadlineTimestamp(right.deadlineValue));
+
+    return {
+      key: `${task.id}:${dateValue}`,
+      task,
+      dateValue,
+      deadlineLabel: datedSubtasks[0]?.deadline ?? dateValue,
+      deadlineSource: "subtask" as const,
+      remainingLabel: formatMinutesLabel(taskPlannedMinutesOnDate(task, dateValue)),
+    };
+  });
+
+  if (taskHasUndatedOpenSubtask(task)) {
+    occurrences.push({
+      key: `${task.id}:undated`,
+      task,
+      dateValue: null,
+      deadlineLabel: "Geen deadline",
+      deadlineSource: null,
+      remainingLabel: formatMinutesLabel(taskUndatedSubtaskMinutes(task)),
+    });
+  }
+
+  return occurrences;
 }
 
 function taskStatusLabel(status: TaskStatus) {
@@ -845,6 +893,7 @@ export function TakenVisualPrototype({
   const [activeView, setActiveView] = useState<ViewKey>(initialView);
   const [mobilePane, setMobilePane] = useState<MobilePane>("navigation");
   const [selectedTaskId, setSelectedTaskId] = useState(initialTaskBoard.selectedTask?.id ?? tasks[0]?.id ?? "");
+  const [selectedOccurrenceKey, setSelectedOccurrenceKey] = useState("");
   const [selectedSubtaskId, setSelectedSubtaskId] = useState<string | null>(initialTaskBoard.selectedSubtask?.id ?? null);
   const [selectedAppointmentId, setSelectedAppointmentId] = useState<string | null>(null);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -873,6 +922,7 @@ export function TakenVisualPrototype({
   const [deletingAttachmentId, setDeletingAttachmentId] = useState<string | null>(null);
   const [deletingTaskItemId, setDeletingTaskItemId] = useState<string | null>(null);
   const [changingTaskStatusId, setChangingTaskStatusId] = useState<string | null>(null);
+  const [taskStatusOverrides, setTaskStatusOverrides] = useState<Record<string, "OPEN" | "WAITING">>({});
   const [deleteConfirmation, setDeleteConfirmation] = useState<DeleteConfirmation | null>(null);
   const [attachmentUploadStatus, setAttachmentUploadStatus] = useState<{
     targetKey: string;
@@ -941,44 +991,64 @@ export function TakenVisualPrototype({
     return () => controller.abort();
   }, [activeView]);
 
-  const visibleTasks = useMemo(() => {
+  const projectedTasks = useMemo(() => tasks.map((task) => {
+    const statusOverride = taskStatusOverrides[task.id];
+    if (!statusOverride) return task;
+    return {
+      ...task,
+      databaseStatus: statusOverride,
+      status: toVisualTaskStatus(statusOverride),
+    };
+  }), [taskStatusOverrides, tasks]);
+
+  const visibleOccurrences = useMemo(() => {
     const today = getTodayDateValue();
     const week = weekDateRangeContaining(today);
-    const filtered =
-      activeView === "waiting"
-        ? tasks.filter((task) => task.databaseStatus === "WAITING")
-        : activeView === "completed"
-          ? tasks.filter((task) => isCompletedBucketTask(task))
-          : activeView === "today"
-            ? tasks.filter((task) => taskHasPlannedWorkOnDate(task, today))
-            : activeView === "week" && week
-              ? tasks.filter((task) => taskHasPlannedWorkInDateRange(task, week.startDate, week.endDate))
-            : tasks.filter((task) => task.status !== "completed" && !isArchivedTask(task));
+    if (activeView === "waiting") {
+      return sortTaskOccurrences(
+        projectedTasks.filter((task) => task.databaseStatus === "WAITING").map(singleTaskOccurrence),
+      );
+    }
+    if (activeView === "completed") {
+      return sortTaskOccurrences(projectedTasks.filter((task) => isCompletedBucketTask(task)).map(singleTaskOccurrence));
+    }
 
-    return sortTasksByPlanningDate(filtered);
-  }, [activeView, tasks]);
+    const activeTasks = projectedTasks.filter(
+      (task) => task.databaseStatus !== "WAITING" && task.status !== "completed" && !isArchivedTask(task),
+    );
+    const occurrences = activeTasks.flatMap(activeTaskOccurrences);
+
+    if (activeView === "today") {
+      return sortTaskOccurrences(occurrences.filter((occurrence) => occurrence.dateValue === today));
+    }
+    if (activeView === "week" && week) {
+      return sortTaskOccurrences(occurrences.filter(
+        (occurrence) => occurrence.dateValue
+          && occurrence.dateValue >= week.startDate
+          && occurrence.dateValue <= week.endDate,
+      ));
+    }
+    return sortTaskOccurrences(occurrences);
+  }, [activeView, projectedTasks]);
+
+  const selectedOccurrence = useMemo(() => {
+    return visibleOccurrences.find((occurrence) => occurrence.key === selectedOccurrenceKey)
+      ?? visibleOccurrences.find((occurrence) => occurrence.task.id === selectedTaskId)
+      ?? visibleOccurrences[0]
+      ?? null;
+  }, [selectedOccurrenceKey, selectedTaskId, visibleOccurrences]);
 
   const selectedTask = useMemo(() => {
-    const candidate = visibleTasks.find((task) => task.id === selectedTaskId) ?? null;
-    if (candidate) return candidate;
-    if (visibleTasks[0]) return visibleTasks[0];
+    if (selectedOccurrence) return selectedOccurrence.task;
     if (activeView !== "tasks") return null;
-    return tasks.find((task) => !isArchivedTask(task)) ?? null;
-  }, [activeView, tasks, selectedTaskId, visibleTasks]);
+    return projectedTasks.find((task) => !isArchivedTask(task) && task.databaseStatus !== "WAITING") ?? null;
+  }, [activeView, projectedTasks, selectedOccurrence]);
 
   const visibleSubtasks = useMemo(() => {
     if (!selectedTask) return [];
-    const today = getTodayDateValue();
-    const week = weekDateRangeContaining(today);
     const filtered =
       activeView === "completed"
         ? selectedTask.subtasks
-        : activeView === "today"
-          ? selectedTask.subtasks.filter((subtask) => subtaskHasPlannedWorkOnDate(subtask, today))
-          : activeView === "week" && week
-            ? selectedTask.subtasks.filter((subtask) =>
-                subtaskHasPlannedWorkInDateRange(subtask, week.startDate, week.endDate),
-              )
         : selectedTask.subtasks.filter((subtask) => !isArchivedSubtask(subtask));
 
     return sortByOldestDeadlineFirst(filtered);
@@ -1095,6 +1165,7 @@ export function TakenVisualPrototype({
           : tasks.find((task) => task.status !== "completed" && !isArchivedTask(task));
       if (view !== "appointments" && view !== "email" && view !== "whatsapp") {
         setSelectedTaskId(nextTask?.id ?? "");
+        setSelectedOccurrenceKey("");
       }
       setMobilePane("list");
       setEditorMode("none");
@@ -1108,9 +1179,9 @@ export function TakenVisualPrototype({
     });
   }
 
-  function selectTask(taskId: string) {
+  function selectTask(taskId: string, occurrenceKey: string) {
     runWithEditorCloseGuard(() => {
-      const isSameTask = selectedTaskId === taskId;
+      const isSameTask = selectedTaskId === taskId && selectedOccurrence?.key === occurrenceKey;
       const isMainEditorOpen = editorMode === "edit-main";
 
       if (isSameTask && isMainEditorOpen) {
@@ -1123,6 +1194,7 @@ export function TakenVisualPrototype({
       }
 
       setSelectedTaskId(taskId);
+      setSelectedOccurrenceKey(occurrenceKey);
       const task = tasks.find((item) => item.id === taskId);
       setSelectedSubtaskId(task?.subtasks[0]?.id ?? null);
       setEditorMode("edit-main");
@@ -1845,6 +1917,7 @@ export function TakenVisualPrototype({
     setEditorMode("none");
     setHasUnsavedChanges(false);
     setSelectedTaskId("");
+    setSelectedOccurrenceKey("");
     setSelectedSubtaskId(null);
     setFeedback("Hoofdtaak definitief uit MijnPlanning verwijderd.");
     startTransition(() => router.refresh());
@@ -1929,7 +2002,9 @@ export function TakenVisualPrototype({
 
     setEditorMode("none");
     setHasUnsavedChanges(false);
+    setTaskStatusOverrides((current) => ({ ...current, [taskId]: status }));
     setSelectedTaskId("");
+    setSelectedOccurrenceKey("");
     setSelectedSubtaskId(null);
     setFeedback(status === "WAITING" ? "Taak verplaatst naar Taken Mogelijk." : "Taak teruggezet in de planning.");
     startTransition(() => router.refresh());
@@ -2111,7 +2186,7 @@ export function TakenVisualPrototype({
               <h1 id="list-title">{viewTitle[activeView]}</h1>
             </div>
             <p className={styles.listIntro}>
-              {currentKind === "tasks" && `${visibleTasks.length} hoofd${visibleTasks.length === 1 ? "taak" : "taken"}`}
+              {currentKind === "tasks" && `${visibleOccurrences.length} taak${visibleOccurrences.length === 1 ? "regel" : "regels"}`}
               {currentKind === "appointments" && "Alleen-lezen uit Outlook"}
               {currentKind === "email" && `${visibleEmails.length} van ${EMAIL_PROPOSALS.length} lokale voorstellen`}
               {currentKind === "whatsapp" && "Lokale voorbeeldgesprekken · nog geen koppeling"}
@@ -2206,22 +2281,23 @@ export function TakenVisualPrototype({
               <div className={styles.taskColumns} aria-hidden="true">
                 <span>Hoofdtaak</span><span>Deadline</span><span>Resterend</span><span />
               </div>
-              {visibleTasks.length === 0 ? (
+              {visibleOccurrences.length === 0 ? (
                 <p className={styles.emptyState}>Geen hoofdtaken in deze selectie.</p>
               ) : (
-                visibleTasks.map((task) => {
+                visibleOccurrences.map((occurrence) => {
+                  const task = occurrence.task;
                   const status = task.databaseStatus === "WAITING" ? "Mogelijk" : taskStatusLabel(task.status);
                   const taskDeadline = splitDeadlineValue(task.deadlineValue);
-                  const rowRemaining = taskRowRemainingLabel(task);
                   const showRestoreTaskAction = activeView === "completed";
                   const isPossibleTask = task.databaseStatus === "WAITING";
+                  const isSelectedOccurrence = selectedOccurrence?.key === occurrence.key;
                   return (
-                    <div key={task.id}>
-                      <div className={selectedTask?.id === task.id ? styles.selectedTaskRowShell : styles.taskRowShell}>
+                    <div key={occurrence.key}>
+                      <div className={isSelectedOccurrence ? styles.selectedTaskRowShell : styles.taskRowShell}>
                         <button
                           type="button"
-                          className={selectedTask?.id === task.id ? styles.selectedTaskRow : styles.taskRow}
-                          onClick={() => selectTask(task.id)}
+                          className={isSelectedOccurrence ? styles.selectedTaskRow : styles.taskRow}
+                          onClick={() => selectTask(task.id, occurrence.key)}
                         >
                           <span className={styles.taskTitleCell}>
                             <strong>{task.title}</strong>
@@ -2233,10 +2309,10 @@ export function TakenVisualPrototype({
                             )}
                           </span>
                           <span className={styles.deadlineCell}>
-                            <span>{task.planningDeadline}</span>
-                            {task.planningDeadlineSource === "subtask" && <small>Eerstvolgende subtaak</small>}
+                            <span>{occurrence.deadlineLabel}</span>
+                            {occurrence.deadlineSource === "subtask" && <small>Subtaakplanning</small>}
                           </span>
-                          <span className={styles.remainingCell}>{rowRemaining}</span>
+                          <span className={styles.remainingCell}>{occurrence.remainingLabel}</span>
                           <span className={styles.riskCell}>
                             {task.risk && (
                               <span
@@ -2274,7 +2350,7 @@ export function TakenVisualPrototype({
                         </div>
                       </div>
 
-                      {selectedTask?.id === task.id && editorMode === "edit-main" && (
+                      {isSelectedOccurrence && editorMode === "edit-main" && (
                         <form
                           className={`${styles.mainTaskForm} ${styles.inlineTaskEditor}`}
                           onSubmit={updateMainTask}

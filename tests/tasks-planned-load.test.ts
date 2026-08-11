@@ -2,13 +2,16 @@ import { describe, expect, it } from "vitest";
 
 import {
   earliestOpenSubtaskDeadlineValue,
+  openSubtaskDateValues,
   subtaskHasPlannedWorkInDateRange,
   subtaskHasPlannedWorkOnDate,
   subtaskPlannedMinutesOnDate,
   taskHasPlannedWorkInDateRange,
   taskHasPlannedWorkOnDate,
+  taskHasUndatedOpenSubtask,
   taskOwnPlannedMinutesOnDate,
   taskPlannedMinutesOnDate,
+  taskUndatedSubtaskMinutes,
   totalDailyLoadMinutesForDate,
   totalPlannedWorkMinutesForDate,
   weekDateRangeContaining,
@@ -149,6 +152,33 @@ describe("planned load per dag", () => {
       { deadlineValue: "2026-08-11T17:00", remaining: "30m", state: "done" },
       { remaining: "30m", state: "planned" },
     ])).toBe("2026-08-12T09:00");
+  });
+
+  it("leidt één chronologische occurrence per unieke open subtaakdatum af", () => {
+    expect(openSubtaskDateValues([
+      { deadlineValue: "2027-02-28T17:00", remaining: "1u", state: "planned" },
+      { deadlineValue: "2026-08-15T17:00", remaining: "30m", state: "planned" },
+      { deadlineValue: "2026-08-11T17:00", remaining: "45m", state: "blocked" },
+      { deadlineValue: "2026-08-15T09:00", remaining: "15m", state: "waiting" },
+      { deadlineValue: "2026-08-10T17:00", remaining: "1u", state: "done" },
+      { deadlineValue: "2026-08-09T17:00", remaining: "1u", state: "archived" },
+    ])).toEqual(["2026-08-11", "2026-08-15", "2027-02-28"]);
+  });
+
+  it("houdt deadline-loze open subtaaktijd als neutrale restgroep zichtbaar", () => {
+    const task: PlannedTaskLike = {
+      remaining: "2u 15m",
+      status: "normal",
+      subtasks: [
+        { deadlineValue: "2026-08-15T17:00", remaining: "1u", state: "planned" },
+        { remaining: "45m", state: "planned" },
+        { remaining: "30m", state: "blocked" },
+        { remaining: "2u", state: "done" },
+      ],
+    };
+
+    expect(taskHasUndatedOpenSubtask(task)).toBe(true);
+    expect(taskUndatedSubtaskMinutes(task)).toBe(75);
   });
 
   it("toont per datum alleen de GiveWally-tijd die op die datum gepland staat", () => {

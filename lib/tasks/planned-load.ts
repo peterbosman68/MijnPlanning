@@ -52,6 +52,33 @@ export function earliestOpenSubtaskDeadlineValue(subtasks: PlannedSubtaskLike[])
     .sort((left, right) => left.localeCompare(right))[0] ?? null;
 }
 
+export function openSubtaskDateValues(subtasks: PlannedSubtaskLike[]) {
+  return Array.from(
+    new Set(
+      subtasks
+        .filter((subtask) => !isClosedSubtaskState(subtask.state))
+        .map((subtask) => extractDateFromDeadlineValue(subtask.deadlineValue))
+        .filter((dateValue): dateValue is string => Boolean(dateValue)),
+    ),
+  ).sort((left, right) => left.localeCompare(right));
+}
+
+export function taskUndatedSubtaskMinutes(task: PlannedTaskLike) {
+  if (isClosedTaskStatus(task.status) || task.subtasks.length === 0) return 0;
+
+  return task.subtasks.reduce((sum, subtask) => {
+    if (isClosedSubtaskState(subtask.state) || extractDateFromDeadlineValue(subtask.deadlineValue)) return sum;
+    return sum + parseMinutesFromLabelToTotal(subtask.remaining);
+  }, 0);
+}
+
+export function taskHasUndatedOpenSubtask(task: PlannedTaskLike) {
+  if (isClosedTaskStatus(task.status) || task.subtasks.length === 0) return false;
+  return task.subtasks.some(
+    (subtask) => !isClosedSubtaskState(subtask.state) && !extractDateFromDeadlineValue(subtask.deadlineValue),
+  );
+}
+
 export function taskHasPlannedWorkInDateRange(task: PlannedTaskLike, startDate: string, endDate: string) {
   if (isClosedTaskStatus(task.status)) return false;
 

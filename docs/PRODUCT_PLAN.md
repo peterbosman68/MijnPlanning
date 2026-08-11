@@ -223,6 +223,8 @@ Het scherm Taken toont:
 - logboek;
 - werkelijke tijd.
 
+Het hoofdtakenoverzicht toont een actieve hoofdtaak eenmaal per unieke datum waarop niet-afgeronde subtaken staan. Subtaken op dezelfde datum worden in één regel samengevoegd met hun gezamenlijke resterende tijd. Een klik op zo'n regel opent steeds het volledige hoofdtaakoverzicht met alle bijbehorende subtaken. `Mogelijk` verplaatst de volledige hoofdtaak met haar subtaken naar `Taken Mogelijk` en verwijdert alle datumregels uit de actieve overzichten.
+
 ### 6.4 Inbox
 
 De Inbox bevat voorstellen uit:

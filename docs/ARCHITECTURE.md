@@ -293,6 +293,8 @@ Deadline-loze subtaken blijven uitvoerbaar werk en tellen mee in de resterende h
 
 De pure taakdomeinlogica selecteert datumgebonden werk voor `Vandaag` en `Deze week`. Bij een taak met subtaken worden uitsluitend open subtaken op hun eigen deadline geselecteerd; de hoofdtaak is alleen de visuele groepering en levert geen tweede planningitem. De boardprojectie mag voor een hoofdtaak zonder eigen deadline de vroegste open subtaakdeadline als `Eerstvolgende subtaak` tonen. De tijd naast die datum is de som van open subtaakminuten op exact die datum, niet de totale resterende hoofdtaaktijd. Deze afgeleide waarden blijven gescheiden van `Task.deadline`, zodat formulieren en deadlinehiërarchie uitsluitend de opgeslagen hoofdtaakdeadline gebruiken.
 
+Het hoofdtakenoverzicht projecteert actieve taken verder naar niet-opgeslagen datum-occurrences. Iedere occurrence heeft een sleutel op basis van taak-ID en kalenderdatum, maar alle detailweergaven en mutaties blijven de echte taak-ID gebruiken. Daardoor kan dezelfde hoofdtaak op meerdere subtaakdatums zichtbaar zijn terwijl rechts één volledig taakdossier wordt geopend. Een bevestigde overgang naar `WAITING` wordt direct in de lokale projectie toegepast en daarna met een Server Component-refresh tegen de serverbron bevestigd; bij een fout verandert de lokale status niet.
+
 ---
 
 ## 9. Microsoft-integratie

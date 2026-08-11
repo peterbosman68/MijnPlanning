@@ -109,6 +109,8 @@ Een taak zonder subtaken en zonder ingevulde of geaccepteerde tijdsinschatting i
 
 De takenprojectie kan aanvullend een niet-opgeslagen `planningDeadline` afleiden. Wanneer `Task.deadline` ontbreekt, is dit de vroegste deadline van een open subtaak. Deze projectiewaarde is alleen bedoeld voor sortering en de gelabelde weergave `Eerstvolgende subtaak`; zij wordt nooit teruggeschreven naar `Task.deadline` en verandert de deadlinehiërarchie niet.
 
+De UI kan een Task daarnaast projecteren naar meerdere niet-opgeslagen `TaskDateOccurrence`-waarden: één per unieke kalenderdatum van relevante subtaken en optioneel één deadline-loze restgroep. Een occurrence is geen database-entiteit, gebruikt de bestaande `Task.id` voor detail en mutaties en wijzigt geen taak- of subtaakdeadline.
+
 ### Subtask
 
 Velden:

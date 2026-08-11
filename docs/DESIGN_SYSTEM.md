@@ -241,6 +241,8 @@ Toon:
 
 Een hoofdtaak is visueel duidelijk te onderscheiden van subtaken.
 
+Wanneer subtaken van één hoofdtaak op verschillende datums staan, mag de hoofdtaak in de compacte lijst meerdere datumregels hebben. Iedere regel toont één datum en de gezamenlijke resterende subtaaktijd van die datum. Alleen de aangeklikte datumregel krijgt de selectiestijl; het detailpaneel toont steeds het volledige taakdossier met alle niet-gearchiveerde subtaken. In `Taken Mogelijk` en `Taken Afgerond` staat iedere hoofdtaak één keer.
+
 Een ontbrekende hoofdtaak- of subtaakdeadline wordt neutraal als `Geen deadline` getoond, zonder risico-indicator. Deadlinevelden zijn optioneel; een ingevulde tijd zonder datum krijgt een gerichte validatiemelding.
 
 ### 12.1 Instelbare desktopkolommen (O23)

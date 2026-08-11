@@ -477,3 +477,15 @@ Nieuwe besluiten worden onderaan toegevoegd met datum.
 - `Naar Taken Mogelijk` zet een hoofdtaak user-scoped op `WAITING`; `Inplannen` zet haar terug op `OPEN`.
 - Een mogelijke hoofdtaak verschijnt niet in `Vandaag` of `Deze week` en telt niet mee in geplande minuten. Subtaken, deadlines, tijd, afhankelijkheden en bijlagen blijven ongewijzigd bewaard.
 - Archiveren en definitief verwijderen blijven afzonderlijke handelingen. De knop `Archiveren` wordt naast de nieuwe statusknop compacter weergegeven.
+
+## 11 augustus 2026 — hoofdtaakregels per subtaakdatum
+
+### O38 — datum-occurrences en volledige taakselectie
+
+- In `Taken` verschijnt een actieve hoofdtaak eenmaal per unieke kalenderdatum waarop minimaal één niet-afgeronde, niet-gearchiveerde subtaak staat; `Vandaag` en `Week` gebruiken dezelfde datumprojectie binnen hun bereik.
+- Subtaken op dezelfde datum worden samengevoegd tot één hoofdtaakregel met de som van hun resterende tijd.
+- Deadline-loze open subtaken blijven zichtbaar in één neutrale regel `Geen deadline`.
+- De regels zijn uitsluitend afgeleide UI-occurrences. Zij maken geen databasegegevens en wijzigen `Task.deadline` of `Subtask.deadline` niet.
+- Alleen de aangeklikte occurrence wordt visueel geselecteerd. Het rechterpaneel opent de echte hoofdtaak en toont alle niet-gearchiveerde subtaken, ongeacht de gekozen datumregel.
+- Na een bevestigde klik op `Mogelijk` verdwijnen alle occurrences van de hoofdtaak direct uit `Vandaag`, `Week` en `Taken`. De hoofdtaak blijft met alle gekoppelde gegevens behouden en verschijnt één keer onder `Taken Mogelijk`.
+- `Inplannen` voert de omgekeerde overgang uit en bouwt de actieve datum-occurrences opnieuw op.
