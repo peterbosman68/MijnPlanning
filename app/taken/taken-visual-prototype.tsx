@@ -794,6 +794,7 @@ export function TakenVisualPrototype({
   const editSubtaskFormRef = useRef<HTMLFormElement | null>(null);
   const taskAttachmentInputRef = useRef<HTMLInputElement | null>(null);
   const subtaskAttachmentInputRef = useRef<HTMLInputElement | null>(null);
+  const closeEditorAfterSaveRef = useRef(false);
 
   useEffect(() => {
     const timer = window.setInterval(() => setTimerSeconds((value) => value + 1), 1000);
@@ -804,6 +805,15 @@ export function TakenVisualPrototype({
     const refreshNow = window.setInterval(() => setNowTimestamp(Date.now()), 60_000);
     return () => window.clearInterval(refreshNow);
   }, []);
+
+  useEffect(() => {
+    if (!closeEditorAfterSaveRef.current) return;
+    closeEditorAfterSaveRef.current = false;
+    setEditorMode("none");
+    setHasUnsavedChanges(false);
+    setMainTaskError(null);
+    setFormError(null);
+  }, [initialTaskBoard]);
 
   useEffect(() => {
     if (activeView !== "appointments") return;
@@ -1173,11 +1183,15 @@ export function TakenVisualPrototype({
     formData.set("deadlineDate", effectiveDeadlineDate);
     formData.set("estimatedMinutes", effectivePlannedMinutes === null ? "" : String(effectivePlannedMinutes));
     formData.set("remainingMinutes", effectivePlannedMinutes === null ? "" : String(effectivePlannedMinutes));
+    closeEditorAfterSaveRef.current = true;
     const actionState = await saveTaskAction(initialTaskActionState, formData);
     if (actionState.error) {
+      closeEditorAfterSaveRef.current = false;
       setFormError(actionState.error);
       return;
     }
+    setEditorMode("none");
+    setHasUnsavedChanges(false);
   }
 
   async function updateSubtask(event: FormEvent<HTMLFormElement>) {
@@ -1298,11 +1312,15 @@ export function TakenVisualPrototype({
     formData.set("deadlineDate", effectiveDeadlineDate);
     formData.set("estimatedMinutes", String(effectivePlannedMinutes));
     formData.set("remainingMinutes", String(effectivePlannedMinutes));
+    closeEditorAfterSaveRef.current = true;
     const actionState = await saveSubtaskAction(initialTaskActionState, formData);
     if (actionState.error) {
+      closeEditorAfterSaveRef.current = false;
       setFormError(actionState.error);
       return;
     }
+    setEditorMode("none");
+    setHasUnsavedChanges(false);
   }
 
   async function addMainTask(event: FormEvent<HTMLFormElement>) {
@@ -1399,11 +1417,15 @@ export function TakenVisualPrototype({
     formData.set("deadlineDate", effectiveDeadlineDate);
     formData.set("estimatedMinutes", effectivePlannedMinutes === null ? "" : String(effectivePlannedMinutes));
     formData.set("remainingMinutes", effectivePlannedMinutes === null ? "" : String(effectivePlannedMinutes));
+    closeEditorAfterSaveRef.current = true;
     const actionState = await saveTaskAction(initialTaskActionState, formData);
     if (actionState.error) {
+      closeEditorAfterSaveRef.current = false;
       setMainTaskError(actionState.error);
       return;
     }
+    setEditorMode("none");
+    setHasUnsavedChanges(false);
   }
 
   async function addSubtask(event: FormEvent<HTMLFormElement>) {
@@ -1521,11 +1543,15 @@ export function TakenVisualPrototype({
     formData.set("deadlineDate", effectiveDeadlineDate);
     formData.set("estimatedMinutes", String(effectivePlannedMinutes));
     formData.set("remainingMinutes", String(effectivePlannedMinutes));
+    closeEditorAfterSaveRef.current = true;
     const actionState = await saveSubtaskAction(initialTaskActionState, formData);
     if (actionState.error) {
+      closeEditorAfterSaveRef.current = false;
       setFormError(actionState.error);
       return;
     }
+    setEditorMode("none");
+    setHasUnsavedChanges(false);
   }
 
   function deleteMainTask() {
