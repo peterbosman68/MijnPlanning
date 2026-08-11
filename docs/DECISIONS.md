@@ -467,3 +467,13 @@ Nieuwe besluiten worden onderaan toegevoegd met datum.
 - Wanneer een hoofdtaak geen eigen deadline heeft, toont de hoofdtaakrij de vroegste deadline van een open subtaak met het expliciete label `Eerstvolgende subtaak`.
 - De tijd naast die afgeleide datum is uitsluitend de som van resterende open subtaaktijd op die datum; de totale resterende hoofdtaaktijd blijft afzonderlijk in het detail zichtbaar.
 - Deze datum is een afgeleide projectiewaarde. `Task.deadline` blijft ongewijzigd en blijft als enige hoofdtaakdeadline leidend voor formulieren en deadlinehiërarchie.
+
+## 11 augustus 2026 — Taken Mogelijk als parkeerfunctie
+
+### O37 — bewaren zonder inplannen
+
+- `Taken Mogelijk` is de parkeerplek voor hoofdtaken die bewaard moeten blijven maar nu niet interessant genoeg zijn om in te plannen.
+- De bestaande hoofdtaakstatus `WAITING` krijgt deze betekenis; er is geen databasemigratie nodig.
+- `Naar Taken Mogelijk` zet een hoofdtaak user-scoped op `WAITING`; `Inplannen` zet haar terug op `OPEN`.
+- Een mogelijke hoofdtaak verschijnt niet in `Vandaag` of `Deze week` en telt niet mee in geplande minuten. Subtaken, deadlines, tijd, afhankelijkheden en bijlagen blijven ongewijzigd bewaard.
+- Archiveren en definitief verwijderen blijven afzonderlijke handelingen. De knop `Archiveren` wordt naast de nieuwe statusknop compacter weergegeven.

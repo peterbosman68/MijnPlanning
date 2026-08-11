@@ -440,6 +440,42 @@ export async function archiveTask(userId: string, taskId: string) {
   });
 }
 
+export async function setTaskPlanningStatus(
+  userId: string,
+  taskId: string,
+  status: "OPEN" | "WAITING",
+) {
+  return withUserLock(userId, async (tx) => {
+    const current = await findTaskForUser(tx, userId, taskId);
+
+    if (!current) {
+      throw new TaskNotFoundError();
+    }
+
+    const subtasks = await listSubtasksForTask(tx, userId, current.id);
+    const updatedCount = await updateTaskRecord(tx, {
+      taskId: current.id,
+      userId,
+      title: current.title,
+      descriptionOriginal: current.descriptionOriginal,
+      descriptionPlain: current.descriptionPlain,
+      deadline: current.deadline,
+      estimatedMinutes: current.estimatedMinutes,
+      remainingMinutes: subtasks.length > 0 ? taskRemainingMinutes(current, subtasks) : current.remainingMinutes,
+      sourceType: current.sourceType as TaskSourceType,
+      sourceExternalId: current.sourceExternalId,
+      status,
+      completedAt: current.completedAt,
+    });
+
+    if (updatedCount.count === 0) {
+      throw new TaskNotFoundError();
+    }
+
+    return { taskId: current.id, status };
+  });
+}
+
 async function deleteStoredFiles(blobPaths: ReadonlyArray<string | null>) {
   const uniquePaths = [...new Set(blobPaths.filter((blobPath): blobPath is string => Boolean(blobPath)))];
   await Promise.all(uniquePaths.map((blobPath) => deletePrivateAttachment(blobPath)));

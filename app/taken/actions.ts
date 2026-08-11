@@ -18,6 +18,7 @@ import {
   deleteSubtask,
   deleteTask,
   removeDependency,
+  setTaskPlanningStatus,
   updateSubtask,
   updateTask,
 } from "@/lib/tasks/service";
@@ -142,6 +143,34 @@ export async function archiveTaskAction(_: TaskActionState, formData: FormData):
   }
 
   redirectToTask(result!.taskId);
+}
+
+export async function setTaskPlanningStatusAction(
+  _: TaskActionState,
+  formData: FormData,
+): Promise<TaskActionState> {
+  await verifyMutationOrigin();
+  const session = await requireUser();
+
+  try {
+    const taskId = String(formData.get("taskId") ?? "").trim();
+    const status = String(formData.get("status") ?? "").trim();
+    if (!taskId) throw new TaskNotFoundError();
+    if (status !== "OPEN" && status !== "WAITING") {
+      throw new TaskDomainError("VALIDATION_ERROR", "INVALID_TASK_PLANNING_STATUS");
+    }
+
+    const result = await setTaskPlanningStatus(session.user.id, taskId, status);
+    logger.info({
+      code: status === "WAITING" ? "TASK_MOVED_TO_POSSIBLE" : "TASK_RETURNED_TO_PLANNING",
+      route: "/taken",
+      status: "ok",
+    });
+    return { error: null, taskId: result.taskId };
+  } catch (error) {
+    logger.error({ code: "TASK_PLANNING_STATUS_FAILED", route: "/taken", status: "error" });
+    return mapError(error);
+  }
 }
 
 export async function deleteTaskAction(_: TaskActionState, formData: FormData): Promise<TaskActionState> {

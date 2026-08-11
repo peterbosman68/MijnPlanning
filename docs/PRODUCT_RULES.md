@@ -81,7 +81,8 @@ deadline subtaak <= deadline taak
 Handmatig bedienbaar:
 
 - Open;
-- Wachten;
+- Mogelijk (`WAITING`) voor een hoofdtaak die wordt bewaard maar niet wordt ingepland;
+- Wachten voor een subtaak die tijdelijk niet uitvoerbaar is;
 - Afgerond;
 - Gearchiveerd;
 - Geannuleerd.
@@ -89,6 +90,13 @@ Handmatig bedienbaar:
 `Geblokkeerd` wordt berekend uit dependencies en is geen handmatige status.
 
 `Actief`, `Gepauzeerd` en `Wachten op externe partij` worden pas in de tijdregistratiefase toegevoegd.
+
+Een hoofdtaak in `Taken Mogelijk`:
+
+- blijft volledig bewaard, inclusief subtaken, deadlines en bijlagen;
+- verschijnt niet in `Vandaag` of `Deze week` en telt niet mee als gepland werk;
+- kan met `Inplannen` terug naar status `OPEN`;
+- blijft afzonderlijk archiveerbaar of definitief verwijderbaar volgens de bestaande regels.
 
 ## 7. Archiveren en definitief verwijderen
 

@@ -103,7 +103,7 @@ ARCHIVED
 CANCELLED
 ```
 
-Dit zijn de handmatig bedienbare statuswaarden in fase 1. `BLOCKED` wordt uit dependencies afgeleid en niet als handmatige status opgeslagen. `ACTIVE`, `PAUSED` en `WAITING_EXTERNAL` worden pas in de tijdregistratiefase toegevoegd.
+Dit zijn de handmatig bedienbare statuswaarden in fase 1. Voor een hoofdtaak betekent `WAITING` dat de taak in `Taken Mogelijk` wordt bewaard en niet wordt ingepland. De overgang naar `WAITING` verwijdert of wijzigt geen subtaken, deadlines, tijd of bijlagen; terugzetten naar `OPEN` maakt de taak weer planbaar. `BLOCKED` wordt uit dependencies afgeleid en niet als handmatige status opgeslagen. `ACTIVE`, `PAUSED` en `WAITING_EXTERNAL` worden pas in de tijdregistratiefase toegevoegd.
 
 Een taak zonder subtaken en zonder ingevulde of geaccepteerde tijdsinschatting is niet planbaar. Zodra subtaken bestaan, worden `estimatedMinutes` en `remainingMinutes` van de hoofdtaak niet als extra werk boven op de subtaken geteld.
 

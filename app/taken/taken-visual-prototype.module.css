@@ -663,6 +663,38 @@
   place-items: center;
 }
 
+.rowTaskActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+}
+
+.rowPossibleButton {
+  min-height: 32px;
+  padding: 6px 10px;
+  border: 1px solid #9aabca;
+  border-radius: 7px;
+  background: #eef3fb;
+  color: #294a7a;
+  cursor: pointer;
+  font-size: 11.5px;
+  font-weight: 660;
+  white-space: nowrap;
+}
+
+.rowPossibleButton:hover,
+.rowPossibleButton:focus-visible {
+  border-color: #607ba7;
+  background: #e3ebf8;
+  outline: none;
+}
+
+.rowPossibleButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
 .rowArchiveButton {
   align-self: center;
   justify-self: end;
@@ -677,6 +709,13 @@
   font-size: 12.5px;
   font-weight: 660;
   transition: background-color 0.14s ease, border-color 0.14s ease, color 0.14s ease, box-shadow 0.14s ease, transform 0.06s ease;
+}
+
+.rowArchiveButtonCompact {
+  min-width: 68px;
+  min-height: 28px;
+  padding: 4px 6px;
+  font-size: 10.5px;
 }
 
 .rowArchiveButton:hover,
@@ -2139,6 +2178,16 @@
 
   .listBody {
     padding: 0 8px 26px;
+  }
+
+  .taskRowShell,
+  .selectedTaskRowShell {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+
+  .rowTaskActions {
+    padding: 0 8px 8px;
   }
 
   .taskColumns,

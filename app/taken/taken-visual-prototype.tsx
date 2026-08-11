@@ -28,6 +28,7 @@ import {
   deleteTaskAction,
   saveSubtaskAction,
   saveTaskAction,
+  setTaskPlanningStatusAction,
 } from "./actions";
 import type { TaskActionState } from "./actions";
 
@@ -871,6 +872,7 @@ export function TakenVisualPrototype({
   const [isUploading, setIsUploading] = useState(false);
   const [deletingAttachmentId, setDeletingAttachmentId] = useState<string | null>(null);
   const [deletingTaskItemId, setDeletingTaskItemId] = useState<string | null>(null);
+  const [changingTaskStatusId, setChangingTaskStatusId] = useState<string | null>(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState<DeleteConfirmation | null>(null);
   const [attachmentUploadStatus, setAttachmentUploadStatus] = useState<{
     targetKey: string;
@@ -944,7 +946,7 @@ export function TakenVisualPrototype({
     const week = weekDateRangeContaining(today);
     const filtered =
       activeView === "waiting"
-        ? tasks.filter((task) => task.status === "waiting")
+        ? tasks.filter((task) => task.databaseStatus === "WAITING")
         : activeView === "completed"
           ? tasks.filter((task) => isCompletedBucketTask(task))
           : activeView === "today"
@@ -1089,7 +1091,7 @@ export function TakenVisualPrototype({
       const nextTask = view === "completed"
         ? tasks.find((task) => isCompletedBucketTask(task))
         : view === "waiting"
-          ? tasks.find((task) => task.status === "waiting")
+          ? tasks.find((task) => task.databaseStatus === "WAITING")
           : tasks.find((task) => task.status !== "completed" && !isArchivedTask(task));
       if (view !== "appointments" && view !== "email" && view !== "whatsapp") {
         setSelectedTaskId(nextTask?.id ?? "");
@@ -1907,6 +1909,36 @@ export function TakenVisualPrototype({
     if (actionState.error) setMainTaskError(actionState.error);
   }
 
+  async function changeTaskPlanningStatus(taskId: string, status: "OPEN" | "WAITING") {
+    setMainTaskError(null);
+    setChangingTaskStatusId(taskId);
+    const formData = new FormData();
+    formData.set("taskId", taskId);
+    formData.set("status", status);
+
+    let actionState: TaskActionState;
+    try {
+      actionState = await setTaskPlanningStatusAction(initialTaskActionState, formData);
+    } catch {
+      setMainTaskError("De taak kon niet worden verplaatst. Controleer de verbinding en probeer het opnieuw.");
+      setChangingTaskStatusId(null);
+      return;
+    }
+
+    setChangingTaskStatusId(null);
+    if (actionState.error) {
+      setMainTaskError(actionState.error);
+      return;
+    }
+
+    setEditorMode("none");
+    setHasUnsavedChanges(false);
+    setSelectedTaskId("");
+    setSelectedSubtaskId(null);
+    setFeedback(status === "WAITING" ? "Taak verplaatst naar Taken Mogelijk." : "Taak teruggezet in de planning.");
+    startTransition(() => router.refresh());
+  }
+
   async function restoreMainTask(taskId: string) {
     const task = tasks.find((item) => item.id === taskId);
     if (!task) return;
@@ -2187,10 +2219,11 @@ export function TakenVisualPrototype({
                 <p className={styles.emptyState}>Geen hoofdtaken in deze selectie.</p>
               ) : (
                 visibleTasks.map((task) => {
-                  const status = taskStatusLabel(task.status);
+                  const status = task.databaseStatus === "WAITING" ? "Mogelijk" : taskStatusLabel(task.status);
                   const taskDeadline = splitDeadlineValue(task.deadlineValue);
                   const rowRemaining = taskRowRemainingLabel(task);
                   const showRestoreTaskAction = activeView === "completed";
+                  const isPossibleTask = task.databaseStatus === "WAITING";
                   return (
                     <div key={task.id}>
                       <div className={selectedTask?.id === task.id ? styles.selectedTaskRowShell : styles.taskRowShell}>
@@ -2223,14 +2256,30 @@ export function TakenVisualPrototype({
                             )}
                           </span>
                         </button>
-                        <button
-                          type="button"
-                          className={styles.rowArchiveButton}
-                          onClick={() => (showRestoreTaskAction ? restoreMainTask(task.id) : archiveMainTask(task.id))}
-                          aria-label={showRestoreTaskAction ? `Hoofdtaak dearchiveren: ${task.title}` : `Hoofdtaak archiveren: ${task.title}`}
-                        >
-                          {showRestoreTaskAction ? "Dearchiveren" : "Archiveren"}
-                        </button>
+                        <div className={styles.rowTaskActions}>
+                          {!showRestoreTaskAction && (
+                            <button
+                              type="button"
+                              className={styles.rowPossibleButton}
+                              disabled={changingTaskStatusId === task.id}
+                              onClick={() => changeTaskPlanningStatus(task.id, isPossibleTask ? "OPEN" : "WAITING")}
+                            >
+                              {changingTaskStatusId === task.id
+                                ? "Verplaatsen..."
+                                : isPossibleTask
+                                  ? "Inplannen"
+                                  : "Naar Taken Mogelijk"}
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            className={`${styles.rowArchiveButton} ${showRestoreTaskAction ? "" : styles.rowArchiveButtonCompact}`}
+                            onClick={() => (showRestoreTaskAction ? restoreMainTask(task.id) : archiveMainTask(task.id))}
+                            aria-label={showRestoreTaskAction ? `Hoofdtaak dearchiveren: ${task.title}` : `Hoofdtaak archiveren: ${task.title}`}
+                          >
+                            {showRestoreTaskAction ? "Dearchiveren" : "Archiveren"}
+                          </button>
+                        </div>
                       </div>
 
                       {selectedTask?.id === task.id && editorMode === "edit-main" && (

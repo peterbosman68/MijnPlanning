@@ -81,6 +81,8 @@ Een taak heeft:
 - optioneel bijlagen;
 - broninformatie.
 
+Een hoofdtaak kan met `Naar Taken Mogelijk` worden geparkeerd wanneer zij bewaard moet blijven maar nog niet interessant genoeg is om in te plannen. De taak en alle gekoppelde gegevens blijven bestaan, maar zij verschijnt niet in de datumplanning. Met `Inplannen` wordt zij weer actief planbaar.
+
 Bijlagen kunnen zowel echte bestanden als linkverwijzingen zijn. Dezelfde bijlagenbasis geldt voor hoofdtaken en subtaken.
 
 ### 4.2 Subtaak

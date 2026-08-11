@@ -158,6 +158,8 @@ React-componenten mogen Prisma niet rechtstreeks gebruiken.
 
 Een lokale PostgreSQL-installatie is niet nodig. Development-, test- en productiegegevens blijven aantoonbaar gescheiden. Kritieke deadline-integriteit krijgt naast servicevalidatie een PostgreSQL-vangnet; voor fase 1 zijn versioned triggers in de migratie de beoogde concrete vorm. Cycluscontrole op dependencies gebeurt transactioneel en serialiseert conflicterende graafwijzigingen. Archiveren en verwijderen zijn technisch gescheiden: archiveren is een statusupdate naar `ARCHIVED`, terwijl verwijderen een hard-delete is en nooit de archiveerservice aanroept. Definitief verwijderen vereist een expliciete gebruikersbevestiging; een hoofdtaak wordt server-side geweigerd zolang een subtaak bestaat. De domeinservice verwijdert daarna user-scoped private bestanden, tijdregistraties en dependencies voordat de taak- of subtaakrecord uit PostgreSQL wordt verwijderd. Importhistorie blijft losgekoppeld behouden.
 
+De bestaande taakstatus `WAITING` vertegenwoordigt voor hoofdtaken de parkeerfunctie `Taken Mogelijk`. Een gerichte, user-scoped domeinmutatie staat uitsluitend overgangen `OPEN` naar `WAITING` en `WAITING` naar `OPEN` toe. De planningslogica sluit `WAITING`-hoofdtaken uit van datumselectie en minutenbelasting; de record en alle relaties blijven behouden. Voor subtaken behoudt `WAITING` de betekenis tijdelijk wachten.
+
 Bijlagen zijn first-class gegevens en bestaan zowel voor hoofdtaken als subtaken. De datalaag bewaart daarom attachmentmetadata apart van de taak- of subtaakrecord zelf; echte bestanden worden privé opgeslagen en links blijven als metadata beschikbaar.
 
 ---

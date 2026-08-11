@@ -38,7 +38,7 @@ export function extractDateFromDeadlineValue(deadlineValue?: string) {
 }
 
 function isClosedTaskStatus(status?: string) {
-  return status === "completed" || status === "archived";
+  return status === "waiting" || status === "completed" || status === "archived";
 }
 
 function isClosedSubtaskState(state?: PlannedSubtaskState) {

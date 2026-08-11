@@ -176,4 +176,16 @@ describe("planned load per dag", () => {
     expect(taskOwnPlannedMinutesOnDate(task, "2026-08-11")).toBe(0);
     expect(taskHasPlannedWorkOnDate(task, "2026-08-11")).toBe(false);
   });
+
+  it("neemt een taak in Taken Mogelijk niet op in de datumplanning", () => {
+    const task: PlannedTaskLike = {
+      deadlineValue: "2026-08-11T17:00",
+      remaining: "2u",
+      status: "waiting",
+      subtasks: [],
+    };
+
+    expect(taskHasPlannedWorkOnDate(task, "2026-08-11")).toBe(false);
+    expect(taskPlannedMinutesOnDate(task, "2026-08-11")).toBe(0);
+  });
 });
