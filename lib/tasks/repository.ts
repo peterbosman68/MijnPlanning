@@ -252,7 +252,7 @@ export function createSubtaskRecord(database: DatabaseClient, input: {
   title: string;
   descriptionOriginal: string;
   descriptionPlain: string;
-  deadline: Date;
+  deadline: Date | null;
   earliestStart: Date | null;
   estimatedMinutes: number;
   remainingMinutes: number;
@@ -293,7 +293,7 @@ export function updateSubtaskRecord(database: DatabaseClient, input: {
   title: string;
   descriptionOriginal: string;
   descriptionPlain: string;
-  deadline: Date;
+  deadline: Date | null;
   earliestStart: Date | null;
   estimatedMinutes: number;
   remainingMinutes: number;

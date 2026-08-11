@@ -81,4 +81,23 @@ describe("planned load per dag", () => {
       ),
     ).toBe(0);
   });
+
+  it("telt een subtaak zonder deadline niet bij een specifieke dag op", () => {
+    const tasks: PlannedTaskLike[] = [
+      {
+        deadlineValue: "2026-08-10T17:00",
+        remaining: "2u",
+        status: "normal",
+        subtasks: [
+          {
+            remaining: "45m",
+            state: "planned",
+          },
+        ],
+      },
+    ];
+
+    expect(subtaskPlannedMinutesOnDate(tasks[0].subtasks[0], "2026-08-10")).toBe(0);
+    expect(totalPlannedWorkMinutesForDate(tasks, "2026-08-10")).toBe(0);
+  });
 });

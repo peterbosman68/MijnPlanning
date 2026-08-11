@@ -33,7 +33,7 @@ Codex mag deze regels niet zelfstandig veranderen.
 
 - Iedere subtaak heeft verplicht een titel.
 - Een subtaakomschrijving mag leeg zijn.
-- Iedere subtaak heeft verplicht een deadline.
+- Een subtaakdeadline is optioneel.
 - Iedere subtaak heeft een geschatte actieve werktijd.
 - Iedere subtaak heeft een resterende actieve werktijd.
 - Iedere subtaak heeft een status.
@@ -49,6 +49,7 @@ Codex mag deze regels niet zelfstandig veranderen.
 - Deadlines bevatten datum én tijd.
 - Tijden worden in `Europe/Amsterdam` getoond en in UTC opgeslagen.
 - Wanneer alleen een datum wordt gekozen, mag de interface 17.00 uur voorstellen; dit voorstel blijft aanpasbaar.
+- Een tijd zonder deadlinedatum is ongeldig.
 
 Wanneer een taak een deadline heeft:
 
@@ -56,7 +57,9 @@ Wanneer een taak een deadline heeft:
 deadline subtaak <= deadline taak
 ```
 
-- Een subtaakdeadline na de taakdeadline wordt geweigerd.
+- Een subtaakdeadline na de taakdeadline wordt geweigerd wanneer beide deadlines bestaan.
+- Een deadline-loze subtaak blijft uitvoerbaar en telt mee in de resterende hoofdtaakduur, maar heeft geen speling of deadlinewaarschuwing.
+- Binnen dezelfde status worden subtaken met deadline vóór subtaken zonder deadline getoond.
 - Controleer dit in de interface.
 - Controleer dit in de domeinservice als leidende bedrijfsvalidatie.
 - Bescherm kritieke deadline-integriteit aanvullend in PostgreSQL.

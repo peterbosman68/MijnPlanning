@@ -1,0 +1,2 @@
+ALTER TABLE "subtasks"
+ALTER COLUMN "deadline" DROP NOT NULL;

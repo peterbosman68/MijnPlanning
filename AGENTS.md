@@ -86,8 +86,9 @@ Bij een kleine, afgebakende wijziging:
 - Een **taak** is de hoofdtaak.
 - Een taak kan nul, één of meerdere subtaken hebben.
 - Een taakdeadline is optioneel.
-- Iedere subtaak heeft verplicht een deadline.
-- Alleen wanneer een taakdeadline bestaat, mag de subtaakdeadline nooit later liggen dan de taakdeadline.
+- Een subtaakdeadline is optioneel.
+- Alleen wanneer zowel de taakdeadline als de subtaakdeadline bestaat, mag de subtaakdeadline nooit later liggen dan de taakdeadline.
+- Een tijd zonder deadlinedatum is ongeldig.
 - Wanneer een taakdeadline wordt vervroegd, mogen bestaande subtaken niet stilzwijgend ongeldig worden.
 - Een taak zonder subtaken kan zelf uitvoerbaar zijn.
 - Zodra subtaken bestaan, wordt de hoofdtaak niet daarnaast nogmaals als extra werk ingepland.
@@ -600,7 +601,7 @@ Wanneer scripts ontbreken, meld dit en voeg ze alleen toe binnen een goedgekeurd
 
 Minimale tests voor de kern:
 
-1. subtaakdeadline na taakdeadline wordt geweigerd;
+1. subtaak zonder deadline wordt geaccepteerd en subtaakdeadline na taakdeadline wordt geweigerd wanneer beide bestaan;
 2. vervroegen van taakdeadline kan geen ongeldige subtaken veroorzaken;
 3. subtaken van meerdere taken worden gezamenlijk gepland;
 4. geblokkeerde subtaken worden niet te vroeg gepland;

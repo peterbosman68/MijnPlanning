@@ -320,6 +320,17 @@ Nieuwe besluiten worden onderaan toegevoegd met datum.
 - De eerste echte import vindt op productie plaats na een afzonderlijke expliciete bevestiging op de gecontroleerde preview.
 - Bij de eerste subtaak wordt een uitvoerbare hoofdtaak een verzameltaak; de hoofdtaakduur wordt niet naast de subtaken dubbel ingepland.
 
+### O33 — optionele deadlines voor hoofd- en subtaken
+
+- Zowel de deadline van een hoofdtaak als die van een subtaak is optioneel.
+- Dit besluit vervangt de verplichte subtaakdeadline uit de besluiten van 17 juli 2026 en O21; titel en geplande actieve werktijd blijven voor een subtaak verplicht.
+- Alleen wanneer de hoofdtaak en subtaak beide een deadline hebben, geldt `Subtask.deadline <= Task.deadline`.
+- Tijd zonder datum is ongeldig. Datum zonder tijd gebruikt het bestaande voorstel van 17.00 uur in `Europe/Amsterdam`.
+- Een deadline-loze subtaak blijft uitvoerbaar, telt mee in de resterende hoofdtaakduur en kan dependencies hebben, maar heeft geen speling of deadlinewaarschuwing.
+- Binnen dezelfde status worden subtaken met deadline vóór deadline-loze subtaken gesorteerd.
+- Een hoofdtaakdeadline wordt niet automatisch uit subtaakdeadlines afgeleid of gewijzigd.
+- Peter heeft dit uitvoeringsplan op 11 augustus 2026 expliciet goedgekeurd.
+
 ## 19 juli 2026 — besluit O23
 
 ### O23 — instelbare desktopkolommen in de visuele proef

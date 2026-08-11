@@ -140,7 +140,7 @@ De domeinlaag bevat:
 
 De attachments-module beheert zowel echte bestandskopieën als externe links. Gekoppelde bestanden worden server-side opgeslagen in Vercel Blob Private, terwijl linkbijlagen als metadata worden bewaard en als read-only verwijzing worden getoond. To Do-import mag bijlagen kopiëren naar de bijbehorende hoofdtaak of subtaak, maar schrijft niets terug naar Microsoft.
 
-Deadlines zijn tijdstippen met datum én tijd. Domeinservices converteren invoer uit `Europe/Amsterdam` naar UTC en valideren de deadlinehiërarchie. Een voorgestelde tijd van 17.00 uur bij datumkeuze blijft zichtbaar en aanpasbaar.
+Deadlines zijn optionele tijdstippen met datum én tijd. Domeinservices converteren invoer uit `Europe/Amsterdam` naar UTC en valideren de deadlinehiërarchie wanneer de hoofdtaak en subtaak beide een deadline hebben. Een voorgestelde tijd van 17.00 uur bij datumkeuze blijft zichtbaar en aanpasbaar; tijd zonder datum wordt geweigerd.
 
 ### 4.3 Datalayer
 
@@ -286,6 +286,8 @@ De planningsmotor gebruikt:
 - vastgezette blokken;
 - persoonlijke voorkeuren;
 - contextwisselkosten.
+
+Deadline-loze subtaken blijven uitvoerbaar werk en tellen mee in de resterende hoofdtaakduur. Ze hebben geen speling of deadlinewaarschuwing en worden niet aan een specifieke kalenderdag toegerekend.
 
 ---
 

@@ -106,7 +106,7 @@ model Subtask {
   title                    String
   descriptionOriginal      String            @default("")
   descriptionPlain         String            @default("")
-  deadline                 DateTime
+  deadline                 DateTime?
   earliestStart            DateTime?
   estimatedMinutes         Int
   remainingMinutes         Int

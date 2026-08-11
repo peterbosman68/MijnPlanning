@@ -73,9 +73,16 @@ export function parseTaskFormData(formData: FormData): TaskFormInput {
   const title = z.string().trim().min(1).max(180).parse(formData.get("title"));
   const descriptionOriginal = z.string().max(10_000).catch("").parse(formData.get("descriptionOriginal"));
   const status = optionalEnum(TASK_STATUSES, formData.get("status"), "OPEN");
+  const deadlineDate = rawString(formData.get("deadlineDate"));
+  const deadlineTime = rawString(formData.get("deadlineTime"));
+
+  if (!deadlineDate && deadlineTime) {
+    throw new Error("INVALID_TIME_WITHOUT_DATE");
+  }
+
   const deadline = parseAmsterdamDateTimeInput(
-    rawString(formData.get("deadlineDate")),
-    formData.get("deadlineTime") as string | null,
+    deadlineDate,
+    deadlineTime,
   );
   const estimatedMinutes = optionalInteger(formData.get("estimatedMinutes"));
   const remainingMinutes = optionalInteger(formData.get("remainingMinutes"));
@@ -110,9 +117,16 @@ export function parseSubtaskFormData(formData: FormData): SubtaskFormInput {
   const descriptionOriginal = z.string().max(10_000).catch("").parse(formData.get("descriptionOriginal"));
   const taskId = z.string().trim().min(1).parse(formData.get("taskId"));
   const subtaskId = rawString(formData.get("subtaskId")) || null;
+  const deadlineDate = rawString(formData.get("deadlineDate"));
+  const deadlineTime = rawString(formData.get("deadlineTime"));
+
+  if (!deadlineDate && deadlineTime) {
+    throw new Error("INVALID_TIME_WITHOUT_DATE");
+  }
+
   const deadline = parseAmsterdamDateTimeInput(
-    rawString(formData.get("deadlineDate")),
-    formData.get("deadlineTime") as string | null,
+    deadlineDate,
+    deadlineTime,
     "17:00",
   );
   const earliestStart = parseAmsterdamDateTimeInput(
@@ -127,10 +141,6 @@ export function parseSubtaskFormData(formData: FormData): SubtaskFormInput {
   const priority = optionalInteger(formData.get("priority"));
   const context = rawString(formData.get("context"));
   const status = optionalEnum(SUBTASK_STATUSES, formData.get("status"), "OPEN");
-
-  if (!deadline) {
-    throw new Error("MISSING_DEADLINE");
-  }
 
   if (minimumBlockMinutes <= 0) {
     throw new Error("INVALID_MINIMUM_BLOCK_MINUTES");

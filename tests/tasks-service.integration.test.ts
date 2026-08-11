@@ -94,6 +94,47 @@ describeDatabase("taken-service-integratie", () => {
       expect(boardAfterTimeUpdate.selectedSubtask?.estimatedMinutes).toBe(45);
       expect(boardAfterTimeUpdate.selectedSubtask?.remainingMinutes).toBe(45);
 
+      const deadlineLessSubtask = await createSubtask(user.id, {
+        subtaskId: null,
+        taskId: task.taskId,
+        title: "Subtaak zonder deadline",
+        descriptionOriginal: "",
+        deadline: null,
+        earliestStart: null,
+        estimatedMinutes: 25,
+        remainingMinutes: 25,
+        minimumBlockMinutes: 15,
+        splittable: false,
+        priority: null,
+        context: "",
+        status: "OPEN",
+      });
+
+      const boardWithDeadlineLessSubtask = await getTaskBoardData(user.id, task.taskId, deadlineLessSubtask.subtaskId);
+      expect(boardWithDeadlineLessSubtask.selectedTask?.remainingMinutes).toBe(70);
+      expect(boardWithDeadlineLessSubtask.selectedSubtask?.deadline).toBe("Geen deadline");
+      expect(boardWithDeadlineLessSubtask.selectedSubtask?.deadlineDate).toBe("");
+
+      await updateSubtask(user.id, {
+        subtaskId: deadlineLessSubtask.subtaskId,
+        taskId: task.taskId,
+        title: "Subtaak zonder deadline",
+        descriptionOriginal: "",
+        deadline: null,
+        earliestStart: null,
+        estimatedMinutes: 35,
+        remainingMinutes: 35,
+        minimumBlockMinutes: 15,
+        splittable: false,
+        priority: null,
+        context: "",
+        status: "OPEN",
+      });
+
+      const boardAfterDeadlineLessUpdate = await getTaskBoardData(user.id, task.taskId, deadlineLessSubtask.subtaskId);
+      expect(boardAfterDeadlineLessUpdate.selectedTask?.remainingMinutes).toBe(80);
+      expect(boardAfterDeadlineLessUpdate.selectedSubtask?.remainingMinutes).toBe(35);
+
       await expect(
         updateTask(user.id, {
           taskId: task.taskId,

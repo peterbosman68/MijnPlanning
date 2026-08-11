@@ -44,7 +44,7 @@ describe("taken-domein", () => {
     expect(parsed.deadline).toBeNull();
   });
 
-  it("vereist een subtaakdeadline en numerieke duurvelden", () => {
+  it("leest een subtaakdeadline en numerieke duurvelden", () => {
     const formData = new FormData();
     formData.set("taskId", "task-1");
     formData.set("title", "Subtaak");
@@ -59,7 +59,7 @@ describe("taken-domein", () => {
     const parsed = parseSubtaskFormData(formData);
 
     expect(parsed.taskId).toBe("task-1");
-    expect(parsed.deadline.toISOString()).toBe("2026-07-24T15:00:00.000Z");
+    expect(parsed.deadline?.toISOString()).toBe("2026-07-24T15:00:00.000Z");
     expect(parsed.estimatedMinutes).toBe(30);
     expect(parsed.remainingMinutes).toBe(20);
   });
@@ -78,7 +78,34 @@ describe("taken-domein", () => {
 
     const parsed = parseSubtaskFormData(formData);
 
-    expect(parsed.deadline.toISOString()).toBe("2026-08-12T15:00:00.000Z");
+    expect(parsed.deadline?.toISOString()).toBe("2026-08-12T15:00:00.000Z");
+  });
+
+  it("accepteert een subtaak zonder deadline", () => {
+    const formData = new FormData();
+    formData.set("taskId", "task-1");
+    formData.set("title", "Subtaak zonder deadline");
+    formData.set("descriptionOriginal", "");
+    formData.set("deadlineDate", "");
+    formData.set("deadlineTime", "");
+    formData.set("estimatedMinutes", "60");
+    formData.set("remainingMinutes", "60");
+    formData.set("minimumBlockMinutes", "15");
+    formData.set("status", "OPEN");
+
+    expect(parseSubtaskFormData(formData).deadline).toBeNull();
+  });
+
+  it("weigert een deadlinetijd zonder datum", () => {
+    const formData = new FormData();
+    formData.set("taskId", "task-1");
+    formData.set("title", "Subtaak met alleen tijd");
+    formData.set("deadlineDate", "");
+    formData.set("deadlineTime", "12:00");
+    formData.set("estimatedMinutes", "60");
+    formData.set("remainingMinutes", "60");
+
+    expect(() => parseSubtaskFormData(formData)).toThrow("INVALID_TIME_WITHOUT_DATE");
   });
 
   it("levert een dependencyvorm met finish-to-start op", () => {

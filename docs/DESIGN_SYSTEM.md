@@ -241,6 +241,8 @@ Toon:
 
 Een hoofdtaak is visueel duidelijk te onderscheiden van subtaken.
 
+Een ontbrekende hoofdtaak- of subtaakdeadline wordt neutraal als `Geen deadline` getoond, zonder risico-indicator. Deadlinevelden zijn optioneel; een ingevulde tijd zonder datum krijgt een gerichte validatiemelding.
+
 ### 12.1 Instelbare desktopkolommen (O23)
 
 Het scherm Taken gebruikt op desktop drie vaste zones naast elkaar: navigatie, compacte lijst en detailpaneel. Alle drie de zones blijven altijd zichtbaar; er is geen functie om een zone volledig in te klappen.

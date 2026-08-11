@@ -118,7 +118,7 @@ Bijlagen op subtaken gedragen zich hetzelfde als bijlagen op hoofdtaken: een pap
 
 Een taakdeadline is optioneel.
 
-Een subtaakdeadline is verplicht.
+Een subtaakdeadline is optioneel.
 
 Wanneer de taak een deadline heeft:
 
@@ -126,7 +126,7 @@ Wanneer de taak een deadline heeft:
 deadline subtaak <= deadline taak
 ```
 
-Alleen wanneer de taak een deadline heeft, mag een subtaakdeadline nooit na de taakdeadline liggen.
+Alleen wanneer de taak en de subtaak beide een deadline hebben, mag de subtaakdeadline nooit na de taakdeadline liggen. Een deadline-loze subtaak blijft uitvoerbaar en telt mee in de resterende taakduur, maar heeft geen speling of deadlinewaarschuwing.
 
 Wanneer een taakdeadline wordt vervroegd, mogen bestaande subtaken niet stilzwijgend ongeldig worden.
 

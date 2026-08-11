@@ -116,7 +116,7 @@ Velden:
 - title, verplicht;
 - descriptionOriginal, mag leeg zijn;
 - descriptionPlain;
-- deadline, verplicht tijdstip met datum en tijd;
+- deadline, optioneel tijdstip met datum en tijd;
 - earliestStart, optioneel;
 - estimatedMinutes;
 - remainingMinutes;
@@ -144,7 +144,7 @@ Ook voor subtaken wordt `BLOCKED` afgeleid uit dependencies. Timerstatussen word
 
 ### Belangrijke regel
 
-Wanneer Task.deadline bestaat:
+Wanneer zowel `Task.deadline` als `Subtask.deadline` bestaat:
 
 ```text
 Subtask.deadline <= Task.deadline
@@ -157,7 +157,7 @@ Deze regel moet worden gecontroleerd:
 - in de transactie;
 - aanvullend in PostgreSQL als kritisch integriteitsvangnet.
 
-Het fase-1-uitvoeringsplan concretiseert de PostgreSQL-bescherming als versioned triggers voor writes op `Task.deadline` en `Subtask.deadline`. Deze triggers dupliceren geen foutpresentatie of overige bedrijfsregels.
+Het fase-1-uitvoeringsplan concretiseert de PostgreSQL-bescherming als versioned triggers voor writes op `Task.deadline` en `Subtask.deadline`. Een null subtaakdeadline veroorzaakt geen conflict; de triggers dupliceren geen foutpresentatie of overige bedrijfsregels.
 
 ---
 

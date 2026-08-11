@@ -1145,10 +1145,6 @@ export function TakenVisualPrototype({
       setFormError("Vul een titel in.");
       return;
     }
-    if (!deadlineDate) {
-      setFormError("Kies een deadline op vandaag of later.");
-      return;
-    }
     if (deadlineTime && !deadlineDate) {
       setFormError("Vul eerst een datum in voordat je een tijd invult.");
       return;
@@ -1253,11 +1249,11 @@ export function TakenVisualPrototype({
     const hardDeadline = formData.get("hardDeadline") === "on";
     const plannedMinutesRaw = String(formData.get("plannedMinutes") ?? "").trim();
 
-    if (!title || !deadlineDate) {
-      setFormError("Vul een titel en deadline in.");
+    if (!title) {
+      setFormError("Vul een titel in.");
       return;
     }
-    if (isPastDateValue(deadlineDate)) {
+    if (deadlineDate && isPastDateValue(deadlineDate)) {
       setFormError("Kies vandaag of een toekomstige datum.");
       return;
     }
@@ -1285,44 +1281,48 @@ export function TakenVisualPrototype({
     let effectivePlannedMinutes = plannedMinutes;
     let carryOverSubtask: { minutes: number; date: string } | null = null;
 
-    const currentSubtaskMinutes = subtaskPlannedMinutesOnDate(selectedSubtask, deadlineDate);
-    const otherPlannedWorkMinutes = Math.max(0, totalPlannedWorkMinutesForDate(tasks, deadlineDate) - currentSubtaskMinutes);
-    let split: Awaited<ReturnType<typeof resolveDailyLimitWithCarryOver>>;
+    if (deadlineDate) {
+      const currentSubtaskMinutes = subtaskPlannedMinutesOnDate(selectedSubtask, deadlineDate);
+      const otherPlannedWorkMinutes = Math.max(0, totalPlannedWorkMinutesForDate(tasks, deadlineDate) - currentSubtaskMinutes);
+      let split: Awaited<ReturnType<typeof resolveDailyLimitWithCarryOver>>;
 
-    try {
-      split = await resolveDailyLimitWithCarryOver(
-        deadlineDate,
-        plannedMinutes,
-        otherPlannedWorkMinutes,
-        hardDeadline,
-        `Subtaak \"${title}\"`,
-      );
-    } catch (error) {
-      setFormError(error instanceof Error ? error.message : "Outlook-agenda kon niet worden gecontroleerd.");
-      return;
-    }
+      try {
+        split = await resolveDailyLimitWithCarryOver(
+          deadlineDate,
+          plannedMinutes,
+          otherPlannedWorkMinutes,
+          hardDeadline,
+          `Subtaak \"${title}\"`,
+        );
+      } catch (error) {
+        setFormError(error instanceof Error ? error.message : "Outlook-agenda kon niet worden gecontroleerd.");
+        return;
+      }
 
-    if (!split) {
-      setFormError("Opslaan geannuleerd. Kies een andere dag of bevestig het meenemen naar de volgende dag.");
-      return;
-    }
+      if (!split) {
+        setFormError("Opslaan geannuleerd. Kies een andere dag of bevestig het meenemen naar de volgende dag.");
+        return;
+      }
 
-    if (split.todayMinutes <= 0) {
-      effectiveDeadlineDate = split.carryOverDate;
-    } else {
-      effectivePlannedMinutes = split.todayMinutes;
-      if (split.carryOverMinutes > 0) {
-        carryOverSubtask = { minutes: split.carryOverMinutes, date: split.carryOverDate };
+      if (split.todayMinutes <= 0) {
+        effectiveDeadlineDate = split.carryOverDate;
+      } else {
+        effectivePlannedMinutes = split.todayMinutes;
+        if (split.carryOverMinutes > 0) {
+          carryOverSubtask = { minutes: split.carryOverMinutes, date: split.carryOverDate };
+        }
       }
     }
 
-    const childComparable = new Date(`${effectiveDeadlineDate}T${effectiveTime}`);
-    if (Number.isNaN(childComparable.getTime())) {
+    const childComparable = effectiveDeadlineDate
+      ? new Date(`${effectiveDeadlineDate}T${effectiveTime}`)
+      : null;
+    if (childComparable && Number.isNaN(childComparable.getTime())) {
       setFormError("Kies een geldige deadline.");
       return;
     }
 
-    if (selectedTask.deadlineValue) {
+    if (childComparable && selectedTask.deadlineValue) {
       const parent = splitDeadlineValue(selectedTask.deadlineValue);
       if (parent.date && isPastDateValue(parent.date)) {
         setFormError("De hoofdtaakdeadline ligt in het verleden. Pas eerst de hoofdtaak aan naar vandaag of later.");
@@ -1377,10 +1377,6 @@ export function TakenVisualPrototype({
 
     if (!title) {
       setMainTaskError("Vul een titel in.");
-      return;
-    }
-    if (!deadlineDate) {
-      setMainTaskError("Kies een deadline op vandaag of later.");
       return;
     }
 
@@ -1483,11 +1479,11 @@ export function TakenVisualPrototype({
     const hardDeadline = formData.get("hardDeadline") === "on";
     const plannedMinutesRaw = String(formData.get("plannedMinutes") ?? "").trim();
 
-    if (!title || !deadlineDate) {
-      setFormError("Vul een titel en deadline in.");
+    if (!title) {
+      setFormError("Vul een titel in.");
       return;
     }
-    if (isPastDateValue(deadlineDate)) {
+    if (deadlineDate && isPastDateValue(deadlineDate)) {
       setFormError("Kies vandaag of een toekomstige datum.");
       return;
     }
@@ -1515,43 +1511,47 @@ export function TakenVisualPrototype({
     let effectivePlannedMinutes = plannedMinutes;
     let carryOverSubtask: { minutes: number; date: string } | null = null;
 
-    const otherPlannedWorkMinutes = totalPlannedWorkMinutesForDate(tasks, deadlineDate);
-    let split: Awaited<ReturnType<typeof resolveDailyLimitWithCarryOver>>;
+    if (deadlineDate) {
+      const otherPlannedWorkMinutes = totalPlannedWorkMinutesForDate(tasks, deadlineDate);
+      let split: Awaited<ReturnType<typeof resolveDailyLimitWithCarryOver>>;
 
-    try {
-      split = await resolveDailyLimitWithCarryOver(
-        deadlineDate,
-        plannedMinutes,
-        otherPlannedWorkMinutes,
-        hardDeadline,
-        `Subtaak \"${title}\"`,
-      );
-    } catch (error) {
-      setFormError(error instanceof Error ? error.message : "Outlook-agenda kon niet worden gecontroleerd.");
-      return;
-    }
+      try {
+        split = await resolveDailyLimitWithCarryOver(
+          deadlineDate,
+          plannedMinutes,
+          otherPlannedWorkMinutes,
+          hardDeadline,
+          `Subtaak \"${title}\"`,
+        );
+      } catch (error) {
+        setFormError(error instanceof Error ? error.message : "Outlook-agenda kon niet worden gecontroleerd.");
+        return;
+      }
 
-    if (!split) {
-      setFormError("Opslaan geannuleerd. Kies een andere dag of bevestig het meenemen naar de volgende dag.");
-      return;
-    }
+      if (!split) {
+        setFormError("Opslaan geannuleerd. Kies een andere dag of bevestig het meenemen naar de volgende dag.");
+        return;
+      }
 
-    if (split.todayMinutes <= 0) {
-      effectiveDeadlineDate = split.carryOverDate;
-    } else {
-      effectivePlannedMinutes = split.todayMinutes;
-      if (split.carryOverMinutes > 0) {
-        carryOverSubtask = { minutes: split.carryOverMinutes, date: split.carryOverDate };
+      if (split.todayMinutes <= 0) {
+        effectiveDeadlineDate = split.carryOverDate;
+      } else {
+        effectivePlannedMinutes = split.todayMinutes;
+        if (split.carryOverMinutes > 0) {
+          carryOverSubtask = { minutes: split.carryOverMinutes, date: split.carryOverDate };
+        }
       }
     }
 
-    const childComparable = new Date(`${effectiveDeadlineDate}T${effectiveSubtaskTime}`);
-    if (Number.isNaN(childComparable.getTime())) {
+    const childComparable = effectiveDeadlineDate
+      ? new Date(`${effectiveDeadlineDate}T${effectiveSubtaskTime}`)
+      : null;
+    if (childComparable && Number.isNaN(childComparable.getTime())) {
       setFormError("Kies een geldige deadline.");
       return;
     }
 
-    if (selectedTask.deadlineValue) {
+    if (childComparable && selectedTask.deadlineValue) {
       const parent = splitDeadlineValue(selectedTask.deadlineValue);
       if (parent.date && isPastDateValue(parent.date)) {
         setFormError("De hoofdtaakdeadline ligt in het verleden. Pas eerst de hoofdtaak aan naar vandaag of later.");
@@ -1830,12 +1830,12 @@ export function TakenVisualPrototype({
                     <input name="title" type="text" required autoFocus placeholder="Wat wil je afronden?" />
                   </label>
                   <label>
-                    Deadline <span aria-hidden="true">*</span>
+                    Deadline (optioneel)
                   </label>
                   <div className={styles.deadlineFields}>
                     <label>
-                      Datum <span aria-hidden="true">*</span>
-                      <input name="deadlineDate" type="date" min={minimumDeadlineDate} required />
+                      Datum
+                      <input name="deadlineDate" type="date" min={minimumDeadlineDate} />
                     </label>
                     <label className={styles.hardDeadlineField}>
                       Hard
@@ -1941,8 +1941,8 @@ export function TakenVisualPrototype({
                           </label>
                           <div className={styles.deadlineFields}>
                             <label>
-                              Deadline datum <span aria-hidden="true">*</span>
-                              <input name="deadlineDate" type="date" min={minimumDeadlineDate} required defaultValue={taskDeadline.date} />
+                              Deadline datum (optioneel)
+                              <input name="deadlineDate" type="date" min={minimumDeadlineDate} defaultValue={taskDeadline.date} />
                             </label>
                             <label className={styles.hardDeadlineField}>
                               Hard
@@ -2272,8 +2272,8 @@ export function TakenVisualPrototype({
                   </label>
                   <div className={styles.deadlineFields}>
                     <label>
-                      Deadline datum <span aria-hidden="true">*</span>
-                      <input name="deadlineDate" type="date" min={minimumDeadlineDate} required />
+                      Deadline datum (optioneel)
+                      <input name="deadlineDate" type="date" min={minimumDeadlineDate} />
                     </label>
                     <label className={styles.hardDeadlineField}>
                       Hard
@@ -2390,12 +2390,11 @@ export function TakenVisualPrototype({
                             </label>
                             <div className={styles.deadlineFields}>
                               <label>
-                                Deadline datum <span aria-hidden="true">*</span>
+                                Deadline datum (optioneel)
                                 <input
                                   name="deadlineDate"
                                   type="date"
                                   min={minimumDeadlineDate}
-                                  required
                                   defaultValue={splitDeadlineValue(selectedSubtask.deadlineValue).date}
                                 />
                               </label>

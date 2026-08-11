@@ -191,8 +191,8 @@ async function withUserLock<T>(
   });
 }
 
-function ensureDeadlineWithinTask(taskDeadline: Date | null, subtaskDeadline: Date) {
-  if (taskDeadline && subtaskDeadline > taskDeadline) {
+function ensureDeadlineWithinTask(taskDeadline: Date | null, subtaskDeadline: Date | null) {
+  if (taskDeadline && subtaskDeadline && subtaskDeadline > taskDeadline) {
     throw new TaskDomainError("VALIDATION_ERROR", "DEADLINE_CONFLICT");
   }
 }
@@ -202,7 +202,7 @@ function ensureNoTaskDeadlineConflicts(taskDeadline: Date | null, subtasks: Subt
     return;
   }
 
-  const conflicts = subtasks.filter((subtask) => subtask.deadline > taskDeadline);
+  const conflicts = subtasks.filter((subtask) => subtask.deadline && subtask.deadline > taskDeadline);
 
   if (conflicts.length > 0) {
     throw new TaskDeadlineConflictError(
@@ -218,7 +218,11 @@ function ensureNoTaskDeadlineConflicts(taskDeadline: Date | null, subtasks: Subt
 function toTaskBoardTask(task: TaskRow, subtasks: SubtaskRow[], dependencies: DependencyRow[], blockedSubtaskIds: Set<string>) {
   const taskSubtasks = subtasks
     .filter((subtask) => subtask.taskId === task.id)
-    .sort((left, right) => statusRank(left.status) - statusRank(right.status) || left.deadline.getTime() - right.deadline.getTime());
+    .sort((left, right) =>
+      statusRank(left.status) - statusRank(right.status)
+      || (left.deadline?.getTime() ?? Number.POSITIVE_INFINITY)
+        - (right.deadline?.getTime() ?? Number.POSITIVE_INFINITY),
+    );
 
   const remainingMinutes = taskRemainingMinutes(task, taskSubtasks);
   const deadlineParts = toDateTimeInputParts(task.deadline);
@@ -246,6 +250,7 @@ function toTaskBoardTask(task: TaskRow, subtasks: SubtaskRow[], dependencies: De
     openSubtaskCount,
     blockedSubtaskCount,
     subtasks: taskSubtasks.map((subtask) => {
+      const deadlineParts = toDateTimeInputParts(subtask.deadline);
       const dependencyParts = toDateTimeInputParts(subtask.earliestStart);
 
       return {
@@ -257,8 +262,8 @@ function toTaskBoardTask(task: TaskRow, subtasks: SubtaskRow[], dependencies: De
         status: subtask.status,
         statusLabel: statusLabel(subtask.status),
         deadline: toDisplayDateTime(subtask.deadline),
-        deadlineDate: formatAmsterdamDateInput(subtask.deadline),
-        deadlineTime: formatAmsterdamTimeInput(subtask.deadline),
+        deadlineDate: deadlineParts.date,
+        deadlineTime: deadlineParts.time,
         earliestStart: toDisplayDateTime(subtask.earliestStart),
         earliestStartDate: dependencyParts.date,
         earliestStartTime: dependencyParts.time,

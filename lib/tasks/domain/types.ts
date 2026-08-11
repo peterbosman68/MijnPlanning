@@ -29,7 +29,7 @@ export type SubtaskFormInput = Readonly<{
   taskId: string;
   title: string;
   descriptionOriginal: string;
-  deadline: Date;
+  deadline: Date | null;
   earliestStart: Date | null;
   estimatedMinutes: number;
   remainingMinutes: number;
