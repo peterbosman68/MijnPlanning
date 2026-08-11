@@ -1,6 +1,6 @@
 # Uitvoeringsplan — optionele deadlines voor hoofd- en subtaken
 
-Status: door Peter goedgekeurd op 11 augustus 2026; implementatie en productiemigratie voltooid, deployment in uitvoering.
+Status: voltooid op 11 augustus 2026.
 
 ## 1. Doel en gebruikersresultaat
 
@@ -247,7 +247,7 @@ Een toekomstige regel voor automatische hoofdtaakdeadlines of terugkerende taken
 - [x] Domein-, service- en UI-wijzigingen geïmplementeerd.
 - [x] Tests en bestaande browsercontroles uitgevoerd.
 - [x] Productiemigratie gecontroleerd uitgevoerd; bestaande subtaakdeadline bleef behouden.
-- [ ] Deployment gecontroleerd uitgevoerd.
+- [x] Deployment gecontroleerd uitgevoerd; healthroute is groen en de Taken-route blijft zonder sessie beveiligd.
 
 ## 14. Goedkeuringspoort
 
