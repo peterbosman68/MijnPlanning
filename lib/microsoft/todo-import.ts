@@ -555,6 +555,9 @@ export async function executeTodoImport(
           skippedCount,
         },
       });
+    }, {
+      maxWait: 10_000,
+      timeout: 60_000,
     });
   } catch (error) {
     await prisma.todoImportBatch.update({

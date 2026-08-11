@@ -166,6 +166,10 @@ describe("eenmalige Microsoft To Do-import", () => {
         skippedCount: 2,
       }),
     });
+    expect(mocks.transaction).toHaveBeenCalledWith(
+      expect.any(Function),
+      { maxWait: 10_000, timeout: 60_000 },
+    );
   });
 
   it("converteert Microsoft-deadlines veilig naar UTC", () => {

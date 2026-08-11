@@ -108,6 +108,7 @@ Geen. Peter heeft op 11 augustus 2026 expliciet gekozen voor een standaard volle
 - [x] Documentatie bijgewerkt met O31.
 - [x] Import server-side beperkt tot de standaardlijst Taken; statusmapping open/afgerond geborgd met regressietests en O32.
 - [x] Preview toont live het geselecteerde aantal open en afgeronde taken voor de laatste 30/18-controle.
+- [x] Productiepoging met 45 geselecteerde taken veilig teruggerold na de standaard Prisma-transactietime-out; importtransactie gericht verruimd naar 60 seconden en getest.
 - [x] Gerichte tests, lint, typecheck, volledige tests, build en bestaande desktop/mobiele Playwright-suite groen.
 - [ ] Productiepreview gecontroleerd; productie-import blijft apart bevestigd.
 
