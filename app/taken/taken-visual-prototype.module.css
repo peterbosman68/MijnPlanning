@@ -680,8 +680,11 @@
   background: #eef3fb;
   color: #294a7a;
   cursor: pointer;
-  font-size: 9px;
+  overflow: hidden;
+  font-size: 8px;
   font-weight: 660;
+  line-height: 1;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
@@ -718,7 +721,11 @@
   min-width: 52px;
   min-height: 24px;
   padding: 2px 3px;
-  font-size: 9px;
+  overflow: hidden;
+  font-size: 8px;
+  line-height: 1;
+  text-overflow: clip;
+  white-space: nowrap;
 }
 
 .rowArchiveButton:hover,

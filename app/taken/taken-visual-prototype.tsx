@@ -1156,10 +1156,6 @@ export function TakenVisualPrototype({
     });
   }
 
-  function openTodoImportPreview() {
-    window.open("/todo-import-preview", "_blank", "noopener,noreferrer");
-  }
-
   function openTaskAttachmentPicker() {
     if (!selectedTask) return;
     taskAttachmentInputRef.current?.click();
@@ -2060,11 +2056,6 @@ export function TakenVisualPrototype({
                   </button>
                 </div>
               ))}
-              <div className={styles.navDivider}>
-                <button type="button" className={styles.navButton} onClick={openTodoImportPreview}>
-                  <span>To Do importpreview</span>
-                </button>
-              </div>
             </nav>
           </div>
 
