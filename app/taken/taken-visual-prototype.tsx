@@ -2263,12 +2263,13 @@ export function TakenVisualPrototype({
                               className={styles.rowPossibleButton}
                               disabled={changingTaskStatusId === task.id}
                               onClick={() => changeTaskPlanningStatus(task.id, isPossibleTask ? "OPEN" : "WAITING")}
+                              aria-label={isPossibleTask ? `Hoofdtaak inplannen: ${task.title}` : `Hoofdtaak naar Taken Mogelijk: ${task.title}`}
                             >
                               {changingTaskStatusId === task.id
-                                ? "Verplaatsen..."
+                                ? "Bezig..."
                                 : isPossibleTask
                                   ? "Inplannen"
-                                  : "Naar Taken Mogelijk"}
+                                  : "Mogelijk"}
                             </button>
                           )}
                           <button
@@ -2277,7 +2278,7 @@ export function TakenVisualPrototype({
                             onClick={() => (showRestoreTaskAction ? restoreMainTask(task.id) : archiveMainTask(task.id))}
                             aria-label={showRestoreTaskAction ? `Hoofdtaak dearchiveren: ${task.title}` : `Hoofdtaak archiveren: ${task.title}`}
                           >
-                            {showRestoreTaskAction ? "Dearchiveren" : "Archiveren"}
+                            {showRestoreTaskAction ? "Dearchiveren" : "Archief"}
                           </button>
                         </div>
                       </div>
