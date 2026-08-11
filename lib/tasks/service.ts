@@ -26,6 +26,7 @@ import {
   findSubtaskForUser,
   findTaskForUser,
   listDependenciesForUser,
+  listSubtasksForTask,
   listSubtasksForUser,
   listTasksForUser,
   lockTaskUserScope,
@@ -369,7 +370,7 @@ export async function updateTask(userId: string, input: TaskFormInput) {
       throw new TaskNotFoundError();
     }
 
-    const subtasks = await listSubtasksForUser(tx, userId).then((rows) => rows.filter((row) => row.taskId === current.id));
+    const subtasks = await listSubtasksForTask(tx, userId, current.id);
     ensureNoTaskDeadlineConflicts(input.deadline, subtasks);
 
     const descriptionPlain = normalizeDescription(input.descriptionOriginal);
@@ -394,10 +395,6 @@ export async function updateTask(userId: string, input: TaskFormInput) {
       throw new TaskNotFoundError();
     }
 
-    if (subtasks.length > 0) {
-      await recalculateTaskProjectionTx(tx, current.id);
-    }
-
     return { taskId: current.id };
   });
 }
@@ -410,7 +407,7 @@ export async function archiveTask(userId: string, taskId: string) {
       throw new TaskNotFoundError();
     }
 
-    const subtasks = await listSubtasksForUser(tx, userId).then((rows) => rows.filter((row) => row.taskId === current.id));
+    const subtasks = await listSubtasksForTask(tx, userId, current.id);
 
     const updatedCount = await updateTaskRecord(tx, {
       taskId: current.id,
@@ -429,10 +426,6 @@ export async function archiveTask(userId: string, taskId: string) {
 
     if (updatedCount.count === 0) {
       throw new TaskNotFoundError();
-    }
-
-    if (subtasks.length > 0) {
-      await recalculateTaskProjectionTx(tx, current.id);
     }
 
     return { taskId: current.id };

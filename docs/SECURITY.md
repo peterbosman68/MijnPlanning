@@ -155,6 +155,10 @@ Vereisten:
 - bestand en metadata samen verwijderen;
 - originele bestandsnaam ontsmetten;
 - nooit lokale padinformatie tonen.
+- geef een client-uploadtoken alleen uit na sessie-, origin- en doelautorisatie;
+- maak completioncallbacks en browserfinalisatie idempotent op gebruiker en Blob-pathname;
+- download private Blobs uitsluitend via een user-scoped applicatieroute;
+- stuur de permanente private Blob-URL en het read-write token nooit naar clientstate of logs.
 
 Voor To Do-import en andere bronkopieën geldt aanvullend:
 

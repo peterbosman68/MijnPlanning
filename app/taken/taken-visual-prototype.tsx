@@ -1,6 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { upload } from "@vercel/blob/client";
+import { useRouter } from "next/navigation";
+import { startTransition, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { ChangeEvent, CSSProperties, FormEvent, PointerEvent as ReactPointerEvent, ReactNode } from "react";
 import type { AttachmentBoardData } from "@/lib/attachments/service";
 import type { getTaskBoardData } from "@/lib/tasks/service";
@@ -782,6 +784,7 @@ export function TakenVisualPrototype({
   logoutAction,
   revokeAllSessionsAction,
 }: TakenVisualPrototypeProps) {
+  const router = useRouter();
   const tasks = useMemo(() => mapTaskBoard(initialTaskBoard), [initialTaskBoard]);
   const initialAttachments = mapAttachmentBoard(initialAttachmentBoard);
   const { widths: paneWidths, startDrag, nudgeDivider, resetLayout } = usePaneLayout();
@@ -808,9 +811,11 @@ export function TakenVisualPrototype({
   const [emailFilter, setEmailFilter] = useState<EmailCategory | "all">("all");
   const [unsubscribeSelection, setUnsubscribeSelection] = useState<Record<string, boolean>>({});
   const [selectedWhatsAppId, setSelectedWhatsAppId] = useState("erwin-wa");
-  const [taskAttachments] = useState<Record<string, LocalAttachment[]>>(initialAttachments.taskAttachments);
-  const [subtaskAttachments] = useState<Record<string, LocalAttachment[]>>(initialAttachments.subtaskAttachments);
+  const [taskAttachments, setTaskAttachments] = useState<Record<string, LocalAttachment[]>>(initialAttachments.taskAttachments);
+  const [subtaskAttachments, setSubtaskAttachments] = useState<Record<string, LocalAttachment[]>>(initialAttachments.subtaskAttachments);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const minimumDeadlineDate = getTodayDateValue();
   const newMainFormRef = useRef<HTMLFormElement | null>(null);
   const editMainFormRef = useRef<HTMLFormElement | null>(null);
@@ -818,7 +823,6 @@ export function TakenVisualPrototype({
   const editSubtaskFormRef = useRef<HTMLFormElement | null>(null);
   const taskAttachmentInputRef = useRef<HTMLInputElement | null>(null);
   const subtaskAttachmentInputRef = useRef<HTMLInputElement | null>(null);
-  const closeEditorAfterSaveRef = useRef(false);
 
   useEffect(() => {
     const timer = window.setInterval(() => setTimerSeconds((value) => value + 1), 1000);
@@ -829,15 +833,6 @@ export function TakenVisualPrototype({
     const refreshNow = window.setInterval(() => setNowTimestamp(Date.now()), 60_000);
     return () => window.clearInterval(refreshNow);
   }, []);
-
-  useEffect(() => {
-    if (!closeEditorAfterSaveRef.current) return;
-    closeEditorAfterSaveRef.current = false;
-    setEditorMode("none");
-    setHasUnsavedChanges(false);
-    setMainTaskError(null);
-    setFormError(null);
-  }, [initialTaskBoard]);
 
   useEffect(() => {
     if (activeView !== "appointments") return;
@@ -1100,30 +1095,142 @@ export function TakenVisualPrototype({
     subtaskAttachmentInputRef.current?.click();
   }
 
-  function handleTaskAttachmentSelect(event: ChangeEvent<HTMLInputElement>) {
-    if (!selectedTask) return;
-    const fileList = event.target.files;
-    if (!fileList || fileList.length === 0) return;
-    setFeedback("Handmatige upload is nog niet beschikbaar. Er is niets opgeslagen.");
-    event.target.value = "";
+  async function uploadAttachment(file: File, target: { taskId: string } | { subtaskId: string }) {
+    const mimeType = file.type || "application/octet-stream";
+    const targetPath = "taskId" in target
+      ? `manual/task/${target.taskId}`
+      : `manual/subtask/${target.subtaskId}`;
+    const safeFileName = file.name.replace(/[^a-zA-Z0-9._-]+/g, "-") || "document";
+    const blob = await upload(`${targetPath}/${crypto.randomUUID()}-${safeFileName}`, file, {
+      access: "private",
+      handleUploadUrl: "/api/attachments/upload",
+      contentType: mimeType,
+      clientPayload: JSON.stringify({
+        target,
+        originalFileName: file.name,
+        mimeType,
+        sizeBytes: file.size,
+      }),
+      onUploadProgress: ({ percentage }) => {
+        setFeedback(`${file.name} uploaden: ${Math.round(percentage)}%`);
+      },
+    });
+
+    const response = await fetch("/api/attachments/finalize", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        target,
+        blobPath: blob.pathname,
+        originalFileName: file.name,
+        mimeType,
+        sizeBytes: file.size,
+      }),
+    });
+    const result = await response.json() as {
+      attachment?: { id: string; name: string | null; mimeType: string | null; sizeBytes: number | null };
+      error?: string;
+    };
+    if (!response.ok || !result.attachment) {
+      throw new Error(result.error ?? "Document bevestigen is mislukt.");
+    }
+
+    return {
+      id: result.attachment.id,
+      name: result.attachment.name ?? file.name,
+      sizeLabel: formatAttachmentSizeLabel(result.attachment.sizeBytes),
+      mimeType: result.attachment.mimeType ?? mimeType,
+      storedFile: true,
+    } satisfies LocalAttachment;
   }
 
-  function handleSubtaskAttachmentSelect(event: ChangeEvent<HTMLInputElement>) {
-    if (!selectedSubtask) return;
-    const fileList = event.target.files;
-    if (!fileList || fileList.length === 0) return;
-
-    setFeedback("Handmatige upload is nog niet beschikbaar. Er is niets opgeslagen.");
+  async function handleTaskAttachmentSelect(event: ChangeEvent<HTMLInputElement>) {
+    if (!selectedTask) return;
+    const files = Array.from(event.target.files ?? []);
     event.target.value = "";
+    if (files.length === 0) return;
+
+    setIsUploading(true);
+    try {
+      for (const file of files) {
+        const attachment = await uploadAttachment(file, { taskId: selectedTask.id });
+        setTaskAttachments((current) => ({
+          ...current,
+          [selectedTask.id]: [...(current[selectedTask.id] ?? []), attachment],
+        }));
+      }
+      setFeedback(files.length === 1 ? "Document opgeslagen." : `${files.length} documenten opgeslagen.`);
+      startTransition(() => router.refresh());
+    } catch (error) {
+      setFeedback(error instanceof Error ? error.message : "Document uploaden is mislukt.");
+    } finally {
+      setIsUploading(false);
+    }
+  }
+
+  async function handleSubtaskAttachmentSelect(event: ChangeEvent<HTMLInputElement>) {
+    if (!selectedSubtask) return;
+    const files = Array.from(event.target.files ?? []);
+    event.target.value = "";
+    if (files.length === 0) return;
+
+    setIsUploading(true);
+    try {
+      for (const file of files) {
+        const attachment = await uploadAttachment(file, { subtaskId: selectedSubtask.id });
+        setSubtaskAttachments((current) => ({
+          ...current,
+          [selectedSubtask.id]: [...(current[selectedSubtask.id] ?? []), attachment],
+        }));
+      }
+      setFeedback(files.length === 1 ? "Document opgeslagen." : `${files.length} documenten opgeslagen.`);
+      startTransition(() => router.refresh());
+    } catch (error) {
+      setFeedback(error instanceof Error ? error.message : "Document uploaden is mislukt.");
+    } finally {
+      setIsUploading(false);
+    }
   }
 
   function openLocalAttachment(attachment: LocalAttachment) {
+    if (attachment.storedFile) {
+      window.open(`/api/attachments/${encodeURIComponent(attachment.id)}/download`, "_blank", "noopener,noreferrer");
+      return;
+    }
     const url = attachment.sourceUrl ?? attachment.objectUrl;
     if (!url) {
-      setFeedback("Dit bestand is privé opgeslagen. Een geautoriseerde downloadactie volgt in de bijlagenfase.");
+      setFeedback("Dit bestand kan niet worden geopend.");
       return;
     }
     window.open(url, "_blank", "noopener,noreferrer");
+  }
+
+  function finishSuccessfulSave(actionState: TaskActionState) {
+    setEditorMode("none");
+    setHasUnsavedChanges(false);
+    setIsSaving(false);
+    setFeedback(`Opgeslagen${actionState.serverDurationMs !== undefined ? ` in ${actionState.serverDurationMs} ms` : ""}.`);
+    startTransition(() => router.refresh());
+  }
+
+  async function performSave(
+    action: () => Promise<TaskActionState>,
+    setError: (message: string) => void,
+  ) {
+    setIsSaving(true);
+    try {
+      const actionState = await action();
+      if (actionState.error) {
+        setError(actionState.error);
+        setIsSaving(false);
+        return null;
+      }
+      return actionState;
+    } catch {
+      setError("Opslaan mislukt. Controleer de verbinding en probeer het opnieuw.");
+      setIsSaving(false);
+      return null;
+    }
   }
 
   async function updateMainTask(event: FormEvent<HTMLFormElement>) {
@@ -1217,15 +1324,12 @@ export function TakenVisualPrototype({
     formData.set("deadlineDate", effectiveDeadlineDate);
     formData.set("estimatedMinutes", effectivePlannedMinutes === null ? "" : String(effectivePlannedMinutes));
     formData.set("remainingMinutes", effectivePlannedMinutes === null ? "" : String(effectivePlannedMinutes));
-    closeEditorAfterSaveRef.current = true;
-    const actionState = await saveTaskAction(initialTaskActionState, formData);
-    if (actionState.error) {
-      closeEditorAfterSaveRef.current = false;
-      setFormError(actionState.error);
-      return;
-    }
-    setEditorMode("none");
-    setHasUnsavedChanges(false);
+    const actionState = await performSave(
+      () => saveTaskAction(initialTaskActionState, formData),
+      setFormError,
+    );
+    if (!actionState) return;
+    finishSuccessfulSave(actionState);
   }
 
   async function updateSubtask(event: FormEvent<HTMLFormElement>) {
@@ -1350,15 +1454,12 @@ export function TakenVisualPrototype({
     formData.set("deadlineDate", effectiveDeadlineDate);
     formData.set("estimatedMinutes", String(effectivePlannedMinutes));
     formData.set("remainingMinutes", String(effectivePlannedMinutes));
-    closeEditorAfterSaveRef.current = true;
-    const actionState = await saveSubtaskAction(initialTaskActionState, formData);
-    if (actionState.error) {
-      closeEditorAfterSaveRef.current = false;
-      setFormError(actionState.error);
-      return;
-    }
-    setEditorMode("none");
-    setHasUnsavedChanges(false);
+    const actionState = await performSave(
+      () => saveSubtaskAction(initialTaskActionState, formData),
+      setFormError,
+    );
+    if (!actionState) return;
+    finishSuccessfulSave(actionState);
   }
 
   async function addMainTask(event: FormEvent<HTMLFormElement>) {
@@ -1451,15 +1552,12 @@ export function TakenVisualPrototype({
     formData.set("deadlineDate", effectiveDeadlineDate);
     formData.set("estimatedMinutes", effectivePlannedMinutes === null ? "" : String(effectivePlannedMinutes));
     formData.set("remainingMinutes", effectivePlannedMinutes === null ? "" : String(effectivePlannedMinutes));
-    closeEditorAfterSaveRef.current = true;
-    const actionState = await saveTaskAction(initialTaskActionState, formData);
-    if (actionState.error) {
-      closeEditorAfterSaveRef.current = false;
-      setMainTaskError(actionState.error);
-      return;
-    }
-    setEditorMode("none");
-    setHasUnsavedChanges(false);
+    const actionState = await performSave(
+      () => saveTaskAction(initialTaskActionState, formData),
+      setMainTaskError,
+    );
+    if (!actionState) return;
+    finishSuccessfulSave(actionState);
   }
 
   async function addSubtask(event: FormEvent<HTMLFormElement>) {
@@ -1581,15 +1679,12 @@ export function TakenVisualPrototype({
     formData.set("deadlineDate", effectiveDeadlineDate);
     formData.set("estimatedMinutes", String(effectivePlannedMinutes));
     formData.set("remainingMinutes", String(effectivePlannedMinutes));
-    closeEditorAfterSaveRef.current = true;
-    const actionState = await saveSubtaskAction(initialTaskActionState, formData);
-    if (actionState.error) {
-      closeEditorAfterSaveRef.current = false;
-      setFormError(actionState.error);
-      return;
-    }
-    setEditorMode("none");
-    setHasUnsavedChanges(false);
+    const actionState = await performSave(
+      () => saveSubtaskAction(initialTaskActionState, formData),
+      setFormError,
+    );
+    if (!actionState) return;
+    finishSuccessfulSave(actionState);
   }
 
   function deleteMainTask() {
@@ -1874,7 +1969,9 @@ export function TakenVisualPrototype({
                     >
                       Annuleren
                     </button>
-                    <button type="submit" className={styles.primaryButton}>Opslaan</button>
+                    <button type="submit" className={styles.primaryButton} disabled={isSaving}>
+                      {isSaving ? "Opslaan..." : "Opslaan"}
+                    </button>
                   </div>
                 </form>
               )}
@@ -1980,6 +2077,7 @@ export function TakenVisualPrototype({
                               className={styles.inlinePaperclipButton}
                               type="button"
                               onClick={openTaskAttachmentPicker}
+                              disabled={isUploading}
                               aria-label="Document of foto toevoegen bij hoofdtaak"
                               title="Document of foto toevoegen bij hoofdtaak"
                             >
@@ -1991,7 +2089,7 @@ export function TakenVisualPrototype({
                                   type="button"
                                   className={styles.attachmentFileButton}
                                   onClick={() => openLocalAttachment(attachment)}
-                                  title={attachment.sourceUrl || attachment.objectUrl ? `${attachment.name} openen` : `${attachment.name} is privé opgeslagen`}
+                                  title={`${attachment.name} openen`}
                                 >
                                   {attachment.name}
                                 </button>
@@ -2011,7 +2109,9 @@ export function TakenVisualPrototype({
                                 Annuleren
                               </button>
                               <button type="button" className={styles.secondaryButton} onClick={deleteMainTask}>Verwijderen</button>
-                              <button type="submit" className={styles.primaryButton}>Hoofdtaak opslaan</button>
+                              <button type="submit" className={styles.primaryButton} disabled={isSaving}>
+                                {isSaving ? "Opslaan..." : "Hoofdtaak opslaan"}
+                              </button>
                             </div>
                           </div>
                         </form>
@@ -2230,7 +2330,6 @@ export function TakenVisualPrototype({
               <input
                 ref={taskAttachmentInputRef}
                 type="file"
-                multiple
                 className={styles.visuallyHiddenInput}
                 onChange={handleTaskAttachmentSelect}
                 accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip"
@@ -2238,7 +2337,6 @@ export function TakenVisualPrototype({
               <input
                 ref={subtaskAttachmentInputRef}
                 type="file"
-                multiple
                 className={styles.visuallyHiddenInput}
                 onChange={handleSubtaskAttachmentSelect}
                 accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip"
@@ -2313,7 +2411,9 @@ export function TakenVisualPrototype({
                     >
                       Annuleren
                     </button>
-                    <button type="submit" className={styles.primaryButton}>Opslaan</button>
+                    <button type="submit" className={styles.primaryButton} disabled={isSaving}>
+                      {isSaving ? "Opslaan..." : "Opslaan"}
+                    </button>
                   </div>
                 </form>
               )}
@@ -2440,6 +2540,7 @@ export function TakenVisualPrototype({
                                 className={styles.inlinePaperclipButton}
                                 type="button"
                                 onClick={openSubtaskAttachmentPicker}
+                                disabled={isUploading}
                                 aria-label="Document of foto toevoegen bij subtaak"
                                 title="Document of foto toevoegen bij subtaak"
                               >
@@ -2451,7 +2552,7 @@ export function TakenVisualPrototype({
                                     type="button"
                                     className={styles.attachmentFileButton}
                                     onClick={() => openLocalAttachment(attachment)}
-                                    title={attachment.sourceUrl || attachment.objectUrl ? `${attachment.name} openen` : `${attachment.name} is privé opgeslagen`}
+                                    title={`${attachment.name} openen`}
                                   >
                                     {attachment.name}
                                   </button>
@@ -2472,7 +2573,9 @@ export function TakenVisualPrototype({
                                   Annuleren
                                 </button>
                                 <button type="button" className={styles.secondaryButton} onClick={deleteSubtask}>Verwijderen</button>
-                                <button type="submit" className={styles.primaryButton}>Subtaak opslaan</button>
+                                <button type="submit" className={styles.primaryButton} disabled={isSaving}>
+                                  {isSaving ? "Opslaan..." : "Subtaak opslaan"}
+                                </button>
                               </div>
                             </div>
                             </form>

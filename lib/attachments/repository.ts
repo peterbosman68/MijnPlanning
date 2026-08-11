@@ -65,6 +65,47 @@ export function createAttachmentRecord(
   });
 }
 
+export function upsertAttachmentRecord(
+  database: DatabaseClient,
+  input: {
+    userId: string;
+    taskId?: string | null;
+    subtaskId?: string | null;
+    blobPath: string;
+    originalFileName: string;
+    mimeType: string;
+    sizeBytes: number;
+    sourceExternalId: string;
+    source: TaskAttachmentSource;
+  },
+) {
+  return database.taskAttachment.upsert({
+    where: {
+      userId_sourceExternalId: {
+        userId: input.userId,
+        sourceExternalId: input.sourceExternalId,
+      },
+    },
+    create: input,
+    update: {
+      taskId: input.taskId ?? null,
+      subtaskId: input.subtaskId ?? null,
+      blobPath: input.blobPath,
+      sourceUrl: null,
+      originalFileName: input.originalFileName,
+      mimeType: input.mimeType,
+      sizeBytes: input.sizeBytes,
+      source: input.source,
+    },
+  });
+}
+
+export function findAttachmentForUser(database: DatabaseClient, userId: string, attachmentId: string) {
+  return database.taskAttachment.findFirst({
+    where: { id: attachmentId, userId },
+  });
+}
+
 export function deleteAttachmentRecord(database: DatabaseClient, userId: string, attachmentId: string) {
   return database.taskAttachment.deleteMany({
     where: { id: attachmentId, userId },

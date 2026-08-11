@@ -334,7 +334,7 @@ Voeg pas later een externe queue toe als volume of betrouwbaarheid dit nodig maa
 
 Gebruik Vercel Blob Private.
 
-Vercel Blob, uploads en bijlagen worden pas in de bijlagenfase ingericht. Fase 0 bevat geen Blob-SDK, token of uploadroute; hoogstens wordt de latere architectuurgrens gedocumenteerd.
+Handmatige bijlagen gebruiken een directe browserupload naar Vercel Blob Private. Een serverroute geeft pas na sessie-, origin- en doelautorisatie een kortlevend uploadtoken uit. De ondertekende completioncallback en een idempotente browserfinalisatie bewaren dezelfde metadata zonder duplicaten. Download loopt via een MijnPlanning-route die sessie en eigendom opnieuw controleert; de browser krijgt geen permanente private Blob-URL.
 
 PostgreSQL bewaart alleen metadata:
 

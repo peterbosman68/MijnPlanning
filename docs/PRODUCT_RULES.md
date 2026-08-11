@@ -303,6 +303,8 @@ Sla de volledige planning niet iedere seconde opnieuw op.
 - Controleer eigenaarschap bij iedere download.
 - Gebruik geen publieke voorspelbare links.
 - Valideer bestandstype en grootte.
+- Handmatige uploads verschijnen pas als opgeslagen bijlage na bevestigde Blob-upload en metadataopslag.
+- Download een privébestand uitsluitend via een nieuwe sessie- en eigendomscontrole.
 - Verwijder bestand en databaseverwijzing samen.
 
 ---

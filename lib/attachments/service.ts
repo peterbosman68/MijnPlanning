@@ -5,12 +5,15 @@ import { prisma } from "@/lib/db/client";
 import {
   createAttachmentRecord,
   deleteAttachmentRecord,
+  findAttachmentForUser,
   listAttachmentsForUser,
   listAttachmentsForSubtask,
   listAttachmentsForTask,
+  upsertAttachmentRecord,
   type DatabaseClient,
   type TaskAttachmentSource,
 } from "./repository";
+import { findSubtaskForUser, findTaskForUser } from "@/lib/tasks/repository";
 
 export type AttachmentTarget = Readonly<{
   taskId?: string;
@@ -83,6 +86,48 @@ export function createTaskAttachment(database: DatabaseClient, input: Attachment
     sourceExternalId: input.sourceExternalId ?? null,
     source: input.source,
   });
+}
+
+export async function authorizeAttachmentTarget(userId: string, target: AttachmentTarget) {
+  ensureTarget(target);
+
+  if (target.taskId) {
+    if (!await findTaskForUser(prisma, userId, target.taskId)) {
+      throw new Error("Hoofdtaak niet gevonden.");
+    }
+    return;
+  }
+
+  if (!await findSubtaskForUser(prisma, userId, target.subtaskId!)) {
+    throw new Error("Subtaak niet gevonden.");
+  }
+}
+
+export function finalizeManualAttachment(database: DatabaseClient, input: {
+  userId: string;
+  target: AttachmentTarget;
+  blobPath: string;
+  originalFileName: string;
+  mimeType: string;
+  sizeBytes: number;
+}) {
+  ensureTarget(input.target);
+
+  return upsertAttachmentRecord(database, {
+    userId: input.userId,
+    taskId: input.target.taskId ?? null,
+    subtaskId: input.target.subtaskId ?? null,
+    blobPath: input.blobPath,
+    originalFileName: sanitizeFileName(input.originalFileName),
+    mimeType: input.mimeType,
+    sizeBytes: input.sizeBytes,
+    sourceExternalId: input.blobPath,
+    source: "MANUAL_UPLOAD",
+  });
+}
+
+export function getAttachmentForDownload(userId: string, attachmentId: string) {
+  return findAttachmentForUser(prisma, userId, attachmentId);
 }
 
 export function deleteTaskAttachment(database: DatabaseClient, userId: string, attachmentId: string) {

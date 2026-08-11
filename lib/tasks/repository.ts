@@ -68,6 +68,40 @@ export function listSubtasksForUser(database: DatabaseClient, userId: string) {
   });
 }
 
+export function listSubtasksForTask(database: DatabaseClient, userId: string, taskId: string) {
+  return database.subtask.findMany({
+    where: { taskId, task: { userId } },
+    orderBy: [{ deadline: "asc" }, { updatedAt: "desc" }],
+    select: {
+      id: true,
+      taskId: true,
+      title: true,
+      descriptionOriginal: true,
+      descriptionPlain: true,
+      deadline: true,
+      earliestStart: true,
+      estimatedMinutes: true,
+      remainingMinutes: true,
+      minimumBlockMinutes: true,
+      splittable: true,
+      priority: true,
+      context: true,
+      status: true,
+      createdAt: true,
+      updatedAt: true,
+      completedAt: true,
+      task: {
+        select: {
+          id: true,
+          title: true,
+          status: true,
+          deadline: true,
+        },
+      },
+    },
+  });
+}
+
 export function listDependenciesForUser(database: DatabaseClient, userId: string) {
   return database.taskDependency.findMany({
     where: {

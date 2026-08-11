@@ -434,3 +434,14 @@ Nieuwe besluiten worden onderaan toegevoegd met datum.
 - Outlook-agendagegevens worden bij het openen van een editor vooraf geladen en een recent resultaat wordt kort per datum hergebruikt voor de daglimietcontrole.
 - Wanneer Graph nog bezig, traag of tijdelijk onbereikbaar is, wordt de geldige taak- of subtaakmutatie niet geblokkeerd.
 - Een later ontvangen agendaresultaat blijft invoer voor herplanning en deadline-risicoanalyse; deze keuze schakelt Outlook niet uit en wijzigt geen taak- of deadlinegegevens zelfstandig.
+
+## 11 augustus 2026 — snelle bevestiging en handmatige documenten
+
+### O34 — redirectvrije save en private clientupload
+
+- Een gewone hoofdtaak- of subtaaksave toont binnen 100 ms een zichtbare status en wacht voor succes op de echte databasebevestiging.
+- Het warme productiedoel is p95 maximaal 500 ms; cold starts en netwerklatentie worden eerlijk als voortgang getoond en gelden niet als harde garantie.
+- De twee gewone save-actions voeren geen redirect of volledige route-revalidatie uit. De client ververst Server Component-data na bevestiging op de achtergrond.
+- Handmatige documenten gaan rechtstreeks van de browser naar Vercel Blob Private met een kortlevend token dat alleen na sessie-, origin- en doelautorisatie wordt uitgegeven.
+- Metadatafinalisatie is idempotent. De bestandsnaam verschijnt pas na bevestigde opslag naast de paperclip.
+- Private downloads lopen altijd via MijnPlanning met een nieuwe sessie- en eigendomscontrole; een permanente private Blob-URL wordt niet aan de client gegeven.

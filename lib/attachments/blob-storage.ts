@@ -1,12 +1,12 @@
 import "server-only";
 
-import { del, put } from "@vercel/blob";
+import { del, get, put } from "@vercel/blob";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { getServerEnv } from "@/lib/config/server-env";
 
-const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024;
+export const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024;
 const LOCAL_ATTACHMENT_ROOT = path.join(process.cwd(), ".mijnplanning-attachments");
 const BLOCKED_EXTENSIONS = new Set([
   ".ade",
@@ -79,7 +79,7 @@ function detectExtension(fileName: string) {
   return fileName.slice(dotIndex).toLowerCase();
 }
 
-function ensureUploadAllowed(fileName: string, sizeBytes: number) {
+export function ensureUploadAllowed(fileName: string, sizeBytes: number) {
   if (sizeBytes <= 0) {
     throw new AttachmentUploadValidationError("Lege bestanden kunnen niet worden geupload.");
   }
@@ -92,6 +92,11 @@ function ensureUploadAllowed(fileName: string, sizeBytes: number) {
   if (extension && BLOCKED_EXTENSIONS.has(extension)) {
     throw new AttachmentUploadValidationError("Dit bestandstype is geblokkeerd om veiligheidsredenen.");
   }
+}
+
+export async function downloadPrivateAttachment(blobPath: string) {
+  const token = assertBlobTokenConfigured();
+  return get(blobPath, { access: "private", token });
 }
 
 function assertBlobTokenConfigured() {

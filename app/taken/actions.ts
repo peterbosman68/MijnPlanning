@@ -22,6 +22,9 @@ import {
 
 export type TaskActionState = Readonly<{
   error: string | null;
+  taskId?: string;
+  subtaskId?: string;
+  serverDurationMs?: number;
   conflicts?: Array<Readonly<{ subtaskId: string; title: string; deadline: string | null }>>;
 }>;
 
@@ -90,6 +93,7 @@ function redirectToTask(taskId: string, subtaskId?: string | null): never {
 }
 
 export async function saveTaskAction(_: TaskActionState, formData: FormData): Promise<TaskActionState> {
+  const startedAt = performance.now();
   await verifyMutationOrigin();
   const session = await requireUser();
   let result: { taskId: string } | null = null;
@@ -98,14 +102,17 @@ export async function saveTaskAction(_: TaskActionState, formData: FormData): Pr
     const input = parseTaskFormData(formData);
     result = input.taskId ? await updateTask(session.user.id, input) : await createTask(session.user.id, input);
 
-    revalidatePath("/taken");
     logger.info({ code: input.taskId ? "TASK_UPDATED" : "TASK_CREATED", route: "/taken", status: "ok" });
   } catch (error) {
     logger.error({ code: "TASK_SAVE_FAILED", route: "/taken", status: "error" });
     return mapError(error);
   }
 
-  redirectToTask(result!.taskId);
+  return {
+    error: null,
+    taskId: result!.taskId,
+    serverDurationMs: Math.round(performance.now() - startedAt),
+  };
 }
 
 export async function archiveTaskAction(_: TaskActionState, formData: FormData): Promise<TaskActionState> {
@@ -132,6 +139,7 @@ export async function archiveTaskAction(_: TaskActionState, formData: FormData):
 }
 
 export async function saveSubtaskAction(_: TaskActionState, formData: FormData): Promise<TaskActionState> {
+  const startedAt = performance.now();
   await verifyMutationOrigin();
   const session = await requireUser();
   let result: { taskId: string; subtaskId?: string } | null = null;
@@ -140,14 +148,18 @@ export async function saveSubtaskAction(_: TaskActionState, formData: FormData):
     const input = parseSubtaskFormData(formData);
     result = input.subtaskId ? await updateSubtask(session.user.id, input) : await createSubtask(session.user.id, input);
 
-    revalidatePath("/taken");
     logger.info({ code: input.subtaskId ? "SUBTASK_UPDATED" : "SUBTASK_CREATED", route: "/taken", status: "ok" });
   } catch (error) {
     logger.error({ code: "SUBTASK_SAVE_FAILED", route: "/taken", status: "error" });
     return mapError(error);
   }
 
-  redirectToTask(result!.taskId, result!.subtaskId);
+  return {
+    error: null,
+    taskId: result!.taskId,
+    subtaskId: result!.subtaskId,
+    serverDurationMs: Math.round(performance.now() - startedAt),
+  };
 }
 
 export async function archiveSubtaskAction(_: TaskActionState, formData: FormData): Promise<TaskActionState> {
