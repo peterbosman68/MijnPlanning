@@ -21,10 +21,11 @@ describe("taken-domein", () => {
   });
 
   it("geeft een voorstel van 17.00 uur bij een lege tijd voor taken", () => {
-    const date = parseAmsterdamDateTimeInput("2026-07-24", null);
+    const dateWithoutField = parseAmsterdamDateTimeInput("2026-07-24", null);
+    const dateWithEmptyField = parseAmsterdamDateTimeInput("2026-07-24", "");
 
-    expect(date).not.toBeNull();
-    expect(date?.toISOString()).toBe("2026-07-24T15:00:00.000Z");
+    expect(dateWithoutField?.toISOString()).toBe("2026-07-24T15:00:00.000Z");
+    expect(dateWithEmptyField?.toISOString()).toBe("2026-07-24T15:00:00.000Z");
   });
 
   it("accepteert een taakformulier met lege omschrijving en optionele deadline", () => {
@@ -61,6 +62,23 @@ describe("taken-domein", () => {
     expect(parsed.deadline.toISOString()).toBe("2026-07-24T15:00:00.000Z");
     expect(parsed.estimatedMinutes).toBe(30);
     expect(parsed.remainingMinutes).toBe(20);
+  });
+
+  it("gebruikt 17.00 uur voor een leeg optioneel tijdveld van een subtaak", () => {
+    const formData = new FormData();
+    formData.set("taskId", "task-1");
+    formData.set("title", "Subtaak zonder ingevulde tijd");
+    formData.set("descriptionOriginal", "");
+    formData.set("deadlineDate", "2026-08-12");
+    formData.set("deadlineTime", "");
+    formData.set("estimatedMinutes", "60");
+    formData.set("remainingMinutes", "60");
+    formData.set("minimumBlockMinutes", "15");
+    formData.set("status", "OPEN");
+
+    const parsed = parseSubtaskFormData(formData);
+
+    expect(parsed.deadline.toISOString()).toBe("2026-08-12T15:00:00.000Z");
   });
 
   it("levert een dependencyvorm met finish-to-start op", () => {

@@ -57,13 +57,16 @@ function mapError(error: unknown): TaskActionState {
 
   if (error instanceof Error) {
     switch (error.message) {
-      case "AMSTERDAM_DATETIME_CONVERSION_FAILED":
       case "INVALID_TIME_VALUE":
+        return { error: "Kies een geldige tijd." };
+      case "AMSTERDAM_DATETIME_CONVERSION_FAILED":
+        return { error: "Kies een geldige datum en tijd." };
+      case "MISSING_DEADLINE":
+        return { error: "Kies een deadline." };
       case "INVALID_INTEGER_VALUE":
       case "INVALID_POSITIVE_INTEGER_VALUE":
       case "INVALID_NONNEGATIVE_INTEGER_VALUE":
       case "INVALID_ENUM_VALUE":
-      case "MISSING_DEADLINE":
       case "INVALID_MINIMUM_BLOCK_MINUTES":
       case "INVALID_PRIORITY":
       case "INVALID_ESTIMATED_MINUTES":

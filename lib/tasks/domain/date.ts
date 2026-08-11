@@ -108,7 +108,7 @@ export function parseAmsterdamDateTimeInput(
     return null;
   }
 
-  const timeParts = parseTimeLocal(timeValue ?? defaultTime);
+  const timeParts = parseTimeLocal(timeValue?.trim() || defaultTime);
 
   if (!timeParts) {
     throw new Error("INVALID_TIME_VALUE");
