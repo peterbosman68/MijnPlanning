@@ -107,6 +107,8 @@ De presentatielaag bevat geen complexe plannings- of bedrijfsregels.
 
 Mutaties vanuit de eigen browserinterface gebruiken Server Actions als dunne transportlaag. Iedere action verzorgt alleen transport, authenticatie, autorisatie, invoervalidatie en foutmapping; bedrijfsregels blijven in domeinservices. Taak- en subtaakformulieren gebruiken in fase 1 een expliciete knop `Opslaan`. Direct opslaan voor timeracties, statuswijzigingen en verslepen kan pas in een latere fase en moet dan zichtbare bevestiging of een foutmelding tonen.
 
+De opslagrespons van taak- en subtaakformulieren wacht niet op Microsoft Graph. Outlook-agendagegevens worden bij het openen van een editor vooraf geladen, kort per datum hergebruikt en buiten het kritieke mutatiepad vernieuwd. Hierdoor blijft de eigen database-mutatie beschikbaar wanneer Graph traag of tijdelijk onbereikbaar is; een later agendaresultaat blijft aanleiding voor herplanning en risicoanalyse.
+
 ### 4.2 Domeinlaag
 
 ```text

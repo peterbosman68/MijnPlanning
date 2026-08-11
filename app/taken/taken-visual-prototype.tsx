@@ -540,6 +540,7 @@ const DEFAULT_END_OF_WORKDAY = "17:00";
 const DAILY_TOTAL_MINUTES_LIMIT = 480;
 const OUTLOOK_BOOKED_MINUTES_CACHE_MS = 60_000;
 const outlookBookedMinutesCache = new Map<string, { bookedMinutes: number; expiresAt: number }>();
+const outlookBookedMinutesRequests = new Map<string, Promise<number>>();
 
 function parsePositiveMinutesInput(value: string, fieldName: "hoofdtaak" | "subtaak"): number | null {
   const trimmed = value.trim();
@@ -656,42 +657,54 @@ async function fetchOutlookBookedMinutesForDate(dateValue: string) {
     return cached.bookedMinutes;
   }
 
-  const response = await fetch(`/api/outlook/calendar-booked-minutes?date=${encodeURIComponent(dateValue)}`, {
-    method: "GET",
-    cache: "no-store",
-  });
+  const activeRequest = outlookBookedMinutesRequests.get(dateValue);
+  if (activeRequest) return activeRequest;
 
-  let payload: { bookedMinutes?: number; error?: string } | null = null;
-  try {
-    payload = await response.json() as { bookedMinutes?: number; error?: string };
-  } catch {
-    payload = null;
-  }
+  const request = (async () => {
+    const response = await fetch(`/api/outlook/calendar-booked-minutes?date=${encodeURIComponent(dateValue)}`, {
+      method: "GET",
+      cache: "no-store",
+    });
 
-  if (!response.ok) {
-    throw new Error(payload?.error ?? "Outlook-agenda kon niet worden gecontroleerd.");
-  }
+    let payload: { bookedMinutes?: number; error?: string } | null = null;
+    try {
+      payload = await response.json() as { bookedMinutes?: number; error?: string };
+    } catch {
+      payload = null;
+    }
 
-  if (typeof payload?.bookedMinutes !== "number") {
-    throw new Error("Outlook-agenda gaf een ongeldige reactie terug.");
-  }
+    if (!response.ok) {
+      throw new Error(payload?.error ?? "Outlook-agenda kon niet worden gecontroleerd.");
+    }
 
-  outlookBookedMinutesCache.set(dateValue, {
-    bookedMinutes: payload.bookedMinutes,
-    expiresAt: Date.now() + OUTLOOK_BOOKED_MINUTES_CACHE_MS,
-  });
+    if (typeof payload?.bookedMinutes !== "number") {
+      throw new Error("Outlook-agenda gaf een ongeldige reactie terug.");
+    }
 
-  return payload.bookedMinutes;
+    outlookBookedMinutesCache.set(dateValue, {
+      bookedMinutes: payload.bookedMinutes,
+      expiresAt: Date.now() + OUTLOOK_BOOKED_MINUTES_CACHE_MS,
+    });
+
+    return payload.bookedMinutes;
+  })().finally(() => outlookBookedMinutesRequests.delete(dateValue));
+
+  outlookBookedMinutesRequests.set(dateValue, request);
+  return request;
 }
 
-async function resolveDailyLimitWithCarryOver(
+function resolveDailyLimitWithCarryOver(
   dateValue: string,
   plannedMinutes: number,
   otherPlannedWorkMinutes: number,
   hardDeadline: boolean,
   hardDeadlineLabel: string,
 ) {
-  const appointmentMinutes = await fetchOutlookBookedMinutesForDate(dateValue);
+  const cached = outlookBookedMinutesCache.get(dateValue);
+  const appointmentMinutes = cached && cached.expiresAt > Date.now() ? cached.bookedMinutes : 0;
+  if (!cached || cached.expiresAt <= Date.now()) {
+    void fetchOutlookBookedMinutesForDate(dateValue).catch(() => undefined);
+  }
   const workCapacity = Math.max(0, DAILY_TOTAL_MINUTES_LIMIT - appointmentMinutes);
   const remainingCapacity = Math.max(0, workCapacity - otherPlannedWorkMinutes);
 

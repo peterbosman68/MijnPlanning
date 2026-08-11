@@ -41,7 +41,7 @@ De getoonde waarde is een secret: deel haar niet, log haar niet en plaats haar n
 
 `RESEND_API_KEY` is eveneens een server-side secret. Voor de persoonlijke single-user-MVP mag `onboarding@resend.dev` uitsluitend verzenden naar het e-mailadres van het bijbehorende Resend-account. Deel de API-key nooit via chat en commit hem niet.
 
-`MICROSOFT_GRAPH_ACCESS_TOKEN` is een server-side bearer token met minimaal `Calendars.Read` op het gekoppelde account. Zonder dit token blokkeert de daglimietcontrole het opslaan van taken/subtaken met een duidelijke foutmelding, omdat de Outlook-agenda niet kan worden geraadpleegd.
+`MICROSOFT_GRAPH_ACCESS_TOKEN` is een server-side bearer token met minimaal `Calendars.Read` op het gekoppelde account. De daglimietcontrole haalt Outlook-gegevens buiten het kritieke opslagpad op en hergebruikt een recent resultaat kort. Een ontbrekende of trage Graph-respons blokkeert het opslaan van taken en subtaken niet.
 
 ## Database
 

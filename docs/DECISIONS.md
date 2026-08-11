@@ -413,3 +413,13 @@ Nieuwe besluiten worden onderaan toegevoegd met datum.
 - Peter heeft geen eigen domein. Voor deze persoonlijke single-user-MVP gebruikt Resend daarom uitsluitend `MijnPlanning <onboarding@resend.dev>` en alleen naar het e-mailadres van hetzelfde Resend-account.
 - `resend.dev` is een beperkte testafzender. Een ander bestemmingsadres of meerdere gebruikers vereisen een eigen geverifieerd domein of een nieuw expliciet providerbesluit.
 - `RESEND_API_KEY` wordt uitsluitend als server-side secret geconfigureerd en nooit via chat, Git of clientcode gedeeld.
+
+## 11 augustus 2026 — snelle taakopslag
+
+### O33 — Outlook blokkeert taakopslag niet
+
+- De knoppen voor het opslaan van hoofdtaken en subtaken gebruiken exact hetzelfde prestatiecontract: de zichtbare opslagreactie streeft naar minder dan één seconde.
+- Een live Microsoft Graph-aanroep maakt geen deel uit van het kritieke opslagpad, omdat externe responstijden niet betrouwbaar binnen die grens vallen.
+- Outlook-agendagegevens worden bij het openen van een editor vooraf geladen en een recent resultaat wordt kort per datum hergebruikt voor de daglimietcontrole.
+- Wanneer Graph nog bezig, traag of tijdelijk onbereikbaar is, wordt de geldige taak- of subtaakmutatie niet geblokkeerd.
+- Een later ontvangen agendaresultaat blijft invoer voor herplanning en deadline-risicoanalyse; deze keuze schakelt Outlook niet uit en wijzigt geen taak- of deadlinegegevens zelfstandig.
