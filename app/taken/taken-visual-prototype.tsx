@@ -1789,7 +1789,7 @@ export function TakenVisualPrototype({
     setHasUnsavedChanges(false);
     setSelectedTaskId("");
     setSelectedSubtaskId(null);
-    setFeedback("Hoofdtaak verwijderd.");
+    setFeedback("Hoofdtaak definitief uit MijnPlanning verwijderd.");
     startTransition(() => router.refresh());
   }
 
@@ -1815,7 +1815,7 @@ export function TakenVisualPrototype({
     setEditorMode("none");
     setHasUnsavedChanges(false);
     setSelectedSubtaskId(null);
-    setFeedback("Subtaak verwijderd.");
+    setFeedback("Subtaak definitief uit MijnPlanning verwijderd.");
     startTransition(() => router.refresh());
   }
 
@@ -2997,8 +2997,8 @@ export function TakenVisualPrototype({
             <h2 id="delete-confirmation-title">Weet je zeker dat je wilt verwijderen?</h2>
             <p id="delete-confirmation-description">
               {deleteConfirmation.kind === "task"
-                ? `Hoofdtaak “${deleteConfirmation.title}” wordt definitief verwijderd, inclusief gekoppelde gegevens.`
-                : `Subtaak “${deleteConfirmation.title}” wordt definitief verwijderd, inclusief gekoppelde gegevens.`}
+                ? `Hoofdtaak “${deleteConfirmation.title}” wordt definitief uit MijnPlanning verwijderd, inclusief gekoppelde gegevens. Dit is geen archivering.`
+                : `Subtaak “${deleteConfirmation.title}” wordt definitief uit MijnPlanning verwijderd, inclusief gekoppelde gegevens. Dit is geen archivering.`}
             </p>
             <div className={styles.confirmationActions}>
               <button

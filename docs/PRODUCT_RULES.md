@@ -92,7 +92,10 @@ Handmatig bedienbaar:
 
 ## 7. Archiveren en definitief verwijderen
 
-- Archiveren is de standaard in plaats van definitief verwijderen.
+- Archiveren en verwijderen zijn twee afzonderlijke handelingen.
+- Archiveren bewaart de taak of subtaak in de database met status `ARCHIVED`.
+- De knop `Verwijderen` mag nooit archiveren of een statuswijziging uitvoeren.
+- Een geslaagde verwijdering verwijdert de taak- of subtaakrecord volledig uit de database en uit MijnPlanning.
 - Definitief verwijderen van een taak of subtaak vraagt altijd één expliciete bevestiging met `Nee` en `Ja, verwijderen`.
 - Na bevestiging worden de taak of subtaak en gekoppelde tijdregistraties, bijlagen en afhankelijkheden definitief verwijderd.
 - Een hoofdtaak mag alleen definitief worden verwijderd wanneer er geen subtaken meer bestaan.

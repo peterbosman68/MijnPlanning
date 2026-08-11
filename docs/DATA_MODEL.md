@@ -193,7 +193,9 @@ Regels:
 
 ### Archiveren en definitief verwijderen
 
-- Taken en subtaken worden standaard gearchiveerd in plaats van definitief verwijderd.
+- Archiveren bewaart de taak- of subtaakrecord met status `ARCHIVED`.
+- Verwijderen is een afzonderlijke hard-delete en mag nooit als statuswijziging naar `ARCHIVED` worden geïmplementeerd.
+- Na een geslaagde verwijdering bestaat de taak- of subtaakrecord niet meer in PostgreSQL of MijnPlanning.
 - Definitief verwijderen vraagt altijd één expliciete bevestiging.
 - De domeinservice verwijdert daarna gekoppelde private bestanden, attachmentmetadata, tijdregistraties en dependencies vóór de taak- of subtaakrecord.
 - De domeinservice weigert definitieve hoofdtaakverwijdering zolang minimaal één subtaak bestaat.

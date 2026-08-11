@@ -180,7 +180,7 @@ De gekozen interpretatie uit `docs/PRODUCT_RULES.md` is:
 - UI-validatie is alleen gebruiksgemak; server- en databasevalidatie blijven leidend.
 - Mutatiefouten hebben stabiele foutcodes, bijvoorbeeld `AUTH_REQUIRED`, `NOT_FOUND`, `DEADLINE_CONFLICT`, `DEPENDENCY_CYCLE` en `VALIDATION_ERROR`, zonder gevoelige details te lekken.
 - Formulieren voor taken en subtaken gebruiken een expliciete knop `Opslaan`.
-- Archiveren is de standaard. Definitief verwijderen vraagt één expliciete bevestiging en verwijdert daarna gericht de gekoppelde tijdregistraties, bijlagen en dependencies; een hoofdtaak vereist eerst afzonderlijke verwijdering van alle subtaken en importhistorie blijft losgekoppeld behouden.
+- Archiveren bewaart de record met status `ARCHIVED`; definitief verwijderen is een afzonderlijke hard-delete, vraagt één expliciete bevestiging en verwijdert daarna gericht gekoppelde tijdregistraties, bijlagen en dependencies. Een hoofdtaak vereist eerst afzonderlijke verwijdering van alle subtaken en importhistorie blijft losgekoppeld behouden.
 - Handmatig bedienbare fase-1-statussen zijn Open, Wachten, Afgerond, Gearchiveerd en Geannuleerd. Geblokkeerd wordt uit dependencies afgeleid. Actief, Gepauzeerd en Wachten op externe partij volgen pas in fase 2.
 
 ## 7. Voorgesteld datamodel
@@ -571,8 +571,8 @@ O21 is onderdeel van deze proef: `+ Subtaak` blijft zichtbaar bij een open, acti
 - **Bestanden:** `lib/tasks/repositories/task-repository.ts`, `subtask-repository.ts`, `dependency-repository.ts`, services en DTO-mappers.
 - **Databasegevolgen:** scoped CRUD-query’s; transacties voor samengestelde mutaties; selecteer alleen benodigde velden.
 - **Beveiligingsgevolgen:** iedere operatie vereist server-derived `userId`; not-found en forbidden worden extern niet onderscheidbaar waar dat objectenumeratie voorkomt; broninhoud wordt niet gelogd.
-- **Tests:** CRUD voor eigen objecten, archiveren, geblokkeerde hard-delete bij dependency en later beschikbare historie, tweede gebruiker kan niets lezen/wijzigen/verwijderen, gemanipuleerd `taskId`, subtaak onder andere user en transactie-rollback bij fout.
-- **Acceptatiecriteria:** geen React-component importeert Prisma; alle reads/writes zijn user-scoped; samenhangende wijzigingen zijn atomair; standaardverwijdering archiveert en dependencies verdwijnen nooit stilzwijgend.
+- **Tests:** CRUD voor eigen objecten, afzonderlijk archiveren, bevestigde hard-delete met gerichte cleanup, geblokkeerde hoofdtaakverwijdering zolang subtaken bestaan, tweede gebruiker kan niets lezen/wijzigen/verwijderen, gemanipuleerd `taskId`, subtaak onder andere user en transactie-rollback bij fout.
+- **Acceptatiecriteria:** geen React-component importeert Prisma; alle reads/writes zijn user-scoped; samenhangende wijzigingen zijn atomair; archiveren bewaart de record en verwijderen wist de record fysiek zonder de archiveerflow aan te roepen.
 - **Risico’s:** indirecte ownershipjoins kunnen vergeten worden; brede includes kunnen later privacy/performance schaden.
 - **Afhankelijkheden:** stappen 1.2–1.3.
 
@@ -626,7 +626,7 @@ O21 is onderdeel van deze proef: `+ Subtaak` blijft zichtbaar bij een open, acti
 - **Bestanden:** dependencyselector, compact overzicht van voorgangers/opvolgers, foutpresentatie en browsertests.
 - **Databasegevolgen:** reads van beschikbare eigen subtaken over hoofdtaakgrenzen; create/delete dependency.
 - **Beveiligingsgevolgen:** zoekresultaten strikt user-scoped; ids uit de browser nooit vertrouwen; geen onbeperkte dataset naar client.
-- **Tests:** cross-taskselectie, zelf niet selecteerbaar, duplicaat, cyclefout, expliciet verwijderen van een dependency, geen cascade bij archiveren/verwijderpoging, mobiel en toetsenbord.
+- **Tests:** cross-taskselectie, zelf niet selecteerbaar, duplicaat, cyclefout, expliciet verwijderen van een dependency, geen cascade bij archiveren en gerichte dependencycleanup na bevestigde hard-delete, mobiel en toetsenbord.
 - **Acceptatiecriteria:** geldige cross-taskrelatie is zichtbaar; ongeldige relatie wordt niet opgeslagen; een dependency verdwijnt alleen door een expliciete dependencyhandeling en nooit stilzwijgend.
 - **Risico’s:** selector schaalt later slecht zonder zoek/paginering; richting van de relatie kan onduidelijk zijn.
 - **Afhankelijkheden:** stappen 1.5–1.8.
@@ -811,7 +811,7 @@ Alle onderstaande besluiten zijn definitief vastgelegd. Ze zijn geen open keuzes
 4. **Serverless rate limiting en Neon-pooling.** In-memory state is onbetrouwbaar; verkeerde connectieconfiguratie kan database-uitputting geven.
 5. **Native packages op Windows/Vercel.** Argon2 en Prisma moeten op Node-runtime en ondersteunde binaries worden geverifieerd.
 6. **Datum/tijd en DST.** UTC-opslag met Nederlandse invoer moet rond zomer-/wintertijd expliciet worden getest.
-7. **Onbedoelde dataverwijdering.** Cascades bij taak/subtaak/dependency kunnen bron- of historiegegevens verliezen; standaard `RESTRICT`/archiveren is veiliger.
+7. **Onbedoelde dataverwijdering.** Hard-delete kan bron- of historiegegevens verliezen; beperk dit met expliciete bevestiging, user-scoped queries, gerichte cleanup en de eis dat alle subtaken eerst afzonderlijk worden verwijderd.
 8. **OneDrive-werkmap.** Sync kan buildperformance, file watchers en Git-locks verstoren; bij concrete problemen is verplaatsing naar een lokale niet-gesynchroniseerde ontwikkelmap een apart besluit.
 9. **Canoniek PLANS-bestand.** Alleen het gevulde top-level `PLANS.md` wordt gebruikt; een bestand met dezelfde naam onder `docs/` wordt genegeerd.
 10. **Externe infrastructuur en kosten.** Neon Free en Vercel vereisen accounts/rechten en kennen limieten. Overschrijding van Free-limieten is een operationeel risico; elke betaalde upgrade vereist vooraf Peters expliciete toestemming.

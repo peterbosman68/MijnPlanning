@@ -11,6 +11,8 @@ const mocks = vi.hoisted(() => ({
   lockTaskUserScope: vi.fn(),
   subtaskFindMany: vi.fn(),
   taskUpdate: vi.fn(),
+  updateSubtaskRecord: vi.fn(),
+  updateTaskRecord: vi.fn(),
 }));
 
 const transaction = {
@@ -44,8 +46,8 @@ vi.mock("@/lib/tasks/repository", () => ({
   prismaDatabase: () => ({
     $transaction: (handler: (tx: typeof transaction) => unknown) => handler(transaction),
   }),
-  updateSubtaskRecord: vi.fn(),
-  updateTaskRecord: vi.fn(),
+  updateSubtaskRecord: mocks.updateSubtaskRecord,
+  updateTaskRecord: mocks.updateTaskRecord,
 }));
 
 import { deleteSubtask, deleteTask } from "@/lib/tasks/service";
@@ -75,6 +77,7 @@ describe("taken definitief verwijderen", () => {
     expect(mocks.findTaskForDeletion).toHaveBeenCalledWith(transaction, "user-1", "task-1");
     expect(mocks.deleteTaskRelatedRecords).toHaveBeenCalledWith(transaction, "user-1", "task-1");
     expect(mocks.deleteTaskRecord).toHaveBeenCalledWith(transaction, "user-1", "task-1");
+    expect(mocks.updateTaskRecord).not.toHaveBeenCalled();
   });
 
   it("verwijdert een hoofdtaak zonder subtaken met gekoppelde gegevens", async () => {
@@ -141,6 +144,7 @@ describe("taken definitief verwijderen", () => {
     expect(mocks.deletePrivateAttachment).toHaveBeenCalledWith("manual/subtask/subtask-1/image.png");
     expect(mocks.deleteSubtaskRelatedRecords).toHaveBeenCalledWith(transaction, "user-1", "subtask-1");
     expect(mocks.deleteSubtaskRecord).toHaveBeenCalledWith(transaction, "user-1", "subtask-1");
+    expect(mocks.updateSubtaskRecord).not.toHaveBeenCalled();
   });
 
   it("verwijdert een schone subtaak en herberekent de hoofdtaakprojectie", async () => {

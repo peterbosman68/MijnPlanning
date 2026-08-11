@@ -75,7 +75,7 @@ Onderdelen:
 - geen extra hoofdtaakduur wanneer subtaken bestaan;
 - statussen Open, Wachten, Afgerond, Gearchiveerd en Geannuleerd;
 - afgeleide status Geblokkeerd;
-- standaard archiveren en definitief verwijderen na één expliciete bevestiging, met verplichte afzonderlijke verwijdering van alle subtaken vóór de hoofdtaak;
+- afzonderlijk archiveren als bewaarde status en definitief hard-deleten na één expliciete bevestiging, met verplichte verwijdering van alle subtaken vóór de hoofdtaak;
 - expliciete knop `Opslaan` voor taak- en subtaakformulieren;
 - eerste scherm Taken.
 

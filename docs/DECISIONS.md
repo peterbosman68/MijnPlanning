@@ -220,7 +220,8 @@ Nieuwe besluiten worden onderaan toegevoegd met datum.
 
 ### O16 — archiveren en verwijderen
 
-- Archiveren is de standaard in plaats van definitief verwijderen.
+- Archiveren bewaart een taak of subtaak met status `ARCHIVED`; verwijderen is een afzonderlijke hard-delete uit PostgreSQL en MijnPlanning.
+- De knop `Verwijderen` roept nooit archivering of een statusupdate aan.
 - De knoppen `Verwijderen` tonen altijd één bevestiging met `Nee` en `Ja, verwijderen`.
 - Na bevestiging worden een taak of subtaak en de gekoppelde tijdregistraties, bijlagen en dependencies server-side en user-scoped definitief verwijderd.
 - Een hoofdtaak kan pas definitief worden verwijderd nadat alle subtaken afzonderlijk zijn verwijderd; de server dwingt dit af.
