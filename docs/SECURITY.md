@@ -159,6 +159,7 @@ Vereisten:
 - maak completioncallbacks en browserfinalisatie idempotent op gebruiker en Blob-pathname;
 - download private Blobs uitsluitend via een user-scoped applicatieroute;
 - stuur de permanente private Blob-URL en het read-write token nooit naar clientstate of logs.
+- verwijder een private Blob pas na user-scoped attachmentlookup en verwijder metadata pas nadat Blob-verwijdering is geslaagd, zodat een mislukte opslagactie opnieuw kan worden geprobeerd;
 
 Voor To Do-import en andere bronkopieën geldt aanvullend:
 

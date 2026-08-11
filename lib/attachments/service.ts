@@ -1,6 +1,7 @@
 import "server-only";
 
 import { prisma } from "@/lib/db/client";
+import { deletePrivateAttachment } from "./blob-storage";
 
 import {
   createAttachmentRecord,
@@ -132,4 +133,16 @@ export function getAttachmentForDownload(userId: string, attachmentId: string) {
 
 export function deleteTaskAttachment(database: DatabaseClient, userId: string, attachmentId: string) {
   return deleteAttachmentRecord(database, userId, attachmentId);
+}
+
+export async function deleteStoredAttachment(userId: string, attachmentId: string) {
+  const attachment = await findAttachmentForUser(prisma, userId, attachmentId);
+  if (!attachment) return false;
+
+  if (attachment.blobPath) {
+    await deletePrivateAttachment(attachment.blobPath);
+  }
+
+  const deleted = await deleteAttachmentRecord(prisma, userId, attachmentId);
+  return deleted.count === 1;
 }

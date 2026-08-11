@@ -99,6 +99,16 @@ export async function downloadPrivateAttachment(blobPath: string) {
   return get(blobPath, { access: "private", token });
 }
 
+export async function deletePrivateAttachment(blobPath: string) {
+  if (canUseLocalAttachmentStorage()) {
+    await rm(buildLocalAttachmentPath(blobPath), { force: true });
+    return;
+  }
+
+  const token = assertBlobTokenConfigured();
+  await del(blobPath, { token });
+}
+
 function assertBlobTokenConfigured() {
   const env = getServerEnv();
   if (!env.BLOB_READ_WRITE_TOKEN) {

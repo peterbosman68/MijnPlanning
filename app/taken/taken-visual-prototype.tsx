@@ -817,6 +817,7 @@ export function TakenVisualPrototype({
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [deletingAttachmentId, setDeletingAttachmentId] = useState<string | null>(null);
   const [attachmentUploadStatus, setAttachmentUploadStatus] = useState<{
     targetKey: string;
     message: string;
@@ -1231,6 +1232,49 @@ export function TakenVisualPrototype({
       return;
     }
     window.open(url, "_blank", "noopener,noreferrer");
+  }
+
+  async function deleteAttachment(
+    attachment: LocalAttachment,
+    target: { taskId: string } | { subtaskId: string },
+  ) {
+    if (!window.confirm(`Bijlage "${attachment.name}" definitief verwijderen?`)) return;
+
+    const targetKey = "taskId" in target ? `task:${target.taskId}` : `subtask:${target.subtaskId}`;
+    setDeletingAttachmentId(attachment.id);
+    setAttachmentUploadStatus(null);
+    try {
+      const response = await fetch(`/api/attachments/${encodeURIComponent(attachment.id)}`, {
+        method: "DELETE",
+      });
+      const result = await response.json() as { deleted?: boolean; error?: string };
+      if (!response.ok || !result.deleted) {
+        throw new Error(result.error ?? "Bijlage verwijderen is mislukt.");
+      }
+
+      if ("taskId" in target) {
+        setTaskAttachments((current) => ({
+          ...current,
+          [target.taskId]: (current[target.taskId] ?? []).filter((item) => item.id !== attachment.id),
+        }));
+      } else {
+        setSubtaskAttachments((current) => ({
+          ...current,
+          [target.subtaskId]: (current[target.subtaskId] ?? []).filter((item) => item.id !== attachment.id),
+        }));
+      }
+
+      setAttachmentUploadStatus({ targetKey, message: "Bijlage verwijderd.", error: false });
+      startTransition(() => router.refresh());
+    } catch (error) {
+      setAttachmentUploadStatus({
+        targetKey,
+        message: error instanceof Error ? error.message : "Bijlage verwijderen is mislukt.",
+        error: true,
+      });
+    } finally {
+      setDeletingAttachmentId(null);
+    }
   }
 
   function finishSuccessfulSave(actionState: TaskActionState) {
@@ -2112,26 +2156,38 @@ export function TakenVisualPrototype({
                               📎
                             </button>
                               {(taskAttachments[task.id] ?? []).map((attachment) => (
-                                <button
-                                  key={attachment.id}
-                                  type="button"
-                                  className={attachment.mimeType.startsWith("image/") ? styles.attachmentImageButton : styles.attachmentFileButton}
-                                  onClick={() => openLocalAttachment(attachment)}
-                                  title={`${attachment.name} openen`}
-                                >
-                                  {attachment.mimeType.startsWith("image/") ? (
-                                    <>
-                                      <Image
-                                        src={`/api/attachments/${encodeURIComponent(attachment.id)}/download?inline=1`}
-                                        alt={attachment.name}
-                                        width={112}
-                                        height={72}
-                                        unoptimized
-                                      />
-                                      <span>{attachment.name}</span>
-                                    </>
-                                  ) : attachment.name}
-                                </button>
+                                <div key={attachment.id} className={styles.attachmentItem}>
+                                  <button
+                                    type="button"
+                                    className={attachment.mimeType.startsWith("image/") ? styles.attachmentImageButton : styles.attachmentFileButton}
+                                    onClick={() => openLocalAttachment(attachment)}
+                                    disabled={deletingAttachmentId === attachment.id}
+                                    title={`${attachment.name} openen`}
+                                  >
+                                    {attachment.mimeType.startsWith("image/") ? (
+                                      <>
+                                        <Image
+                                          src={`/api/attachments/${encodeURIComponent(attachment.id)}/download?inline=1`}
+                                          alt={attachment.name}
+                                          width={112}
+                                          height={72}
+                                          unoptimized
+                                        />
+                                        <span>{attachment.name}</span>
+                                      </>
+                                    ) : attachment.name}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className={styles.attachmentDeleteButton}
+                                    onClick={() => deleteAttachment(attachment, { taskId: task.id })}
+                                    disabled={deletingAttachmentId === attachment.id}
+                                    aria-label={`${attachment.name} verwijderen`}
+                                    title="Bijlage verwijderen"
+                                  >
+                                    ×
+                                  </button>
+                                </div>
                               ))}
                               {attachmentUploadStatus?.targetKey === `task:${task.id}` && (
                                 <span
@@ -2594,26 +2650,38 @@ export function TakenVisualPrototype({
                                 📎
                               </button>
                                 {(subtaskAttachments[selectedSubtask.id] ?? []).map((attachment) => (
-                                  <button
-                                    key={attachment.id}
-                                    type="button"
-                                    className={attachment.mimeType.startsWith("image/") ? styles.attachmentImageButton : styles.attachmentFileButton}
-                                    onClick={() => openLocalAttachment(attachment)}
-                                    title={`${attachment.name} openen`}
-                                  >
-                                    {attachment.mimeType.startsWith("image/") ? (
-                                      <>
-                                        <Image
-                                          src={`/api/attachments/${encodeURIComponent(attachment.id)}/download?inline=1`}
-                                          alt={attachment.name}
-                                          width={112}
-                                          height={72}
-                                          unoptimized
-                                        />
-                                        <span>{attachment.name}</span>
-                                      </>
-                                    ) : attachment.name}
-                                  </button>
+                                  <div key={attachment.id} className={styles.attachmentItem}>
+                                    <button
+                                      type="button"
+                                      className={attachment.mimeType.startsWith("image/") ? styles.attachmentImageButton : styles.attachmentFileButton}
+                                      onClick={() => openLocalAttachment(attachment)}
+                                      disabled={deletingAttachmentId === attachment.id}
+                                      title={`${attachment.name} openen`}
+                                    >
+                                      {attachment.mimeType.startsWith("image/") ? (
+                                        <>
+                                          <Image
+                                            src={`/api/attachments/${encodeURIComponent(attachment.id)}/download?inline=1`}
+                                            alt={attachment.name}
+                                            width={112}
+                                            height={72}
+                                            unoptimized
+                                          />
+                                          <span>{attachment.name}</span>
+                                        </>
+                                      ) : attachment.name}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className={styles.attachmentDeleteButton}
+                                      onClick={() => deleteAttachment(attachment, { subtaskId: selectedSubtask.id })}
+                                      disabled={deletingAttachmentId === attachment.id}
+                                      aria-label={`${attachment.name} verwijderen`}
+                                      title="Bijlage verwijderen"
+                                    >
+                                      ×
+                                    </button>
+                                  </div>
                                 ))}
                                 {attachmentUploadStatus?.targetKey === `subtask:${selectedSubtask.id}` && (
                                   <span

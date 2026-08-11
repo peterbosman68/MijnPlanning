@@ -453,3 +453,4 @@ Nieuwe besluiten worden onderaan toegevoegd met datum.
 - Alle Vercel Functions draaien daarom projectbreed in `fra1`. Statische content blijft via Vercels CDN wereldwijd beschikbaar.
 - De directe Blob-uploadbestemmingen `https://vercel.com` (Blob API) en `https://*.blob.vercel-storage.com` worden expliciet en beperkt toegevoegd aan `connect-src`; zonder de API-host stopt de browserupload na succesvolle tokenuitgifte op 0%.
 - Afbeeldingsbijlagen verschijnen na bevestigde opslag als klikbare thumbnail naast de paperclip en worden na refresh opnieuw via de geautoriseerde downloadroute geladen.
+- Documenten, logo's, afbeeldingen en foto's kunnen via een afzonderlijke verwijderactie worden verwijderd. Na bevestiging controleert de server sessie en eigendom, verwijdert eerst een eventuele private Blob en daarna de user-scoped metadata.

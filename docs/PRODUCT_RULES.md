@@ -305,7 +305,7 @@ Sla de volledige planning niet iedere seconde opnieuw op.
 - Valideer bestandstype en grootte.
 - Handmatige uploads verschijnen pas als opgeslagen bijlage na bevestigde Blob-upload en metadataopslag.
 - Download een privébestand uitsluitend via een nieuwe sessie- en eigendomscontrole.
-- Verwijder bestand en databaseverwijzing samen.
+- Verwijder een bijlage alleen na expliciete gebruikersbevestiging, een nieuwe sessie- en eigendomscontrole en verwijder bestand en databaseverwijzing samen.
 
 ---
 
