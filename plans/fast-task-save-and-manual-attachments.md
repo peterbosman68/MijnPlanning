@@ -1,6 +1,6 @@
 # Uitvoeringsplan - snelle taakopslag en handmatige bijlagen
 
-Status: door Peter goedgekeurd met `Voer het plan uit`; implementatie en lokale validatie zijn afgerond, productiecontrole volgt na deployment.
+Status: geimplementeerd en naar productie uitgerold. Alleen de ingelogde echte upload/downloadproef en de warme 20+20 prestatiemeting staan nog open.
 
 ## 1. Doel en gebruikersresultaat
 
@@ -291,4 +291,5 @@ Alle overige functionele keuzes volgen al uit bestaande product-, beveiligings- 
 - [x] Uploadvalidatie-, lint-, typecheck-, unit-, build- en bestaande desktop/mobiele browsercontroles uitgevoerd.
 - [x] Productie-aanwezigheid van `BLOB_READ_WRITE_TOKEN` bevestigd zonder de secretwaarde te lezen.
 - [ ] Warme productieprestatie over twintig hoofdtaak- en twintig subtaakupdates gemeten.
-- [ ] Productiedeployment en nacontrole uitgevoerd.
+- [x] Productiedeployment, publieke healthcheck en weigering van private download zonder sessie gecontroleerd.
+- [ ] Echte upload/download met Peters ingelogde productiesessie gecontroleerd.
