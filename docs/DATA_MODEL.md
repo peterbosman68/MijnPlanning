@@ -196,7 +196,8 @@ Regels:
 - Taken en subtaken worden standaard gearchiveerd in plaats van definitief verwijderd.
 - Definitief verwijderen vraagt altijd één expliciete bevestiging.
 - De domeinservice verwijdert daarna gekoppelde private bestanden, attachmentmetadata, tijdregistraties en dependencies vóór de taak- of subtaakrecord.
-- Bij verwijdering van een hoofdtaak worden ook de subtaken verwijderd.
+- De domeinservice weigert definitieve hoofdtaakverwijdering zolang minimaal één subtaak bestaat.
+- Subtaken worden afzonderlijk en expliciet verwijderd voordat de hoofdtaak kan worden verwijderd.
 - To Do-importhistorie blijft bestaan met een lege taakverwijzing.
 
 ---

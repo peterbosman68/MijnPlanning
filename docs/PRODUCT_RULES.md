@@ -95,7 +95,8 @@ Handmatig bedienbaar:
 - Archiveren is de standaard in plaats van definitief verwijderen.
 - Definitief verwijderen van een taak of subtaak vraagt altijd één expliciete bevestiging met `Nee` en `Ja, verwijderen`.
 - Na bevestiging worden de taak of subtaak en gekoppelde tijdregistraties, bijlagen en afhankelijkheden definitief verwijderd.
-- Bij een hoofdtaak worden ook alle onderliggende subtaken en hun gekoppelde gegevens verwijderd.
+- Een hoofdtaak mag alleen definitief worden verwijderd wanneer er geen subtaken meer bestaan.
+- De gebruiker verwijdert iedere subtaak afzonderlijk voordat de hoofdtaak kan worden verwijderd.
 - Importhistorie blijft behouden en wordt losgekoppeld van de verwijderde taak.
 
 ---

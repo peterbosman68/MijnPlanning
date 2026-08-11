@@ -397,11 +397,7 @@ export function findTaskForDeletion(database: DatabaseClient, userId: string, ta
       },
       subtasks: {
         select: {
-          attachments: {
-            select: {
-              blobPath: true,
-            },
-          },
+          id: true,
         },
       },
     },

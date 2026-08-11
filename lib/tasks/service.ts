@@ -10,7 +10,7 @@ import {
   formatAmsterdamTimeInput,
 } from "./domain/date";
 import { hasDependencyPath, type DependencyEdge } from "./domain/dependency-graph";
-import { TaskDeadlineConflictError, TaskDependencyCycleError, TaskDomainError, TaskNotFoundError } from "./errors";
+import { TaskDeadlineConflictError, TaskDependencyCycleError, TaskDomainError, TaskHasSubtasksError, TaskNotFoundError } from "./errors";
 import type {
   DependencyFormInput,
   SubtaskFormInput,
@@ -449,11 +449,9 @@ export async function deleteTask(userId: string, taskId: string) {
   return withUserLock(userId, async (tx) => {
     const task = await findTaskForDeletion(tx, userId, taskId);
     if (!task) throw new TaskNotFoundError();
+    if (task.subtasks.length > 0) throw new TaskHasSubtasksError();
 
-    await deleteStoredFiles([
-      ...task.attachments.map((attachment) => attachment.blobPath),
-      ...task.subtasks.flatMap((subtask) => subtask.attachments.map((attachment) => attachment.blobPath)),
-    ]);
+    await deleteStoredFiles(task.attachments.map((attachment) => attachment.blobPath));
     await deleteTaskRelatedRecords(tx, userId, taskId);
 
     const deleted = await deleteTaskRecord(tx, userId, taskId);

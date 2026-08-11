@@ -7,7 +7,7 @@ import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth/require-user";
 import { logger } from "@/lib/logging/logger";
 import { assertTrustedRequestOrigin } from "@/lib/security/origin";
-import { TaskDeadlineConflictError, TaskDependencyCycleError, TaskDomainError, TaskNotFoundError } from "@/lib/tasks/errors";
+import { TaskDeadlineConflictError, TaskDependencyCycleError, TaskDomainError, TaskHasSubtasksError, TaskNotFoundError } from "@/lib/tasks/errors";
 import { parseDependencyFormData, parseSubtaskFormData, parseTaskFormData } from "@/lib/tasks/domain/validation";
 import {
   archiveSubtask,
@@ -48,6 +48,10 @@ function mapError(error: unknown): TaskActionState {
 
   if (error instanceof TaskNotFoundError) {
     return { error: "Het geselecteerde item is niet meer beschikbaar." };
+  }
+
+  if (error instanceof TaskHasSubtasksError) {
+    return { error: "Verwijder eerst alle subtaken voordat je de hoofdtaak verwijdert." };
   }
 
   if (error instanceof TaskDomainError) {

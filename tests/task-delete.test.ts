@@ -77,26 +77,39 @@ describe("taken definitief verwijderen", () => {
     expect(mocks.deleteTaskRecord).toHaveBeenCalledWith(transaction, "user-1", "task-1");
   });
 
-  it("verwijdert een hoofdtaak met bijlagen, tijdregistraties en afhankelijkheden", async () => {
+  it("verwijdert een hoofdtaak zonder subtaken met gekoppelde gegevens", async () => {
     mocks.findTaskForDeletion.mockResolvedValue({
       id: "task-1",
       attachments: [{ blobPath: "manual/task/task-1/document.pdf" }],
-      subtasks: [{
-        attachments: [{ blobPath: "manual/subtask/subtask-1/image.png" }],
-      }],
+      subtasks: [],
     });
 
     await expect(deleteTask("user-1", "task-1")).resolves.toEqual({ taskId: "task-1" });
 
-    expect(mocks.deletePrivateAttachment).toHaveBeenNthCalledWith(1, "manual/task/task-1/document.pdf");
-    expect(mocks.deletePrivateAttachment).toHaveBeenNthCalledWith(2, "manual/subtask/subtask-1/image.png");
+    expect(mocks.deletePrivateAttachment).toHaveBeenCalledWith("manual/task/task-1/document.pdf");
     expect(mocks.deleteTaskRelatedRecords).toHaveBeenCalledWith(transaction, "user-1", "task-1");
-    expect(mocks.deletePrivateAttachment.mock.invocationCallOrder[1]).toBeLessThan(
+    expect(mocks.deletePrivateAttachment.mock.invocationCallOrder[0]).toBeLessThan(
       mocks.deleteTaskRelatedRecords.mock.invocationCallOrder[0],
     );
     expect(mocks.deleteTaskRelatedRecords.mock.invocationCallOrder[0]).toBeLessThan(
       mocks.deleteTaskRecord.mock.invocationCallOrder[0],
     );
+  });
+
+  it("weigert een hoofdtaak zolang er nog een subtaak bestaat", async () => {
+    mocks.findTaskForDeletion.mockResolvedValue({
+      id: "task-1",
+      attachments: [{ blobPath: "manual/task/task-1/document.pdf" }],
+      subtasks: [{ id: "subtask-1" }],
+    });
+
+    await expect(deleteTask("user-1", "task-1")).rejects.toMatchObject({
+      code: "TASK_HAS_SUBTASKS",
+    });
+
+    expect(mocks.deletePrivateAttachment).not.toHaveBeenCalled();
+    expect(mocks.deleteTaskRelatedRecords).not.toHaveBeenCalled();
+    expect(mocks.deleteTaskRecord).not.toHaveBeenCalled();
   });
 
   it("begint niet aan databasecleanup wanneer een private bijlage niet kan worden verwijderd", async () => {

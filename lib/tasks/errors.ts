@@ -4,7 +4,8 @@ export type TaskErrorCode =
   | "DEADLINE_CONFLICT"
   | "DEPENDENCY_CYCLE"
   | "DEPENDENCY_NOT_ALLOWED"
-  | "ARCHIVE_BLOCKED";
+  | "ARCHIVE_BLOCKED"
+  | "TASK_HAS_SUBTASKS";
 
 export class TaskDomainError extends Error {
   constructor(
@@ -32,5 +33,11 @@ export class TaskDependencyCycleError extends TaskDomainError {
 export class TaskNotFoundError extends TaskDomainError {
   constructor() {
     super("NOT_FOUND", "NOT_FOUND");
+  }
+}
+
+export class TaskHasSubtasksError extends TaskDomainError {
+  constructor() {
+    super("TASK_HAS_SUBTASKS", "TASK_HAS_SUBTASKS");
   }
 }

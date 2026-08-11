@@ -180,7 +180,7 @@ De gekozen interpretatie uit `docs/PRODUCT_RULES.md` is:
 - UI-validatie is alleen gebruiksgemak; server- en databasevalidatie blijven leidend.
 - Mutatiefouten hebben stabiele foutcodes, bijvoorbeeld `AUTH_REQUIRED`, `NOT_FOUND`, `DEADLINE_CONFLICT`, `DEPENDENCY_CYCLE` en `VALIDATION_ERROR`, zonder gevoelige details te lekken.
 - Formulieren voor taken en subtaken gebruiken een expliciete knop `Opslaan`.
-- Archiveren is de standaard. Definitief verwijderen vraagt één expliciete bevestiging en verwijdert daarna gericht de gekoppelde tijdregistraties, bijlagen en dependencies; importhistorie blijft losgekoppeld behouden.
+- Archiveren is de standaard. Definitief verwijderen vraagt één expliciete bevestiging en verwijdert daarna gericht de gekoppelde tijdregistraties, bijlagen en dependencies; een hoofdtaak vereist eerst afzonderlijke verwijdering van alle subtaken en importhistorie blijft losgekoppeld behouden.
 - Handmatig bedienbare fase-1-statussen zijn Open, Wachten, Afgerond, Gearchiveerd en Geannuleerd. Geblokkeerd wordt uit dependencies afgeleid. Actief, Gepauzeerd en Wachten op externe partij volgen pas in fase 2.
 
 ## 7. Voorgesteld datamodel

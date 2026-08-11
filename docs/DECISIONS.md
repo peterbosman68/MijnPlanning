@@ -223,7 +223,7 @@ Nieuwe besluiten worden onderaan toegevoegd met datum.
 - Archiveren is de standaard in plaats van definitief verwijderen.
 - De knoppen `Verwijderen` tonen altijd één bevestiging met `Nee` en `Ja, verwijderen`.
 - Na bevestiging worden een taak of subtaak en de gekoppelde tijdregistraties, bijlagen en dependencies server-side en user-scoped definitief verwijderd.
-- Bij een hoofdtaak vallen ook alle onderliggende subtaken onder dezelfde expliciete bevestiging.
+- Een hoofdtaak kan pas definitief worden verwijderd nadat alle subtaken afzonderlijk zijn verwijderd; de server dwingt dit af.
 - Importhistorie blijft behouden en wordt losgekoppeld; dependencies worden gericht door de domeinservice verwijderd en niet via een databasecascade.
 
 ### O17 — taakduur

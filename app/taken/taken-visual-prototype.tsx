@@ -222,7 +222,7 @@ type EditorMode = "none" | "new-main" | "new-sub" | "edit-main" | "edit-sub";
 type TaskStatus = "normal" | "active" | "waiting" | "completed" | "archived";
 type RiskLevel = "attention" | "danger" | null;
 type DeleteConfirmation =
-  | Readonly<{ kind: "task"; id: string; title: string; subtaskCount: number }>
+  | Readonly<{ kind: "task"; id: string; title: string }>
   | Readonly<{ kind: "subtask"; id: string; title: string }>;
 
 type Subtask = {
@@ -1819,6 +1819,15 @@ export function TakenVisualPrototype({
     startTransition(() => router.refresh());
   }
 
+  function requestMainTaskDelete(task: MainTask) {
+    if (task.subtasks.length > 0) {
+      setMainTaskError("Verwijder eerst alle subtaken voordat je de hoofdtaak verwijdert.");
+      return;
+    }
+
+    setDeleteConfirmation({ kind: "task", id: task.id, title: task.title });
+  }
+
   function confirmDelete() {
     if (!deleteConfirmation) return;
     const confirmation = deleteConfirmation;
@@ -2279,12 +2288,7 @@ export function TakenVisualPrototype({
                               <button
                                 type="button"
                                 className={styles.secondaryButton}
-                                onClick={() => setDeleteConfirmation({
-                                  kind: "task",
-                                  id: task.id,
-                                  title: task.title,
-                                  subtaskCount: task.subtasks.length,
-                                })}
+                                onClick={() => requestMainTaskDelete(task)}
                                 disabled={deletingTaskItemId === task.id}
                               >
                                 {deletingTaskItemId === task.id ? "Verwijderen..." : "Verwijderen"}
@@ -2993,7 +2997,7 @@ export function TakenVisualPrototype({
             <h2 id="delete-confirmation-title">Weet je zeker dat je wilt verwijderen?</h2>
             <p id="delete-confirmation-description">
               {deleteConfirmation.kind === "task"
-                ? `Hoofdtaak “${deleteConfirmation.title}”${deleteConfirmation.subtaskCount > 0 ? ` en ${deleteConfirmation.subtaskCount} gekoppelde subtaken` : ""} worden definitief verwijderd, inclusief gekoppelde gegevens.`
+                ? `Hoofdtaak “${deleteConfirmation.title}” wordt definitief verwijderd, inclusief gekoppelde gegevens.`
                 : `Subtaak “${deleteConfirmation.title}” wordt definitief verwijderd, inclusief gekoppelde gegevens.`}
             </p>
             <div className={styles.confirmationActions}>
