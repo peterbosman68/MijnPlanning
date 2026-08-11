@@ -1,4 +1,5 @@
 import { Prisma } from "@prisma/client";
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 describe("technische projectbasis", () => {
@@ -21,5 +22,12 @@ describe("technische projectbasis", () => {
       "TodoImportItem",
       "User",
     ]);
+  });
+
+  it("exporteert geen runtimewaarden uit het taakactie-module", () => {
+    const source = readFileSync(new URL("../app/taken/actions.ts", import.meta.url), "utf8");
+
+    expect(source).toContain('"use server"');
+    expect(source).not.toMatch(/export\s+(?:const|let|var|class)\s/);
   });
 });

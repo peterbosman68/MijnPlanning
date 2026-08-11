@@ -14,14 +14,18 @@ import {
 import {
   archiveSubtaskAction,
   archiveTaskAction,
-  initialTaskActionState,
   saveSubtaskAction,
   saveTaskAction,
 } from "./actions";
+import type { TaskActionState } from "./actions";
 
 import styles from "./taken-visual-prototype.module.css";
 
 const PANE_LAYOUT_STORAGE_KEY = "mijnplanning.taken.paneLayout.v1";
+
+const initialTaskActionState: TaskActionState = {
+  error: null,
+};
 
 const PANE_MIN_WIDTH = { nav: 168, list: 300, detail: 360 } as const;
 const PANE_MAX_WIDTH = { nav: 320, list: 640, detail: 900 } as const;

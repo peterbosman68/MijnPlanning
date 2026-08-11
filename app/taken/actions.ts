@@ -25,10 +25,6 @@ export type TaskActionState = Readonly<{
   conflicts?: Array<Readonly<{ subtaskId: string; title: string; deadline: string | null }>>;
 }>;
 
-export const initialTaskActionState: TaskActionState = {
-  error: null,
-};
-
 async function verifyMutationOrigin(): Promise<void> {
   assertTrustedRequestOrigin(await headers());
 }
