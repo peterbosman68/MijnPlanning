@@ -40,7 +40,7 @@ De architectuur moet:
 | AI | Verwisselbare AI-providerlaag |
 | Mobiel | Responsive webapp, later PWA |
 
-Gebruik binnen de gekozen majors actuele veilige versies en wijzig geen ander stackonderdeel zonder expliciete toestemming. Neon start op het gratis abonnement; een betaalde upgrade vereist expliciete toestemming. De bestaande private GitHub-repository is gekoppeld aan het bestaande Vercel-project `mijnplanning`; functionele vrijgave van Preview of productie blijft afhankelijk van geslaagde relevante lokale controles en geeft geen toestemming voor secret-, database- of betaalde infrastructuurwijzigingen.
+Gebruik binnen de gekozen majors actuele veilige versies en wijzig geen ander stackonderdeel zonder expliciete toestemming. Neon start op het gratis abonnement; een betaalde upgrade vereist expliciete toestemming. De bestaande private GitHub-repository is gekoppeld aan het bestaande Vercel-project `mijnplanning`; functionele vrijgave van Preview of productie blijft afhankelijk van geslaagde relevante lokale controles en geeft geen toestemming voor secret-, database- of betaalde infrastructuurwijzigingen. Vercel Functions draaien in `fra1`, naast Neon in `eu-central-1`, zodat iedere databasequery geen onnodige trans-Atlantische netwerkronde maakt.
 
 ---
 
@@ -334,7 +334,7 @@ Voeg pas later een externe queue toe als volume of betrouwbaarheid dit nodig maa
 
 Gebruik Vercel Blob Private.
 
-Handmatige bijlagen gebruiken een directe browserupload naar Vercel Blob Private. Een serverroute geeft pas na sessie-, origin- en doelautorisatie een kortlevend uploadtoken uit. De ondertekende completioncallback en een idempotente browserfinalisatie bewaren dezelfde metadata zonder duplicaten. Download loopt via een MijnPlanning-route die sessie en eigendom opnieuw controleert; de browser krijgt geen permanente private Blob-URL.
+Handmatige bijlagen gebruiken een directe browserupload naar Vercel Blob Private. Een serverroute geeft pas na sessie-, origin- en doelautorisatie een kortlevend uploadtoken uit. De Content Security Policy staat hiervoor alleen `https://*.blob.vercel-storage.com` als externe `connect-src` toe. De ondertekende completioncallback en een idempotente browserfinalisatie bewaren dezelfde metadata zonder duplicaten. Download loopt via een MijnPlanning-route die sessie en eigendom opnieuw controleert; de browser krijgt geen permanente private Blob-URL.
 
 PostgreSQL bewaart alleen metadata:
 

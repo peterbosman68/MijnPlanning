@@ -7,4 +7,11 @@ describe("Content Security Policy", () => {
     expect(createContentSecurityPolicy(false)).toContain("'unsafe-eval'");
     expect(createContentSecurityPolicy(true)).not.toContain("'unsafe-eval'");
   });
+
+  it("staat directe private uploads uitsluitend naar Vercel Blob toe", () => {
+    const policy = createContentSecurityPolicy(true);
+
+    expect(policy).toContain("connect-src 'self' https://*.blob.vercel-storage.com");
+    expect(policy).not.toContain("connect-src *");
+  });
 });

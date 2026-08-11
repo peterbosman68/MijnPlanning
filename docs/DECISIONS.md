@@ -445,3 +445,10 @@ Nieuwe besluiten worden onderaan toegevoegd met datum.
 - Handmatige documenten gaan rechtstreeks van de browser naar Vercel Blob Private met een kortlevend token dat alleen na sessie-, origin- en doelautorisatie wordt uitgegeven.
 - Metadatafinalisatie is idempotent. De bestandsnaam verschijnt pas na bevestigde opslag naast de paperclip.
 - Private downloads lopen altijd via MijnPlanning met een nieuwe sessie- en eigendomscontrole; een permanente private Blob-URL wordt niet aan de client gegeven.
+
+### O35 — serverfuncties naast Neon in Frankfurt
+
+- Productiecontrole toonde dat Vercel Functions standaard in `iad1` draaiden terwijl Neon in `eu-central-1` staat.
+- Omdat taakopslag uit meerdere seriële sessie- en transactierondes bestaat, veroorzaakte deze regioafstand onnodige latency.
+- Alle Vercel Functions draaien daarom projectbreed in `fra1`. Statische content blijft via Vercels CDN wereldwijd beschikbaar.
+- De directe Blob-uploadbestemming wordt expliciet en beperkt toegevoegd aan `connect-src`; zonder deze CSP-uitzondering stopt de browserupload na succesvolle tokenuitgifte op 0%.

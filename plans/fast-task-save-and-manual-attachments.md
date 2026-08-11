@@ -292,4 +292,7 @@ Alle overige functionele keuzes volgen al uit bestaande product-, beveiligings- 
 - [x] Productie-aanwezigheid van `BLOB_READ_WRITE_TOKEN` bevestigd zonder de secretwaarde te lezen.
 - [ ] Warme productieprestatie over twintig hoofdtaak- en twintig subtaakupdates gemeten.
 - [x] Productiedeployment, publieke healthcheck en weigering van private download zonder sessie gecontroleerd.
+- [x] Productie-uploaddefect herleid tot geblokkeerde Blob-verbinding in CSP en lokaal hersteld.
+- [x] Uploadstatus verplaatst naar direct rechts van de bijbehorende paperclip.
+- [x] Vercel Functions van `iad1` naar `fra1` verplaatst om aan te sluiten op Neon `eu-central-1`.
 - [ ] Echte upload/download met Peters ingelogde productiesessie gecontroleerd.

@@ -30,4 +30,12 @@ describe("technische projectbasis", () => {
     expect(source).toContain('"use server"');
     expect(source).not.toMatch(/export\s+(?:const|let|var|class)\s/);
   });
+
+  it("draait Vercel-functies naast de Neon-database in Frankfurt", () => {
+    const config = JSON.parse(
+      readFileSync(new URL("../vercel.json", import.meta.url), "utf8"),
+    ) as { regions?: string[] };
+
+    expect(config.regions).toEqual(["fra1"]);
+  });
 });

@@ -816,6 +816,11 @@ export function TakenVisualPrototype({
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [attachmentUploadStatus, setAttachmentUploadStatus] = useState<{
+    targetKey: string;
+    message: string;
+    error: boolean;
+  } | null>(null);
   const minimumDeadlineDate = getTodayDateValue();
   const newMainFormRef = useRef<HTMLFormElement | null>(null);
   const editMainFormRef = useRef<HTMLFormElement | null>(null);
@@ -1112,7 +1117,11 @@ export function TakenVisualPrototype({
         sizeBytes: file.size,
       }),
       onUploadProgress: ({ percentage }) => {
-        setFeedback(`${file.name} uploaden: ${Math.round(percentage)}%`);
+        setAttachmentUploadStatus({
+          targetKey: "taskId" in target ? `task:${target.taskId}` : `subtask:${target.subtaskId}`,
+          message: `${file.name} uploaden: ${Math.round(percentage)}%`,
+          error: false,
+        });
       },
     });
 
@@ -1151,6 +1160,11 @@ export function TakenVisualPrototype({
     if (files.length === 0) return;
 
     setIsUploading(true);
+    setAttachmentUploadStatus({
+      targetKey: `task:${selectedTask.id}`,
+      message: `${files[0].name} uploaden: 0%`,
+      error: false,
+    });
     try {
       for (const file of files) {
         const attachment = await uploadAttachment(file, { taskId: selectedTask.id });
@@ -1159,10 +1173,14 @@ export function TakenVisualPrototype({
           [selectedTask.id]: [...(current[selectedTask.id] ?? []), attachment],
         }));
       }
-      setFeedback(files.length === 1 ? "Document opgeslagen." : `${files.length} documenten opgeslagen.`);
+      setAttachmentUploadStatus(null);
       startTransition(() => router.refresh());
     } catch (error) {
-      setFeedback(error instanceof Error ? error.message : "Document uploaden is mislukt.");
+      setAttachmentUploadStatus({
+        targetKey: `task:${selectedTask.id}`,
+        message: error instanceof Error ? error.message : "Document uploaden is mislukt.",
+        error: true,
+      });
     } finally {
       setIsUploading(false);
     }
@@ -1175,6 +1193,11 @@ export function TakenVisualPrototype({
     if (files.length === 0) return;
 
     setIsUploading(true);
+    setAttachmentUploadStatus({
+      targetKey: `subtask:${selectedSubtask.id}`,
+      message: `${files[0].name} uploaden: 0%`,
+      error: false,
+    });
     try {
       for (const file of files) {
         const attachment = await uploadAttachment(file, { subtaskId: selectedSubtask.id });
@@ -1183,10 +1206,14 @@ export function TakenVisualPrototype({
           [selectedSubtask.id]: [...(current[selectedSubtask.id] ?? []), attachment],
         }));
       }
-      setFeedback(files.length === 1 ? "Document opgeslagen." : `${files.length} documenten opgeslagen.`);
+      setAttachmentUploadStatus(null);
       startTransition(() => router.refresh());
     } catch (error) {
-      setFeedback(error instanceof Error ? error.message : "Document uploaden is mislukt.");
+      setAttachmentUploadStatus({
+        targetKey: `subtask:${selectedSubtask.id}`,
+        message: error instanceof Error ? error.message : "Document uploaden is mislukt.",
+        error: true,
+      });
     } finally {
       setIsUploading(false);
     }
@@ -2094,6 +2121,14 @@ export function TakenVisualPrototype({
                                   {attachment.name}
                                 </button>
                               ))}
+                              {attachmentUploadStatus?.targetKey === `task:${task.id}` && (
+                                <span
+                                  className={attachmentUploadStatus.error ? styles.attachmentUploadError : styles.attachmentUploadStatus}
+                                  role={attachmentUploadStatus.error ? "alert" : "status"}
+                                >
+                                  {attachmentUploadStatus.message}
+                                </span>
+                              )}
                             </div>
                             <div className={styles.formActions}>
                               <button
@@ -2557,6 +2592,14 @@ export function TakenVisualPrototype({
                                     {attachment.name}
                                   </button>
                                 ))}
+                                {attachmentUploadStatus?.targetKey === `subtask:${selectedSubtask.id}` && (
+                                  <span
+                                    className={attachmentUploadStatus.error ? styles.attachmentUploadError : styles.attachmentUploadStatus}
+                                    role={attachmentUploadStatus.error ? "alert" : "status"}
+                                  >
+                                    {attachmentUploadStatus.message}
+                                  </span>
+                                )}
                               </div>
                               <div className={styles.formActions}>
                                 <button
