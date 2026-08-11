@@ -19,7 +19,7 @@ export function createContentSecurityPolicy(production: boolean): string {
     "font-src 'self' data:",
     "style-src 'self' 'unsafe-inline'",
     `script-src ${scriptSources}`,
-    "connect-src 'self' https://*.blob.vercel-storage.com",
+    "connect-src 'self' https://vercel.com https://*.blob.vercel-storage.com",
   ].join("; ");
 }
 

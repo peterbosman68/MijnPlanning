@@ -355,7 +355,7 @@ Mobiel moet bruikbaar zijn voor:
 - korte taak invoeren;
 - bijlage of foto toevoegen.
 
-Bij een handmatige upload toont de bestaande paperclip compacte voortgang. Na serverbevestiging staat de herkenbare bestandsnaam direct rechts van de paperclip. Lange namen mogen afbreken of worden ingekort, maar mogen formulieracties niet overlappen. Een opgeslagen bestandsnaam is een downloadactie; private opslag-URL's worden niet getoond.
+Bij een handmatige upload toont de bestaande paperclip compacte voortgang. Na serverbevestiging staat een afbeelding als compacte thumbnail met bestandsnaam direct rechts van de paperclip; andere documenten tonen een compacte bestandsnaamknop. Lange namen mogen afbreken of worden ingekort, maar mogen formulieracties niet overlappen. De thumbnail of bestandsnaam is een downloadactie en blijft na verversen zichtbaar; private opslag-URL's worden niet getoond.
 
 Grote beheerfuncties mogen primair desktopgericht zijn.
 

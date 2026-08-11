@@ -1180,6 +1180,41 @@
   text-underline-offset: 2px;
 }
 
+.attachmentImageButton {
+  width: 112px;
+  min-width: 112px;
+  overflow: hidden;
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: 7px;
+  background: var(--surface);
+  color: #23487a;
+  cursor: pointer;
+  text-align: left;
+}
+
+.attachmentImageButton img {
+  display: block;
+  width: 112px;
+  height: 72px;
+  object-fit: cover;
+}
+
+.attachmentImageButton span {
+  display: block;
+  overflow: hidden;
+  padding: 5px 7px 6px;
+  font-size: 10px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attachmentImageButton:hover {
+  border-color: var(--accent);
+  background: var(--hover-soft);
+}
+
 .attachmentFileButton:disabled {
   cursor: default;
   opacity: 0.72;

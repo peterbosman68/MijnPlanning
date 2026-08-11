@@ -1,6 +1,7 @@
 "use client";
 
 import { upload } from "@vercel/blob/client";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { startTransition, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { ChangeEvent, CSSProperties, FormEvent, PointerEvent as ReactPointerEvent, ReactNode } from "react";
@@ -2114,11 +2115,22 @@ export function TakenVisualPrototype({
                                 <button
                                   key={attachment.id}
                                   type="button"
-                                  className={styles.attachmentFileButton}
+                                  className={attachment.mimeType.startsWith("image/") ? styles.attachmentImageButton : styles.attachmentFileButton}
                                   onClick={() => openLocalAttachment(attachment)}
                                   title={`${attachment.name} openen`}
                                 >
-                                  {attachment.name}
+                                  {attachment.mimeType.startsWith("image/") ? (
+                                    <>
+                                      <Image
+                                        src={`/api/attachments/${encodeURIComponent(attachment.id)}/download?inline=1`}
+                                        alt={attachment.name}
+                                        width={112}
+                                        height={72}
+                                        unoptimized
+                                      />
+                                      <span>{attachment.name}</span>
+                                    </>
+                                  ) : attachment.name}
                                 </button>
                               ))}
                               {attachmentUploadStatus?.targetKey === `task:${task.id}` && (
@@ -2585,11 +2597,22 @@ export function TakenVisualPrototype({
                                   <button
                                     key={attachment.id}
                                     type="button"
-                                    className={styles.attachmentFileButton}
+                                    className={attachment.mimeType.startsWith("image/") ? styles.attachmentImageButton : styles.attachmentFileButton}
                                     onClick={() => openLocalAttachment(attachment)}
                                     title={`${attachment.name} openen`}
                                   >
-                                    {attachment.name}
+                                    {attachment.mimeType.startsWith("image/") ? (
+                                      <>
+                                        <Image
+                                          src={`/api/attachments/${encodeURIComponent(attachment.id)}/download?inline=1`}
+                                          alt={attachment.name}
+                                          width={112}
+                                          height={72}
+                                          unoptimized
+                                        />
+                                        <span>{attachment.name}</span>
+                                      </>
+                                    ) : attachment.name}
                                   </button>
                                 ))}
                                 {attachmentUploadStatus?.targetKey === `subtask:${selectedSubtask.id}` && (

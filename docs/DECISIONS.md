@@ -451,4 +451,5 @@ Nieuwe besluiten worden onderaan toegevoegd met datum.
 - Productiecontrole toonde dat Vercel Functions standaard in `iad1` draaiden terwijl Neon in `eu-central-1` staat.
 - Omdat taakopslag uit meerdere seriële sessie- en transactierondes bestaat, veroorzaakte deze regioafstand onnodige latency.
 - Alle Vercel Functions draaien daarom projectbreed in `fra1`. Statische content blijft via Vercels CDN wereldwijd beschikbaar.
-- De directe Blob-uploadbestemming wordt expliciet en beperkt toegevoegd aan `connect-src`; zonder deze CSP-uitzondering stopt de browserupload na succesvolle tokenuitgifte op 0%.
+- De directe Blob-uploadbestemmingen `https://vercel.com` (Blob API) en `https://*.blob.vercel-storage.com` worden expliciet en beperkt toegevoegd aan `connect-src`; zonder de API-host stopt de browserupload na succesvolle tokenuitgifte op 0%.
+- Afbeeldingsbijlagen verschijnen na bevestigde opslag als klikbare thumbnail naast de paperclip en worden na refresh opnieuw via de geautoriseerde downloadroute geladen.

@@ -5,7 +5,7 @@ import { downloadPrivateAttachment } from "@/lib/attachments/blob-storage";
 import { getAttachmentForDownload } from "@/lib/attachments/service";
 
 export async function GET(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ attachmentId: string }> },
 ) {
   const session = await requireUser();
@@ -22,10 +22,12 @@ export async function GET(
   }
 
   const fileName = attachment.originalFileName ?? "document";
+  const inline = new URL(request.url).searchParams.get("inline") === "1"
+    && Boolean(attachment.mimeType?.startsWith("image/"));
   return new Response(download.stream, {
     headers: {
       "Content-Type": attachment.mimeType ?? download.blob.contentType ?? "application/octet-stream",
-      "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(fileName)}`,
+      "Content-Disposition": `${inline ? "inline" : "attachment"}; filename*=UTF-8''${encodeURIComponent(fileName)}`,
       "Cache-Control": "private, no-store",
       "X-Content-Type-Options": "nosniff",
     },

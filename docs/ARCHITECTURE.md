@@ -334,7 +334,7 @@ Voeg pas later een externe queue toe als volume of betrouwbaarheid dit nodig maa
 
 Gebruik Vercel Blob Private.
 
-Handmatige bijlagen gebruiken een directe browserupload naar Vercel Blob Private. Een serverroute geeft pas na sessie-, origin- en doelautorisatie een kortlevend uploadtoken uit. De Content Security Policy staat hiervoor alleen `https://*.blob.vercel-storage.com` als externe `connect-src` toe. De ondertekende completioncallback en een idempotente browserfinalisatie bewaren dezelfde metadata zonder duplicaten. Download loopt via een MijnPlanning-route die sessie en eigendom opnieuw controleert; de browser krijgt geen permanente private Blob-URL.
+Handmatige bijlagen gebruiken een directe browserupload naar Vercel Blob Private. Een serverroute geeft pas na sessie-, origin- en doelautorisatie een kortlevend uploadtoken uit. De Content Security Policy staat hiervoor alleen `https://vercel.com` voor de Blob API en `https://*.blob.vercel-storage.com` als externe `connect-src` toe. De ondertekende completioncallback en een idempotente browserfinalisatie bewaren dezelfde metadata zonder duplicaten. Download loopt via een MijnPlanning-route die sessie en eigendom opnieuw controleert; de browser krijgt geen permanente private Blob-URL. Afbeeldingsbijlagen worden via diezelfde geautoriseerde route inline als compacte, klikbare thumbnail naast de paperclip getoond en blijven daardoor na verversen zichtbaar.
 
 PostgreSQL bewaart alleen metadata:
 

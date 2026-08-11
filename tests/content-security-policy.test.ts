@@ -11,7 +11,9 @@ describe("Content Security Policy", () => {
   it("staat directe private uploads uitsluitend naar Vercel Blob toe", () => {
     const policy = createContentSecurityPolicy(true);
 
-    expect(policy).toContain("connect-src 'self' https://*.blob.vercel-storage.com");
+    expect(policy).toContain(
+      "connect-src 'self' https://vercel.com https://*.blob.vercel-storage.com",
+    );
     expect(policy).not.toContain("connect-src *");
   });
 });
