@@ -1,10 +1,16 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  earliestOpenSubtaskDeadlineValue,
+  subtaskHasPlannedWorkInDateRange,
+  subtaskHasPlannedWorkOnDate,
   subtaskPlannedMinutesOnDate,
+  taskHasPlannedWorkInDateRange,
+  taskHasPlannedWorkOnDate,
   taskOwnPlannedMinutesOnDate,
   totalDailyLoadMinutesForDate,
   totalPlannedWorkMinutesForDate,
+  weekDateRangeContaining,
   type AppointmentLike,
   type PlannedTaskLike,
 } from "@/lib/tasks/planned-load";
@@ -99,5 +105,60 @@ describe("planned load per dag", () => {
 
     expect(subtaskPlannedMinutesOnDate(tasks[0].subtasks[0], "2026-08-10")).toBe(0);
     expect(totalPlannedWorkMinutesForDate(tasks, "2026-08-10")).toBe(0);
+  });
+
+  it("selecteert een hoofdtaak voor Vandaag op basis van een open subtaakdatum", () => {
+    const task: PlannedTaskLike = {
+      remaining: "1u",
+      status: "normal",
+      subtasks: [
+        { deadlineValue: "2026-08-11T17:00", remaining: "30m", state: "planned" },
+        { deadlineValue: "2026-08-12T17:00", remaining: "30m", state: "done" },
+      ],
+    };
+
+    expect(taskHasPlannedWorkOnDate(task, "2026-08-11")).toBe(true);
+    expect(taskHasPlannedWorkOnDate(task, "2026-08-12")).toBe(false);
+    expect(subtaskHasPlannedWorkOnDate(task.subtasks[0], "2026-08-11")).toBe(true);
+    expect(subtaskHasPlannedWorkOnDate(task.subtasks[1], "2026-08-12")).toBe(false);
+  });
+
+  it("selecteert een hoofdtaak voor Week wanneer een open subtaak binnen het datumbereik valt", () => {
+    const task: PlannedTaskLike = {
+      remaining: "1u",
+      status: "normal",
+      subtasks: [
+        { deadlineValue: "2026-08-13T17:00", remaining: "1u", state: "planned" },
+      ],
+    };
+
+    expect(taskHasPlannedWorkInDateRange(task, "2026-08-10", "2026-08-16")).toBe(true);
+    expect(taskHasPlannedWorkInDateRange(task, "2026-08-03", "2026-08-09")).toBe(false);
+    expect(subtaskHasPlannedWorkInDateRange(task.subtasks[0], "2026-08-10", "2026-08-16")).toBe(true);
+    expect(weekDateRangeContaining("2026-08-13")).toEqual({
+      startDate: "2026-08-10",
+      endDate: "2026-08-16",
+    });
+  });
+
+  it("leidt de eerstvolgende hoofdtaakdatum af uit alleen open subtaken", () => {
+    expect(earliestOpenSubtaskDeadlineValue([
+      { deadlineValue: "2026-08-14T17:00", remaining: "30m", state: "planned" },
+      { deadlineValue: "2026-08-12T09:00", remaining: "30m", state: "blocked" },
+      { deadlineValue: "2026-08-11T17:00", remaining: "30m", state: "done" },
+      { remaining: "30m", state: "planned" },
+    ])).toBe("2026-08-12T09:00");
+  });
+
+  it("plant een hoofdtaak met alleen gesloten subtaken niet opnieuw als zelfstandig werk", () => {
+    const task: PlannedTaskLike = {
+      deadlineValue: "2026-08-11T17:00",
+      remaining: "2u",
+      status: "normal",
+      subtasks: [{ deadlineValue: "2026-08-10T17:00", remaining: "0m", state: "done" }],
+    };
+
+    expect(taskOwnPlannedMinutesOnDate(task, "2026-08-11")).toBe(0);
+    expect(taskHasPlannedWorkOnDate(task, "2026-08-11")).toBe(false);
   });
 });

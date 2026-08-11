@@ -45,10 +45,47 @@ function isClosedSubtaskState(state?: PlannedSubtaskState) {
   return state === "done" || state === "archived";
 }
 
+export function earliestOpenSubtaskDeadlineValue(subtasks: PlannedSubtaskLike[]) {
+  return subtasks
+    .filter((subtask) => !isClosedSubtaskState(subtask.state) && extractDateFromDeadlineValue(subtask.deadlineValue))
+    .map((subtask) => subtask.deadlineValue!)
+    .sort((left, right) => left.localeCompare(right))[0] ?? null;
+}
+
+export function taskHasPlannedWorkInDateRange(task: PlannedTaskLike, startDate: string, endDate: string) {
+  if (isClosedTaskStatus(task.status)) return false;
+
+  if (task.subtasks.length > 0) {
+    return task.subtasks.some((subtask) => subtaskHasPlannedWorkInDateRange(subtask, startDate, endDate));
+  }
+
+  const date = extractDateFromDeadlineValue(task.deadlineValue);
+  return Boolean(date && date >= startDate && date <= endDate);
+}
+
+export function taskHasPlannedWorkOnDate(task: PlannedTaskLike, dateValue: string) {
+  return taskHasPlannedWorkInDateRange(task, dateValue, dateValue);
+}
+
+export function weekDateRangeContaining(dateValue: string) {
+  const parsed = new Date(`${dateValue}T00:00:00Z`);
+  if (Number.isNaN(parsed.getTime())) return null;
+
+  const dayFromMonday = (parsed.getUTCDay() + 6) % 7;
+  const start = new Date(parsed);
+  start.setUTCDate(start.getUTCDate() - dayFromMonday);
+  const end = new Date(start);
+  end.setUTCDate(end.getUTCDate() + 6);
+
+  return {
+    startDate: start.toISOString().slice(0, 10),
+    endDate: end.toISOString().slice(0, 10),
+  };
+}
+
 export function taskOwnPlannedMinutesOnDate(task: PlannedTaskLike, dateValue: string) {
   if (isClosedTaskStatus(task.status)) return 0;
-  const openSubtasks = task.subtasks.filter((subtask) => !isClosedSubtaskState(subtask.state));
-  if (openSubtasks.length > 0) return 0;
+  if (task.subtasks.length > 0) return 0;
   if (extractDateFromDeadlineValue(task.deadlineValue) !== dateValue) return 0;
   return parseMinutesFromLabelToTotal(task.remaining);
 }
@@ -85,4 +122,18 @@ export function totalDailyLoadMinutesForDate(
   dateValue: string,
 ) {
   return totalBookedMinutesForDate(appointments, dateValue) + totalPlannedWorkMinutesForDate(tasks, dateValue);
+}
+
+export function subtaskHasPlannedWorkInDateRange(
+  subtask: PlannedSubtaskLike,
+  startDate: string,
+  endDate: string,
+) {
+  if (isClosedSubtaskState(subtask.state)) return false;
+  const date = extractDateFromDeadlineValue(subtask.deadlineValue);
+  return Boolean(date && date >= startDate && date <= endDate);
+}
+
+export function subtaskHasPlannedWorkOnDate(subtask: PlannedSubtaskLike, dateValue: string) {
+  return subtaskHasPlannedWorkInDateRange(subtask, dateValue, dateValue);
 }

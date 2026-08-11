@@ -641,6 +641,18 @@
   text-align: right;
 }
 
+.deadlineCell span,
+.deadlineCell small {
+  display: block;
+}
+
+.deadlineCell small {
+  margin-top: 3px;
+  color: var(--soft-muted);
+  font-size: 9.5px;
+  line-height: 1.2;
+}
+
 .remainingCell {
   font-weight: 650;
   color: var(--ink);

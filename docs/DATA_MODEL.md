@@ -107,6 +107,8 @@ Dit zijn de handmatig bedienbare statuswaarden in fase 1. `BLOCKED` wordt uit de
 
 Een taak zonder subtaken en zonder ingevulde of geaccepteerde tijdsinschatting is niet planbaar. Zodra subtaken bestaan, worden `estimatedMinutes` en `remainingMinutes` van de hoofdtaak niet als extra werk boven op de subtaken geteld.
 
+De takenprojectie kan aanvullend een niet-opgeslagen `planningDeadline` afleiden. Wanneer `Task.deadline` ontbreekt, is dit de vroegste deadline van een open subtaak. Deze projectiewaarde is alleen bedoeld voor sortering en de gelabelde weergave `Eerstvolgende subtaak`; zij wordt nooit teruggeschreven naar `Task.deadline` en verandert de deadlinehiërarchie niet.
+
 ### Subtask
 
 Velden:

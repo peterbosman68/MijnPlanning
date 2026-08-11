@@ -457,3 +457,12 @@ Nieuwe besluiten worden onderaan toegevoegd met datum.
 - De directe Blob-uploadbestemmingen `https://vercel.com` (Blob API) en `https://*.blob.vercel-storage.com` worden expliciet en beperkt toegevoegd aan `connect-src`; zonder de API-host stopt de browserupload na succesvolle tokenuitgifte op 0%.
 - Afbeeldingsbijlagen verschijnen na bevestigde opslag als klikbare thumbnail naast de paperclip en worden na refresh opnieuw via de geautoriseerde downloadroute geladen.
 - Documenten, logo's, afbeeldingen en foto's kunnen via een afzonderlijke verwijderactie worden verwijderd. Na bevestiging controleert de server sessie en eigendom, verwijdert eerst een eventuele private Blob en daarna de user-scoped metadata.
+
+## 11 augustus 2026 — datumgestuurde subtaakplanning
+
+### O36 — subtaakdeadline bepaalt datumselectie
+
+- Een open subtaak met deadline verschijnt op basis van die deadline in `Vandaag` en `Deze week`.
+- Bij een hoofdtaak met subtaken bepalen de open subtaken de datumselectie; de hoofdtaak wordt niet op haar eigen deadline nogmaals als zelfstandig werk ingepland.
+- Wanneer een hoofdtaak geen eigen deadline heeft, toont de hoofdtaakrij de vroegste deadline van een open subtaak met het expliciete label `Eerstvolgende subtaak`.
+- Deze datum is een afgeleide projectiewaarde. `Task.deadline` blijft ongewijzigd en blijft als enige hoofdtaakdeadline leidend voor formulieren en deadlinehiërarchie.

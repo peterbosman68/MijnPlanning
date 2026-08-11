@@ -9,9 +9,15 @@ import type { AttachmentBoardData } from "@/lib/attachments/service";
 import type { getTaskBoardData } from "@/lib/tasks/service";
 
 import {
+  earliestOpenSubtaskDeadlineValue,
+  subtaskHasPlannedWorkInDateRange,
+  subtaskHasPlannedWorkOnDate,
   subtaskPlannedMinutesOnDate,
+  taskHasPlannedWorkInDateRange,
+  taskHasPlannedWorkOnDate,
   taskOwnPlannedMinutesOnDate,
   totalPlannedWorkMinutesForDate,
+  weekDateRangeContaining,
 } from "@/lib/tasks/planned-load";
 
 import {
@@ -249,6 +255,9 @@ type MainTask = {
   note: string;
   deadline: string;
   deadlineValue?: string;
+  planningDeadline: string;
+  planningDeadlineValue?: string;
+  planningDeadlineSource: "task" | "subtask" | null;
   hardDeadline?: boolean;
   remaining: string;
   status: TaskStatus;
@@ -343,20 +352,8 @@ function toVisualSubtaskState(status: string, blocked: boolean): Subtask["state"
 }
 
 function mapTaskBoard(board: TaskBoardData): MainTask[] {
-  return board.tasks.map((task) => ({
-    id: task.id,
-    title: task.title,
-    note: `${task.openSubtaskCount} subtaken${task.blockedSubtaskCount > 0 ? ` · ${task.blockedSubtaskCount} geblokkeerd` : ""}`,
-    deadline: task.deadline ?? "Geen deadline",
-    deadlineValue: toDeadlineValue(task.deadlineDate, task.deadlineTime),
-    remaining: task.remainingLabel,
-    status: toVisualTaskStatus(task.status),
-    risk: null,
-    description: task.descriptionOriginal || "Nog geen omschrijving toegevoegd.",
-    databaseStatus: task.status,
-    estimatedMinutes: task.estimatedMinutes,
-    remainingMinutes: task.remainingMinutes,
-    subtasks: task.subtasks.map((subtask) => ({
+  return board.tasks.map((task) => {
+    const subtasks = task.subtasks.map((subtask) => ({
       id: subtask.id,
       title: subtask.title,
       deadline: subtask.deadline ?? "Geen deadline",
@@ -371,8 +368,31 @@ function mapTaskBoard(board: TaskBoardData): MainTask[] {
       splittable: subtask.splittable,
       priority: subtask.priority,
       context: subtask.context ?? "",
-    })),
-  }));
+    }));
+    const deadlineValue = toDeadlineValue(task.deadlineDate, task.deadlineTime);
+    const subtaskDeadlineValue = earliestOpenSubtaskDeadlineValue(subtasks);
+    const planningDeadlineValue = deadlineValue ?? subtaskDeadlineValue ?? undefined;
+    const planningSubtask = subtasks.find((subtask) => subtask.deadlineValue === subtaskDeadlineValue);
+
+    return {
+      id: task.id,
+      title: task.title,
+      note: `${task.openSubtaskCount} subtaken${task.blockedSubtaskCount > 0 ? ` · ${task.blockedSubtaskCount} geblokkeerd` : ""}`,
+      deadline: task.deadline ?? "Geen deadline",
+      deadlineValue,
+      planningDeadline: deadlineValue ? (task.deadline ?? "Geen deadline") : (planningSubtask?.deadline ?? "Geen deadline"),
+      planningDeadlineValue,
+      planningDeadlineSource: deadlineValue ? "task" : planningSubtask ? "subtask" : null,
+      remaining: task.remainingLabel,
+      status: toVisualTaskStatus(task.status),
+      risk: null,
+      description: task.descriptionOriginal || "Nog geen omschrijving toegevoegd.",
+      databaseStatus: task.status,
+      estimatedMinutes: task.estimatedMinutes,
+      remainingMinutes: task.remainingMinutes,
+      subtasks,
+    };
+  });
 }
 
 function formatAttachmentSizeLabel(sizeBytes: number | null) {
@@ -616,6 +636,14 @@ function sortByOldestDeadlineFirst<T extends { id: string; deadlineValue?: strin
     const byDate = getDeadlineTimestamp(a.deadlineValue) - getDeadlineTimestamp(b.deadlineValue);
     if (byDate !== 0) return byDate;
     return a.id.localeCompare(b.id);
+  });
+}
+
+function sortTasksByPlanningDate(tasks: MainTask[]) {
+  return [...tasks].sort((left, right) => {
+    const byDate = getDeadlineTimestamp(left.planningDeadlineValue) - getDeadlineTimestamp(right.planningDeadlineValue);
+    if (byDate !== 0) return byDate;
+    return left.id.localeCompare(right.id);
   });
 }
 
@@ -893,31 +921,43 @@ export function TakenVisualPrototype({
   }, [activeView]);
 
   const visibleTasks = useMemo(() => {
+    const today = getTodayDateValue();
+    const week = weekDateRangeContaining(today);
     const filtered =
       activeView === "waiting"
         ? tasks.filter((task) => task.status === "waiting")
         : activeView === "completed"
           ? tasks.filter((task) => isCompletedBucketTask(task))
           : activeView === "today"
-            ? tasks.filter((task) => task.status !== "completed" && !isArchivedTask(task))
+            ? tasks.filter((task) => taskHasPlannedWorkOnDate(task, today))
+            : activeView === "week" && week
+              ? tasks.filter((task) => taskHasPlannedWorkInDateRange(task, week.startDate, week.endDate))
             : tasks.filter((task) => task.status !== "completed" && !isArchivedTask(task));
 
-    return sortByOldestDeadlineFirst(filtered);
+    return sortTasksByPlanningDate(filtered);
   }, [activeView, tasks]);
 
   const selectedTask = useMemo(() => {
-    const candidate = tasks.find((task) => task.id === selectedTaskId) ?? null;
-    if (candidate && (activeView === "completed" ? isCompletedBucketTask(candidate) : !isArchivedTask(candidate))) {
-      return candidate;
-    }
-    return visibleTasks.find((task) => task.id === selectedTaskId) ?? visibleTasks[0] ?? tasks.find((task) => !isArchivedTask(task)) ?? tasks[0] ?? null;
+    const candidate = visibleTasks.find((task) => task.id === selectedTaskId) ?? null;
+    if (candidate) return candidate;
+    if (visibleTasks[0]) return visibleTasks[0];
+    if (activeView !== "tasks") return null;
+    return tasks.find((task) => !isArchivedTask(task)) ?? null;
   }, [activeView, tasks, selectedTaskId, visibleTasks]);
 
   const visibleSubtasks = useMemo(() => {
     if (!selectedTask) return [];
+    const today = getTodayDateValue();
+    const week = weekDateRangeContaining(today);
     const filtered =
       activeView === "completed"
         ? selectedTask.subtasks
+        : activeView === "today"
+          ? selectedTask.subtasks.filter((subtask) => subtaskHasPlannedWorkOnDate(subtask, today))
+          : activeView === "week" && week
+            ? selectedTask.subtasks.filter((subtask) =>
+                subtaskHasPlannedWorkInDateRange(subtask, week.startDate, week.endDate),
+              )
         : selectedTask.subtasks.filter((subtask) => !isArchivedSubtask(subtask));
 
     return sortByOldestDeadlineFirst(filtered);
@@ -2133,10 +2173,10 @@ export function TakenVisualPrototype({
                   const showRestoreTaskAction = activeView === "completed";
                   return (
                     <div key={task.id}>
-                      <div className={selectedTask.id === task.id ? styles.selectedTaskRowShell : styles.taskRowShell}>
+                      <div className={selectedTask?.id === task.id ? styles.selectedTaskRowShell : styles.taskRowShell}>
                         <button
                           type="button"
-                          className={selectedTask.id === task.id ? styles.selectedTaskRow : styles.taskRow}
+                          className={selectedTask?.id === task.id ? styles.selectedTaskRow : styles.taskRow}
                           onClick={() => selectTask(task.id)}
                         >
                           <span className={styles.taskTitleCell}>
@@ -2148,7 +2188,10 @@ export function TakenVisualPrototype({
                               </span>
                             )}
                           </span>
-                          <span className={styles.deadlineCell}>{task.deadline}</span>
+                          <span className={styles.deadlineCell}>
+                            <span>{task.planningDeadline}</span>
+                            {task.planningDeadlineSource === "subtask" && <small>Eerstvolgende subtaak</small>}
+                          </span>
                           <span className={styles.remainingCell}>{task.remaining}</span>
                           <span className={styles.riskCell}>
                             {task.risk && (
@@ -2170,7 +2213,7 @@ export function TakenVisualPrototype({
                         </button>
                       </div>
 
-                      {selectedTask.id === task.id && editorMode === "edit-main" && (
+                      {selectedTask?.id === task.id && editorMode === "edit-main" && (
                         <form
                           className={`${styles.mainTaskForm} ${styles.inlineTaskEditor}`}
                           onSubmit={updateMainTask}
