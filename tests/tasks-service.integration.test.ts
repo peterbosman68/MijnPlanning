@@ -22,7 +22,7 @@ describeDatabase("taken-service-integratie", () => {
   it("dwingt deadlinehiërarchie, projectie en dependencycylci af", async () => {
     process.env.DATABASE_URL = loadDatabaseUrlWithoutLogging();
 
-    const [{ prisma }, { createTask, createSubtask, updateTask, createDependency, getTaskBoardData }] = await Promise.all([
+    const [{ prisma }, { createTask, createSubtask, updateTask, updateSubtask, createDependency, getTaskBoardData }] = await Promise.all([
       import("@/lib/db/client"),
       import("@/lib/tasks/service"),
     ]);
@@ -72,6 +72,27 @@ describeDatabase("taken-service-integratie", () => {
       const boardAfterCreate = await getTaskBoardData(user.id, task.taskId);
       expect(boardAfterCreate.selectedTask?.remainingMinutes).toBe(30);
       expect(boardAfterCreate.selectedTask?.subtasks).toHaveLength(1);
+
+      await updateSubtask(user.id, {
+        subtaskId: subtask.subtaskId,
+        taskId: task.taskId,
+        title: "Eerste subtaak",
+        descriptionOriginal: "",
+        deadline: subtaskDeadline!,
+        earliestStart: null,
+        estimatedMinutes: 45,
+        remainingMinutes: 45,
+        minimumBlockMinutes: 15,
+        splittable: false,
+        priority: null,
+        context: "",
+        status: "OPEN",
+      });
+
+      const boardAfterTimeUpdate = await getTaskBoardData(user.id, task.taskId, subtask.subtaskId);
+      expect(boardAfterTimeUpdate.selectedTask?.remainingMinutes).toBe(45);
+      expect(boardAfterTimeUpdate.selectedSubtask?.estimatedMinutes).toBe(45);
+      expect(boardAfterTimeUpdate.selectedSubtask?.remainingMinutes).toBe(45);
 
       await expect(
         updateTask(user.id, {

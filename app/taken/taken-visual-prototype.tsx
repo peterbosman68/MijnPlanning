@@ -538,6 +538,8 @@ function formatTimer(totalSeconds: number) {
 
 const DEFAULT_END_OF_WORKDAY = "17:00";
 const DAILY_TOTAL_MINUTES_LIMIT = 480;
+const OUTLOOK_BOOKED_MINUTES_CACHE_MS = 60_000;
+const outlookBookedMinutesCache = new Map<string, { bookedMinutes: number; expiresAt: number }>();
 
 function parsePositiveMinutesInput(value: string, fieldName: "hoofdtaak" | "subtaak"): number | null {
   const trimmed = value.trim();
@@ -649,6 +651,11 @@ function addDaysToDateValue(dateValue: string, days: number) {
 }
 
 async function fetchOutlookBookedMinutesForDate(dateValue: string) {
+  const cached = outlookBookedMinutesCache.get(dateValue);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.bookedMinutes;
+  }
+
   const response = await fetch(`/api/outlook/calendar-booked-minutes?date=${encodeURIComponent(dateValue)}`, {
     method: "GET",
     cache: "no-store",
@@ -668,6 +675,11 @@ async function fetchOutlookBookedMinutesForDate(dateValue: string) {
   if (typeof payload?.bookedMinutes !== "number") {
     throw new Error("Outlook-agenda gaf een ongeldige reactie terug.");
   }
+
+  outlookBookedMinutesCache.set(dateValue, {
+    bookedMinutes: payload.bookedMinutes,
+    expiresAt: Date.now() + OUTLOOK_BOOKED_MINUTES_CACHE_MS,
+  });
 
   return payload.bookedMinutes;
 }
@@ -757,13 +769,12 @@ export function TakenVisualPrototype({
   logoutAction,
   revokeAllSessionsAction,
 }: TakenVisualPrototypeProps) {
-  const initialTasks = mapTaskBoard(initialTaskBoard);
+  const tasks = useMemo(() => mapTaskBoard(initialTaskBoard), [initialTaskBoard]);
   const initialAttachments = mapAttachmentBoard(initialAttachmentBoard);
   const { widths: paneWidths, startDrag, nudgeDivider, resetLayout } = usePaneLayout();
   const [activeView, setActiveView] = useState<ViewKey>(initialView);
   const [mobilePane, setMobilePane] = useState<MobilePane>("navigation");
-  const [tasks] = useState<MainTask[]>(initialTasks);
-  const [selectedTaskId, setSelectedTaskId] = useState(initialTaskBoard.selectedTask?.id ?? initialTasks[0]?.id ?? "");
+  const [selectedTaskId, setSelectedTaskId] = useState(initialTaskBoard.selectedTask?.id ?? tasks[0]?.id ?? "");
   const [selectedSubtaskId, setSelectedSubtaskId] = useState<string | null>(initialTaskBoard.selectedSubtask?.id ?? null);
   const [selectedAppointmentId, setSelectedAppointmentId] = useState<string | null>(null);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -895,6 +906,20 @@ export function TakenVisualPrototype({
     if (!selectedSubtaskId) return visibleSubtasks[0];
     return visibleSubtasks.find((subtask) => subtask.id === selectedSubtaskId) ?? visibleSubtasks[0];
   }, [selectedSubtaskId, visibleSubtasks]);
+
+  useEffect(() => {
+    const deadlineValue = editorMode === "edit-main"
+      ? selectedTask?.deadlineValue
+      : editorMode === "edit-sub"
+        ? selectedSubtask?.deadlineValue
+        : undefined;
+    const dateValue = deadlineValue ? splitDeadlineValue(deadlineValue).date : "";
+
+    if (dateValue) {
+      void fetchOutlookBookedMinutesForDate(dateValue).catch(() => undefined);
+    }
+  }, [editorMode, selectedSubtask?.deadlineValue, selectedTask?.deadlineValue]);
+
   const sortedAppointments = useMemo(
     () => [...appointments].sort((a, b) => getAppointmentStartTimestamp(a) - getAppointmentStartTimestamp(b)),
     [appointments],
