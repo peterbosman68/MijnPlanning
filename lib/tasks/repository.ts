@@ -385,6 +385,90 @@ export function deleteDependencyRecord(database: DatabaseClient, dependencyId: s
   });
 }
 
+export function findTaskForDeletion(database: DatabaseClient, userId: string, taskId: string) {
+  return database.task.findFirst({
+    where: { id: taskId, userId },
+    select: {
+      id: true,
+      attachments: {
+        select: {
+          blobPath: true,
+        },
+      },
+      subtasks: {
+        select: {
+          attachments: {
+            select: {
+              blobPath: true,
+            },
+          },
+        },
+      },
+    },
+  });
+}
+
+export function findSubtaskForDeletion(database: DatabaseClient, userId: string, subtaskId: string) {
+  return database.subtask.findFirst({
+    where: { id: subtaskId, task: { userId } },
+    select: {
+      id: true,
+      taskId: true,
+      attachments: {
+        select: {
+          blobPath: true,
+        },
+      },
+    },
+  });
+}
+
+export function deleteTaskRelatedRecords(database: DatabaseClient, userId: string, taskId: string) {
+  return Promise.all([
+    database.taskDependency.deleteMany({
+      where: {
+        OR: [
+          { subtask: { taskId, task: { userId } } },
+          { dependsOnSubtask: { taskId, task: { userId } } },
+        ],
+      },
+    }),
+    database.timeSession.deleteMany({
+      where: {
+        userId,
+        OR: [
+          { taskId },
+          { subtask: { taskId, task: { userId } } },
+        ],
+      },
+    }),
+  ]);
+}
+
+export function deleteSubtaskRelatedRecords(database: DatabaseClient, userId: string, subtaskId: string) {
+  return Promise.all([
+    database.taskDependency.deleteMany({
+      where: {
+        OR: [
+          { subtaskId, subtask: { task: { userId } } },
+          { dependsOnSubtaskId: subtaskId, dependsOnSubtask: { task: { userId } } },
+        ],
+      },
+    }),
+    database.timeSession.deleteMany({ where: { userId, subtaskId } }),
+  ]);
+}
+
+export function deleteTaskRecord(database: DatabaseClient, userId: string, taskId: string) {
+  return database.task.deleteMany({ where: { id: taskId, userId } });
+}
+
+export function deleteSubtaskRecord(database: DatabaseClient, userId: string, subtaskId: string) {
+  return database.subtask.deleteMany({
+    where: { id: subtaskId, task: { userId } },
+  });
+}
+
 export function prismaDatabase(): PrismaClient {
   return prisma;
 }

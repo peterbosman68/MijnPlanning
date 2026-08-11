@@ -297,5 +297,6 @@ Alle overige functionele keuzes volgen al uit bestaande product-, beveiligings- 
 - [x] Uploadstatus verplaatst naar direct rechts van de bijbehorende paperclip.
 - [x] Persistente, klikbare afbeeldingsthumbnail naast de paperclip geimplementeerd.
 - [x] Bevestigde, user-scoped verwijderactie voor documenten en afbeeldingen geimplementeerd.
+- [x] Bestaande hoofdtaak- en subtaakknoppen gekoppeld aan definitieve verwijdering na één expliciete Ja/Nee-bevestiging, inclusief gekoppelde gegevens.
 - [x] Vercel Functions van `iad1` naar `fra1` verplaatst om aan te sluiten op Neon `eu-central-1`.
 - [ ] Echte upload/download met Peters ingelogde productiesessie gecontroleerd.

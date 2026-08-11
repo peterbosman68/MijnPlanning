@@ -188,13 +188,16 @@ Regels:
 - cycli worden geweigerd;
 - afhankelijkheden mogen tussen verschillende hoofdtaken lopen;
 - cycluscontrole gebeurt transactioneel, ook bij gelijktijdige wijzigingen;
-- dependencyrelaties gebruiken geen automatische deletecascade en worden nooit stilzwijgend verwijderd.
+- dependencyrelaties gebruiken geen automatische deletecascade;
+- na expliciete bevestiging van definitieve taak- of subtaakverwijdering verwijdert de domeinservice de betrokken dependencies gericht.
 
 ### Archiveren en definitief verwijderen
 
 - Taken en subtaken worden standaard gearchiveerd in plaats van definitief verwijderd.
-- Definitief verwijderen wordt geblokkeerd wanneer tijdregistraties, bijlagen, importhistorie of afhankelijkheden bestaan.
-- Een dependency wordt alleen door een expliciete dependencyhandeling verwijderd.
+- Definitief verwijderen vraagt altijd één expliciete bevestiging.
+- De domeinservice verwijdert daarna gekoppelde private bestanden, attachmentmetadata, tijdregistraties en dependencies vóór de taak- of subtaakrecord.
+- Bij verwijdering van een hoofdtaak worden ook de subtaken verwijderd.
+- To Do-importhistorie blijft bestaan met een lege taakverwijzing.
 
 ---
 

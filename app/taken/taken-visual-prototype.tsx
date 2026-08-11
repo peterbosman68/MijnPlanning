@@ -17,6 +17,8 @@ import {
 import {
   archiveSubtaskAction,
   archiveTaskAction,
+  deleteSubtaskAction,
+  deleteTaskAction,
   saveSubtaskAction,
   saveTaskAction,
 } from "./actions";
@@ -219,6 +221,9 @@ type MobilePane = "navigation" | "list" | "detail";
 type EditorMode = "none" | "new-main" | "new-sub" | "edit-main" | "edit-sub";
 type TaskStatus = "normal" | "active" | "waiting" | "completed" | "archived";
 type RiskLevel = "attention" | "danger" | null;
+type DeleteConfirmation =
+  | Readonly<{ kind: "task"; id: string; title: string; subtaskCount: number }>
+  | Readonly<{ kind: "subtask"; id: string; title: string }>;
 
 type Subtask = {
   id: string;
@@ -818,6 +823,8 @@ export function TakenVisualPrototype({
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [deletingAttachmentId, setDeletingAttachmentId] = useState<string | null>(null);
+  const [deletingTaskItemId, setDeletingTaskItemId] = useState<string | null>(null);
+  const [deleteConfirmation, setDeleteConfirmation] = useState<DeleteConfirmation | null>(null);
   const [attachmentUploadStatus, setAttachmentUploadStatus] = useState<{
     targetKey: string;
     message: string;
@@ -1759,12 +1766,70 @@ export function TakenVisualPrototype({
     finishSuccessfulSave(actionState);
   }
 
-  function deleteMainTask() {
-    setFeedback("Definitief verwijderen is niet beschikbaar. Archiveer de hoofdtaak om deze uit de open lijst te halen.");
+  async function deleteMainTask(taskId: string) {
+    setMainTaskError(null);
+    setDeletingTaskItemId(taskId);
+    const formData = new FormData();
+    formData.set("taskId", taskId);
+    let result: TaskActionState;
+    try {
+      result = await deleteTaskAction(initialTaskActionState, formData);
+    } catch {
+      setMainTaskError("Hoofdtaak verwijderen is mislukt. Controleer de verbinding en probeer het opnieuw.");
+      setDeletingTaskItemId(null);
+      return;
+    }
+    setDeletingTaskItemId(null);
+    if (result.error) {
+      setMainTaskError(result.error);
+      return;
+    }
+
+    setEditorMode("none");
+    setHasUnsavedChanges(false);
+    setSelectedTaskId("");
+    setSelectedSubtaskId(null);
+    setFeedback("Hoofdtaak verwijderd.");
+    startTransition(() => router.refresh());
   }
 
-  function deleteSubtask() {
-    setFeedback("Definitief verwijderen is niet beschikbaar. Archiveer de subtaak om deze uit de open lijst te halen.");
+  async function deleteSubtask(subtaskId: string) {
+    setFormError(null);
+    setDeletingTaskItemId(subtaskId);
+    const formData = new FormData();
+    formData.set("subtaskId", subtaskId);
+    let result: TaskActionState;
+    try {
+      result = await deleteSubtaskAction(initialTaskActionState, formData);
+    } catch {
+      setFormError("Subtaak verwijderen is mislukt. Controleer de verbinding en probeer het opnieuw.");
+      setDeletingTaskItemId(null);
+      return;
+    }
+    setDeletingTaskItemId(null);
+    if (result.error) {
+      setFormError(result.error);
+      return;
+    }
+
+    setEditorMode("none");
+    setHasUnsavedChanges(false);
+    setSelectedSubtaskId(null);
+    setFeedback("Subtaak verwijderd.");
+    startTransition(() => router.refresh());
+  }
+
+  function confirmDelete() {
+    if (!deleteConfirmation) return;
+    const confirmation = deleteConfirmation;
+    setDeleteConfirmation(null);
+
+    if (confirmation.kind === "task") {
+      void deleteMainTask(confirmation.id);
+      return;
+    }
+
+    void deleteSubtask(confirmation.id);
   }
 
   async function archiveMainTask(taskId: string) {
@@ -2211,7 +2276,19 @@ export function TakenVisualPrototype({
                               >
                                 Annuleren
                               </button>
-                              <button type="button" className={styles.secondaryButton} onClick={deleteMainTask}>Verwijderen</button>
+                              <button
+                                type="button"
+                                className={styles.secondaryButton}
+                                onClick={() => setDeleteConfirmation({
+                                  kind: "task",
+                                  id: task.id,
+                                  title: task.title,
+                                  subtaskCount: task.subtasks.length,
+                                })}
+                                disabled={deletingTaskItemId === task.id}
+                              >
+                                {deletingTaskItemId === task.id ? "Verwijderen..." : "Verwijderen"}
+                              </button>
                               <button type="submit" className={styles.primaryButton} disabled={isSaving}>
                                 {isSaving ? "Opslaan..." : "Hoofdtaak opslaan"}
                               </button>
@@ -2706,7 +2783,18 @@ export function TakenVisualPrototype({
                                 >
                                   Annuleren
                                 </button>
-                                <button type="button" className={styles.secondaryButton} onClick={deleteSubtask}>Verwijderen</button>
+                                <button
+                                  type="button"
+                                  className={styles.secondaryButton}
+                                  onClick={() => setDeleteConfirmation({
+                                    kind: "subtask",
+                                    id: selectedSubtask.id,
+                                    title: selectedSubtask.title,
+                                  })}
+                                  disabled={deletingTaskItemId === selectedSubtask.id}
+                                >
+                                  {deletingTaskItemId === selectedSubtask.id ? "Verwijderen..." : "Verwijderen"}
+                                </button>
                                 <button type="submit" className={styles.primaryButton} disabled={isSaving}>
                                   {isSaving ? "Opslaan..." : "Subtaak opslaan"}
                                 </button>
@@ -2887,6 +2975,43 @@ export function TakenVisualPrototype({
           )}
         </section>
       </div>
+
+      {deleteConfirmation && (
+        <div
+          className={styles.confirmationBackdrop}
+          onKeyDown={(event) => {
+            if (event.key === "Escape") setDeleteConfirmation(null);
+          }}
+        >
+          <section
+            className={styles.confirmationDialog}
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="delete-confirmation-title"
+            aria-describedby="delete-confirmation-description"
+          >
+            <h2 id="delete-confirmation-title">Weet je zeker dat je wilt verwijderen?</h2>
+            <p id="delete-confirmation-description">
+              {deleteConfirmation.kind === "task"
+                ? `Hoofdtaak “${deleteConfirmation.title}”${deleteConfirmation.subtaskCount > 0 ? ` en ${deleteConfirmation.subtaskCount} gekoppelde subtaken` : ""} worden definitief verwijderd, inclusief gekoppelde gegevens.`
+                : `Subtaak “${deleteConfirmation.title}” wordt definitief verwijderd, inclusief gekoppelde gegevens.`}
+            </p>
+            <div className={styles.confirmationActions}>
+              <button
+                type="button"
+                className={styles.secondaryButton}
+                onClick={() => setDeleteConfirmation(null)}
+                autoFocus
+              >
+                Nee
+              </button>
+              <button type="button" className={styles.dangerButton} onClick={confirmDelete}>
+                Ja, verwijderen
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
     </main>
   );
 }

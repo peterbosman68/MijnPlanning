@@ -156,7 +156,7 @@ De datalaag bestaat uit:
 
 React-componenten mogen Prisma niet rechtstreeks gebruiken.
 
-Een lokale PostgreSQL-installatie is niet nodig. Development-, test- en productiegegevens blijven aantoonbaar gescheiden. Kritieke deadline-integriteit krijgt naast servicevalidatie een PostgreSQL-vangnet; voor fase 1 zijn versioned triggers in de migratie de beoogde concrete vorm. Cycluscontrole op dependencies gebeurt transactioneel en serialiseert conflicterende graafwijzigingen. Archiveren is standaard. Definitief verwijderen is geblokkeerd bij tijdregistraties, bijlagen, importhistorie of dependencies; foreign keys voor dependencies gebruiken geen stille cascade.
+Een lokale PostgreSQL-installatie is niet nodig. Development-, test- en productiegegevens blijven aantoonbaar gescheiden. Kritieke deadline-integriteit krijgt naast servicevalidatie een PostgreSQL-vangnet; voor fase 1 zijn versioned triggers in de migratie de beoogde concrete vorm. Cycluscontrole op dependencies gebeurt transactioneel en serialiseert conflicterende graafwijzigingen. Archiveren is standaard. Definitief verwijderen vereist een expliciete gebruikersbevestiging; de domeinservice verwijdert daarna user-scoped private bestanden, tijdregistraties en dependencies voordat de taak- of subtaakrecord wordt verwijderd. Importhistorie blijft losgekoppeld behouden.
 
 Bijlagen zijn first-class gegevens en bestaan zowel voor hoofdtaken als subtaken. De datalaag bewaart daarom attachmentmetadata apart van de taak- of subtaakrecord zelf; echte bestanden worden privé opgeslagen en links blijven als metadata beschikbaar.
 

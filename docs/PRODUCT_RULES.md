@@ -74,7 +74,7 @@ deadline subtaak <= deadline taak
 - Afhankelijkheden mogen tussen subtaken van verschillende taken lopen.
 - Een geblokkeerde subtaak mag niet worden ingepland voordat alle verplichte voorgangers klaar zijn.
 - Cyclische afhankelijkheden worden transactioneel geweigerd, ook bij gelijktijdige wijzigingen.
-- Dependencies worden nooit stilzwijgend of via een automatische cascade verwijderd.
+- Dependencies worden alleen via een expliciete dependencyhandeling verwijderd, behalve wanneer de gebruiker de definitieve verwijdering van de gekoppelde taak of subtaak bevestigt.
 
 ## 6. Statussen in fase 1
 
@@ -93,8 +93,10 @@ Handmatig bedienbaar:
 ## 7. Archiveren en definitief verwijderen
 
 - Archiveren is de standaard in plaats van definitief verwijderen.
-- Definitief verwijderen wordt geblokkeerd wanneer tijdregistraties, bijlagen, importhistorie of afhankelijkheden bestaan.
-- Een dependency verdwijnt alleen na een expliciete dependencyhandeling.
+- Definitief verwijderen van een taak of subtaak vraagt altijd één expliciete bevestiging met `Nee` en `Ja, verwijderen`.
+- Na bevestiging worden de taak of subtaak en gekoppelde tijdregistraties, bijlagen en afhankelijkheden definitief verwijderd.
+- Bij een hoofdtaak worden ook alle onderliggende subtaken en hun gekoppelde gegevens verwijderd.
+- Importhistorie blijft behouden en wordt losgekoppeld van de verwijderde taak.
 
 ---
 

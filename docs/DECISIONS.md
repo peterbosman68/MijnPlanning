@@ -221,8 +221,10 @@ Nieuwe besluiten worden onderaan toegevoegd met datum.
 ### O16 — archiveren en verwijderen
 
 - Archiveren is de standaard in plaats van definitief verwijderen.
-- Definitief verwijderen wordt geblokkeerd wanneer tijdregistraties, bijlagen, importhistorie of afhankelijkheden bestaan.
-- Dependencies worden nooit stilzwijgend verwijderd en nooit automatisch gecascadeerd.
+- De knoppen `Verwijderen` tonen altijd één bevestiging met `Nee` en `Ja, verwijderen`.
+- Na bevestiging worden een taak of subtaak en de gekoppelde tijdregistraties, bijlagen en dependencies server-side en user-scoped definitief verwijderd.
+- Bij een hoofdtaak vallen ook alle onderliggende subtaken onder dezelfde expliciete bevestiging.
+- Importhistorie blijft behouden en wordt losgekoppeld; dependencies worden gericht door de domeinservice verwijderd en niet via een databasecascade.
 
 ### O17 — taakduur
 

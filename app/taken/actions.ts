@@ -15,6 +15,8 @@ import {
   createDependency,
   createSubtask,
   createTask,
+  deleteSubtask,
+  deleteTask,
   removeDependency,
   updateSubtask,
   updateTask,
@@ -138,6 +140,22 @@ export async function archiveTaskAction(_: TaskActionState, formData: FormData):
   redirectToTask(result!.taskId);
 }
 
+export async function deleteTaskAction(_: TaskActionState, formData: FormData): Promise<TaskActionState> {
+  await verifyMutationOrigin();
+  const session = await requireUser();
+
+  try {
+    const taskId = String(formData.get("taskId") ?? "").trim();
+    if (!taskId) throw new TaskNotFoundError();
+    const result = await deleteTask(session.user.id, taskId);
+    logger.info({ code: "TASK_DELETED", route: "/taken", status: "ok" });
+    return { error: null, taskId: result.taskId };
+  } catch (error) {
+    logger.error({ code: "TASK_DELETE_FAILED", route: "/taken", status: "error" });
+    return mapError(error);
+  }
+}
+
 export async function saveSubtaskAction(_: TaskActionState, formData: FormData): Promise<TaskActionState> {
   const startedAt = performance.now();
   await verifyMutationOrigin();
@@ -183,6 +201,22 @@ export async function archiveSubtaskAction(_: TaskActionState, formData: FormDat
   }
 
   redirectToTask(result!.taskId);
+}
+
+export async function deleteSubtaskAction(_: TaskActionState, formData: FormData): Promise<TaskActionState> {
+  await verifyMutationOrigin();
+  const session = await requireUser();
+
+  try {
+    const subtaskId = String(formData.get("subtaskId") ?? "").trim();
+    if (!subtaskId) throw new TaskNotFoundError();
+    const result = await deleteSubtask(session.user.id, subtaskId);
+    logger.info({ code: "SUBTASK_DELETED", route: "/taken", status: "ok" });
+    return { error: null, taskId: result.taskId, subtaskId: result.subtaskId };
+  } catch (error) {
+    logger.error({ code: "SUBTASK_DELETE_FAILED", route: "/taken", status: "error" });
+    return mapError(error);
+  }
 }
 
 export async function saveDependencyAction(_: TaskActionState, formData: FormData): Promise<TaskActionState> {

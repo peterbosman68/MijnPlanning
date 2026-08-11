@@ -2,6 +2,8 @@ import "server-only";
 
 import type { PrismaClient } from "@prisma/client";
 
+import { deletePrivateAttachment } from "@/lib/attachments/blob-storage";
+
 import {
   formatAmsterdamDateInput,
   formatAmsterdamDateTimeLabel,
@@ -22,9 +24,15 @@ import {
   createSubtaskRecord,
   createTaskRecord,
   deleteDependencyRecord,
+  deleteSubtaskRelatedRecords,
+  deleteSubtaskRecord,
+  deleteTaskRelatedRecords,
+  deleteTaskRecord,
   findDependencyForUser,
   findSubtaskForUser,
+  findSubtaskForDeletion,
   findTaskForUser,
+  findTaskForDeletion,
   listDependenciesForUser,
   listSubtasksForTask,
   listSubtasksForUser,
@@ -432,6 +440,28 @@ export async function archiveTask(userId: string, taskId: string) {
   });
 }
 
+async function deleteStoredFiles(blobPaths: ReadonlyArray<string | null>) {
+  const uniquePaths = [...new Set(blobPaths.filter((blobPath): blobPath is string => Boolean(blobPath)))];
+  await Promise.all(uniquePaths.map((blobPath) => deletePrivateAttachment(blobPath)));
+}
+
+export async function deleteTask(userId: string, taskId: string) {
+  return withUserLock(userId, async (tx) => {
+    const task = await findTaskForDeletion(tx, userId, taskId);
+    if (!task) throw new TaskNotFoundError();
+
+    await deleteStoredFiles([
+      ...task.attachments.map((attachment) => attachment.blobPath),
+      ...task.subtasks.flatMap((subtask) => subtask.attachments.map((attachment) => attachment.blobPath)),
+    ]);
+    await deleteTaskRelatedRecords(tx, userId, taskId);
+
+    const deleted = await deleteTaskRecord(tx, userId, taskId);
+    if (deleted.count !== 1) throw new TaskNotFoundError();
+    return { taskId };
+  });
+}
+
 export async function createSubtask(userId: string, input: SubtaskFormInput) {
   return withUserLock(userId, async (tx) => {
     const currentTask = await findTaskForUser(tx, userId, input.taskId);
@@ -534,6 +564,20 @@ export async function archiveSubtask(userId: string, subtaskId: string) {
     priority: current.priority,
     context: current.context ?? "",
     status: "ARCHIVED",
+  });
+}
+
+export async function deleteSubtask(userId: string, subtaskId: string) {
+  return withUserLock(userId, async (tx) => {
+    const subtask = await findSubtaskForDeletion(tx, userId, subtaskId);
+    if (!subtask) throw new TaskNotFoundError();
+
+    await deleteStoredFiles(subtask.attachments.map((attachment) => attachment.blobPath));
+    await deleteSubtaskRelatedRecords(tx, userId, subtaskId);
+    const deleted = await deleteSubtaskRecord(tx, userId, subtaskId);
+    if (deleted.count !== 1) throw new TaskNotFoundError();
+    await recalculateTaskProjectionTx(tx, subtask.taskId);
+    return { taskId: subtask.taskId, subtaskId };
   });
 }
 
